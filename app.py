@@ -24,6 +24,15 @@ Y_AXIS_COLUMN_MAP = {
     'Variant': 'variant'                    # Will be calculated if selected
 }
 
+# Mapping for Dot Colors (Color/Dots Config)
+DOTS_COLOR_MAP = {
+    'Case ID (Default)': 'case_id',
+    'Activity': 'activity',
+    'Resource': 'resource',
+    'Event Index (in trace)': 'event_index_in_trace',
+    'Global Logical Time': 'timestamp_logical_global',
+}
+
 def main():
     st.title('Event Log Dotted Chart')
 
@@ -32,9 +41,11 @@ def main():
     
     x_axis_options = list(X_AXIS_COLUMN_MAP.keys())
     y_axis_options = list(Y_AXIS_COLUMN_MAP.keys())
+    dots_config_options = list(DOTS_COLOR_MAP.keys())
     
     x_axis = st.selectbox('Select x-axis:', x_axis_options)
     y_axis = st.selectbox('Select y-axis:', y_axis_options)
+    dots_config_label = st.selectbox('Select Dot Color/Configuration:', dots_config_options)
 
     # 1. Load Data and Store in session_state
     if st.button('Load and Plot'):
@@ -63,7 +74,7 @@ def main():
             # Determine the columns to plot
             x_col = X_AXIS_COLUMN_MAP[x_axis]
             y_col = Y_AXIS_COLUMN_MAP[y_axis]
-            
+            dots_config_col = DOTS_COLOR_MAP[dots_config_label] # Default to case_id
             # Create a copy for modification if needed (e.g., variant calculation)
             df_selected = df_base.copy() 
             
@@ -98,9 +109,9 @@ def main():
                 df_selected,
                 x=x_col,                          # Use the dynamically selected X-column
                 y=y_col,                          # Use the dynamically selected Y-column
-                color='case_id',                  # Color by trace
+                color=dots_config_col,                  # Color by trace
                 title=f"Dotted Chart: {y_axis} vs {x_axis}",
-                labels={x_col: x_axis, y_col: y_axis, 'case_id': 'Case ID'},
+                labels={x_col: x_axis, y_col: y_axis, dots_config_col: dots_config_label},
                 hover_data=['activity', 'event_index', 'actual_time']
             )
             
