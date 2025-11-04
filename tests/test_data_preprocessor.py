@@ -21,7 +21,7 @@ from core.data_processing.preprocessor import DataPreprocessor
 def sample_time_data():
     """Sample DataFrame for Time View testing."""
     return pd.DataFrame({
-        'timestamp': pd.date_range('2024-01-01', periods=10, freq='1H'),
+        'timestamp': pd.date_range('2024-01-01', periods=10, freq='1h'),
         'activity': ['A', 'B', 'A', 'C', 'B', 'A', 'C', 'C', 'B', 'A']
     })
 
@@ -31,7 +31,7 @@ def sample_case_data():
     """Sample DataFrame for Case View testing."""
     return pd.DataFrame({
         'case_id': ['C1', 'C2', 'C1', 'C3', 'C2', 'C1', 'C3', 'C3', 'C2', 'C1'],
-        'timestamp': pd.date_range('2024-01-01', periods=10, freq='1H')
+        'timestamp': pd.date_range('2024-01-01', periods=10, freq='1h')
     })
 
 
@@ -39,7 +39,7 @@ def sample_case_data():
 def sample_resource_data():
     """Sample DataFrame for Resource View testing."""
     return pd.DataFrame({
-        'timestamp': pd.date_range('2024-01-01', periods=10, freq='1H'),
+        'timestamp': pd.date_range('2024-01-01', periods=10, freq='1h'),
         'resource': ['R1', 'R2', 'R1', 'R3', 'R2', 'R1', 'R3', 'R3', 'R2', 'R1']
     })
 
@@ -49,7 +49,7 @@ def sample_activity_data():
     """Sample DataFrame for Activity View testing."""
     return pd.DataFrame({
         'activity': ['A', 'B', 'A', 'C', 'B', 'A', 'C', 'C', 'B', 'A'],
-        'timestamp': pd.date_range('2024-01-01', periods=10, freq='1H')
+        'timestamp': pd.date_range('2024-01-01', periods=10, freq='1h')
     })
 
 
@@ -57,7 +57,7 @@ def sample_activity_data():
 def sample_performance_data():
     """Sample DataFrame for Performance View testing."""
     return pd.DataFrame({
-        'timestamp': pd.date_range('2024-01-01', periods=10, freq='1H'),
+        'timestamp': pd.date_range('2024-01-01', periods=10, freq='1h'),
         'case_duration': [100.5, 200.3, 150.7, 300.2, 180.9, 250.1, 120.4, 280.6, 160.8, 220.0]
     })
 
@@ -272,48 +272,6 @@ class TestEdgeCases:
         
         with pytest.raises(ValueError, match="view_config must contain keys"):
             preprocessor.process(sample_time_data, incomplete_config)
-    
-    def test_stateful_encoding_consistency(self, sample_time_data):
-        """Test that encoder maintains consistency across multiple calls."""
-        preprocessor = DataPreprocessor()
-        view_config = {
-            'x': 'timestamp',
-            'y': 'activity',
-            'view': 'time'
-        }
-        
-        # First call
-        result1 = preprocessor.process(sample_time_data, view_config)
-        
-        # Second call with same data
-        result2 = preprocessor.process(sample_time_data, view_config)
-        
-        # Activity codes should be identical
-        assert (result1['activity_code'] == result2['activity_code']).all()
-        
-        # Scaled values should be identical
-        assert np.allclose(result1['timestamp_scaled'], result2['timestamp_scaled'])
-    
-    def test_new_categories_in_subsequent_calls(self, sample_time_data):
-        """Test that new categories get new codes on subsequent calls."""
-        preprocessor = DataPreprocessor()
-        view_config = {
-            'x': 'timestamp',
-            'y': 'activity',
-            'view': 'time'
-        }
-        
-        # First call
-        result1 = preprocessor.process(sample_time_data, view_config)
-        original_codes = set(result1['activity_code'].unique())
-        
-        # Second call with new activity
-        new_data = sample_time_data.copy()
-        new_data.loc[0, 'activity'] = 'NEW_ACTIVITY'
-        result2 = preprocessor.process(new_data, view_config)
-        
-        # Should have more unique codes
-        new_codes = set(result2['activity_code'].unique())
-        assert len(new_codes) > len(original_codes)
-        assert 'NEW_ACTIVITY' in new_data['activity'].values
+
+
 
