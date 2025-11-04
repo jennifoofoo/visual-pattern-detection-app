@@ -86,8 +86,16 @@ class ClusterPattern(Pattern):
             return
 
         try:
+            # Create proper view_config for preprocessor (it needs a 'view' key)
+            preprocessor_config = {
+                'x': self.view_config['x'],
+                'y': self.view_config['y'],
+                'view': 'time',  # Default view type
+                'scaler': 'standard'  # Better for clustering
+            }
+
             # Use preprocessor to prepare data
-            processed_df = self.preprocessor.process(df, self.view_config)
+            processed_df = self.preprocessor.process(df, preprocessor_config)
 
             if processed_df.empty:
                 self.detected = None
@@ -97,13 +105,42 @@ class ClusterPattern(Pattern):
             x_col = self.view_config['x']
             y_col = self.view_config['y']
 
-            # Get the processed coordinates
-            X = processed_df[[x_col, y_col]].values
-            self.original_indices = processed_df.index.values
+            # Get the processed coordinates and ensure they are numeric
+            x_data = processed_df[x_col].copy()
+            y_data = processed_df[y_col].copy()
+
+            # Convert datetime to numeric if needed
+            if pd.api.types.is_datetime64_any_dtype(x_data):
+                x_data = pd.to_numeric(x_data)
+            if pd.api.types.is_datetime64_any_dtype(y_data):
+                y_data = pd.to_numeric(y_data)
+
+            # Convert to numeric, handling any remaining non-numeric values
+            x_data = pd.to_numeric(x_data, errors='coerce')
+            y_data = pd.to_numeric(y_data, errors='coerce')
+
+            # Remove any NaN values
+            valid_mask = pd.notna(x_data) & pd.notna(y_data)
+            if not valid_mask.any():
+                self.detected = None
+                return
+
+            x_clean = x_data[valid_mask]
+            y_clean = y_data[valid_mask]
+            clean_indices = processed_df.index[valid_mask]
+
+            # Create coordinate matrix
+            X = np.column_stack([x_clean, y_clean])
+            self.original_indices = clean_indices.values
 
             if len(X) < 2:
                 self.detected = None
                 return
+
+            # Debug: Check data types and values
+            print(f"Data shape: {X.shape}, X dtype: {X.dtype}")
+            print(
+                f"X range: [{np.min(X[:, 0])}, {np.max(X[:, 0])}], Y range: [{np.min(X[:, 1])}, {np.max(X[:, 1])}]")
 
             # Apply clustering
             labels = self._apply_clustering(X)

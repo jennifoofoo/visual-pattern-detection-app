@@ -133,7 +133,7 @@ def main():
             # Usually too many case IDs to show legend
             fig.update_layout(showlegend=False)
 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
             # Store the current plot configuration for clustering
             st.session_state['current_plot_config'] = {
@@ -159,12 +159,6 @@ def main():
                 "Select Clustering Algorithm:",
                 ["OPTICS", "DBSCAN"],
                 help="OPTICS: Good for varying density clusters. DBSCAN: Good for arbitrary shapes."
-            )
-
-            detect_trends = st.checkbox(
-                "Detect Trend Lines",
-                value=True,
-                help="Automatically detect increasing/decreasing patterns as separate clusters"
             )
 
         with col2:
@@ -203,7 +197,6 @@ def main():
                     cluster_detector = ClusterPattern(
                         view_config=view_config,
                         algorithm=algorithm.lower(),
-                        detect_trends=detect_trends,
                         **params
                     )
 
@@ -281,8 +274,7 @@ def main():
                             height=600
                         )
 
-                        st.plotly_chart(
-                            fig_clustered, use_container_width=True)
+                        st.plotly_chart(fig_clustered, width='stretch')
 
                         # Detailed cluster information
                         with st.expander(" Detailed Cluster Information"):
