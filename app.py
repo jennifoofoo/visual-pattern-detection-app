@@ -19,7 +19,7 @@ X_AXIS_COLUMN_MAP = {
 Y_AXIS_COLUMN_MAP = {
     'Case ID': 'case_id',
     'Activity': 'activity',
-    'Event Index': 'event_index', # Used 'event_index_in_trace' in latest load_xes_log
+    'Event Index': 'event_index',           # Used 'event_index_in_trace' in latest load_xes_log
     'Resource': 'resource',                 # Assuming 'resource' is in the log/DataFrame
     'Variant': 'variant'                    # Will be calculated if selected
 }
@@ -121,77 +121,6 @@ def main():
             
             st.plotly_chart(fig, use_container_width=True)
 
-    # region legacy
-
-    # # #  if button is pressed then do this
-    # # if st.button('Load and Plot'):
-    # #     df = load_xes_log(xes_path)
-    # #     st.session_state['summary'] = summarize_event_log(df)
-    # #     st.write(f"Loaded {len(df)} events.")
-    # #     st.subheader('Event Log Summary')
-    # #     for k, v in st.session_state['summary'].items():
-    # #         st.write(f"**{k}:** {v}")
-
-    #     # Precompute all time representations
-    #     # absolute time
-    #     time_dfs = {}
-    #     df_rel = df.copy()
-    #     df_rel['x'] = df_rel['actual_time']
-    #     df_rel.attrs['x_label'] = 'actual_time'
-    #     time_dfs['Relative time'] = df_rel
-
-    #     df_log = df.copy()
-    #     df_log['x'] = df_log['logical_time']
-    #     df_log.attrs['x_label'] = 'Logical Time (s)'
-    #     time_dfs['Logical time'] = df_log
-
-    #     df_ratio = df.copy()
-    #     df_ratio['x'] = df_ratio['relative_ratio']
-    #     df_ratio.attrs['x_label'] = 'Relative Ratio'
-    #     time_dfs['Relative ratio'] = df_ratio
-
-    #     df_logrel = df.copy()
-    #     df_logrel['x'] = df_logrel['logical_relative']
-    #     df_logrel.attrs['x_label'] = 'Logical Relative'
-    #     time_dfs['Logical relative'] = df_logrel
-
-    #     st.session_state['time_dfs'] = time_dfs
-
-    # # Show chart for selected x and y axis if data is loaded
-    # if 'time_dfs' in st.session_state:
-    #     df_selected = st.session_state['time_dfs'][x_axis]
-    #     y_map = {
-    #         'Case ID': 'case_id',
-    #         'Activity': 'activity',
-    #         'Event Index': 'event_index',
-    #         'Resource': 'resource',
-    #         'Variant': 'variant'
-    #     }
-    #     y_col = y_map[y_axis]
-    #     # If variant is selected, compute variant column if not present
-    #     if y_col == 'variant' and 'variant' not in df_selected.columns:
-    #         n = 10  # Number of most common variants to show
-    #         case_variants = df_selected.groupby('case_id')['activity'].apply(lambda x: '-'.join(x))
-    #         variant_counts = case_variants.value_counts()
-    #         top_variants = variant_counts.head(n).index.tolist()
-    #         # Assign variant column
-    #         df_selected['variant'] = df_selected['case_id'].map(case_variants)
-    #         # Filter to only top n variants
-    #         df_selected = df_selected[df_selected['variant'].isin(top_variants)]
-    #     fig = px.scatter(
-    #         df_selected,
-    #         x='x',
-    #         y=y_col,
-    #         color='case_id',
-    #         title=f"Dotted Chart ({y_axis} vs {df_selected.attrs.get('x_label', 'Time')})",
-    #         labels={'x': df_selected.attrs.get(
-    #             'x_label', 'Time'), y_col: y_axis, 'case_id': 'Case ID'}
-    #     )
-    #     st.plotly_chart(fig)
-    # endregion
-
-
-    # ignore for now
     if st.button("Describe Chart with Ollama"):
         OllamaEvaluator_instance = OllamaEvaluator()
         df = st.session_state.get('df', None)
