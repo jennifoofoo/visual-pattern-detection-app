@@ -11,13 +11,22 @@ Times Representations from the paper:
 3. Logical Time: Sequence of all Events across all traces
 4. Logical Relative: 3. + first Events are positioned at time 0
 
-XES Event Logs contain Data about:
+XES Event Logs Data that we probably care about:
 Traces:
-    Case_ID = trace.concept
+    Case_ID = one actual trace      -> max(case_id) = amount of traces
     start_time = timestamp of first event in trace
     end_time = timestamp of last event in trace
-    total_events = len(trace)
+    total_events = amount of events
 Events:
+    'case_id'
+    'event_index'
+    'activity'
+    # time representations
+    'actual_time'
+    'relative_time'
+    'relative_ratio'
+    'logical_time'
+    'logical_relative'
 
 
 
@@ -102,7 +111,7 @@ def load_xes_log(xes_path):
                 'logical_relative': logical_relative
             })
         # endregion
-    # ToDo: add trace dataframe so we have meta data about traces
+    # maybe ToDo: add trace dataframe so we have meta data about traces
     return pd.DataFrame(events)
 
 if __name__ == '__main__':
