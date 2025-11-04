@@ -199,9 +199,20 @@ class DataPreprocessor:
             return df.copy()
         
         # Default to Time View for backward compatibility
+        # Try to detect columns from data_loader.py output first, fallback to standard names
         if view_config is None:
+            # Check if data_loader.py columns exist (actual_time, relative_time, etc.)
+            if 'actual_time' in df.columns:
+                x_col = 'actual_time'
+            elif 'relative_time' in df.columns:
+                x_col = 'relative_time'
+            elif 'timestamp' in df.columns:
+                x_col = 'timestamp'
+            else:
+                x_col = 'timestamp'  # fallback
+            
             view_config = {
-                "x": "timestamp",
+                "x": x_col,
                 "y": "activity",
                 "view": "time",
                 "scaler": "minmax"
