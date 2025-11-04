@@ -81,8 +81,14 @@ def load_xes_log(xes_path):
             # 2. Relative Ratio: Relative Time / Trace Duration (Normalized time [0, 1] using actual time)
             # This is the more common interpretation for 'Relative Ratio' in time-based charts.
             relative_ratio = None
-            if relative_time is not None and duration_in_seconds and duration_in_seconds > 0:
-                relative_ratio = relative_time / duration_in_seconds
+            if relative_time is not None:
+                if duration_in_seconds > 0:
+                    # Safe division
+                    relative_ratio = relative_time / duration_in_seconds
+                elif duration_in_seconds == 0:
+                    # If duration is 0, the event is the only event or all events are instantaneous.
+                    # Since relative_time must also be 0 in this case, the ratio is 0.
+                    relative_ratio = 0.0
             # 3. timestamp - Logical Time: Sequence of all Events across all traces
             logical_time = global_event_index
             global_event_index += 1 # Increment for the next event
