@@ -3,7 +3,7 @@ import plotly.express as px
 from core.evaluation.ollama import OllamaEvaluator
 from core.visualization.visualizer import plot_dotted_chart
 from core.evaluation.summary_generator import summarize_event_log
-from core.data_loader import load_xes_log
+from core.data_processing import load_xes_log
 from core.detection.cluster_pattern import ClusterPattern
 
 

@@ -122,3 +122,4 @@ def load_xes_log(xes_path):
 
 if __name__ == '__main__':
     load_xes_log("data/Hospital_log.xes")
+
