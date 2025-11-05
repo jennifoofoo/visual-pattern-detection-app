@@ -5,6 +5,7 @@ from core.visualization.visualizer import plot_dotted_chart
 from core.evaluation.summary_generator import summarize_event_log
 from core.data_processing import load_xes_log, DataPreprocessor
 from core.detection.cluster_pattern import ClusterPattern
+from core.detection.gap_pattern import GapPattern
 
 
 # Maps user selection to the column name generated in load_xes_log
@@ -132,6 +133,10 @@ def main():
             fig.update_traces(marker=dict(size=5, opacity=0.8))
             # Usually too many case IDs to show legend
             fig.update_layout(showlegend=False)
+
+            # Add gap visualization if gaps were detected
+            if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
+                fig = st.session_state['gap_detector'].visualize(df_selected, fig)
 
             st.plotly_chart(fig, width='stretch')
 
@@ -297,6 +302,203 @@ def main():
             except Exception as e:
                 st.error(f"Error during clustering: {str(e)}")
                 st.exception(e)
+
+    # Gap Detection Section
+    if 'df' in st.session_state and 'current_plot_config' in st.session_state:
+        st.divider()
+        st.subheader("Gap Detection")
+
+        plot_config = st.session_state['current_plot_config']
+        x_col = plot_config['x_col']
+        
+        # Determine unit based on X-axis column
+        # Note: actual_time is shown in seconds for user convenience, but converted to nanoseconds internally
+        unit_info = {
+            'actual_time': ('Sekunden', '1 Minute = 60 Sekunden', 1.0, True),  # True = convert to nanoseconds
+            'relative_time': ('Sekunden', '1 Minute = 60 Sekunden', 1.0, False),
+            'relative_ratio': ('Ratio [0-1]', '0.1 = 10% der Trace-Dauer', 0.01, False),
+            'logical_time': ('Event-Index', '10 = 10 Events', 1.0, False),
+            'logical_relative': ('Event-Index in Trace', '5 = 5 Events im Trace', 1.0, False)
+        }
+        
+        unit_name, unit_example, unit_scale, needs_conversion = unit_info.get(
+            x_col, ('Einheiten', 'Basierend auf X-Achse', 1.0, False))
+
+        col1, col2 = st.columns([1, 1])
+
+        with col1:
+            min_gap_duration = st.number_input(
+                f"Min Gap Duration in {unit_name} (optional)",
+                min_value=0.0,
+                value=None,
+                step=unit_scale,
+                help=f"Minimum gap duration to detect in {unit_name}. {unit_example}. Leave empty for automatic detection based on data distribution."
+            )
+            if min_gap_duration is not None and min_gap_duration == 0.0:
+                min_gap_duration = None
+
+        with col2:
+            group_by_y = st.checkbox(
+                "Group by Y-Axis",
+                value=False,
+                help="If enabled, detects gaps separately for each Y-axis value (e.g., per activity). If disabled, detects global gaps."
+            )
+
+        # Gap detection button
+        if st.button("Detect Gaps", type="primary"):
+            try:
+                plot_config = st.session_state['current_plot_config']
+                df_selected = plot_config['df_selected']
+
+                # Create view configuration for gap detection
+                # Determine view type based on column types
+                preprocessor = DataPreprocessor()
+                view_type = preprocessor._determine_view_type(df_selected, plot_config['x_col'], plot_config['y_col'])
+                
+                view_config = {
+                    'x': plot_config['x_col'],
+                    'y': plot_config['y_col'],
+                    'view': view_type
+                }
+
+                # Create gap detector
+                with st.spinner("Detecting gaps..."):
+                    gap_detector = GapPattern(
+                        view_config=view_config,
+                        min_gap_duration=min_gap_duration,
+                        group_by_y=group_by_y
+                    )
+
+                    # Detect gaps
+                    gap_detector.detect(df_selected)
+
+                    if gap_detector.detected is None:
+                        # Clear gap detector if no gaps found
+                        if 'gap_detector' in st.session_state:
+                            del st.session_state['gap_detector']
+                        st.warning(
+                            "No gaps found with current parameters. Try adjusting the minimum gap duration or grouping settings.")
+                    else:
+                        # Store gap detection results
+                        st.session_state['gap_detector'] = gap_detector
+                        # Store parameters for display
+                        st.session_state['gap_group_by_y'] = group_by_y
+                        # Trigger chart refresh to show gaps
+                        st.rerun()
+
+            except Exception as e:
+                st.error(f"Error during gap detection: {str(e)}")
+                st.exception(e)
+
+        # Display gap detection results (persistent, outside button block)
+        if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
+            gap_detector = st.session_state['gap_detector']
+            group_by_y = st.session_state.get('gap_group_by_y', False)
+            plot_config = st.session_state['current_plot_config']
+            x_col = plot_config['x_col']
+            
+            # Get gap summary
+            summary = gap_detector.get_gap_summary()
+            
+            # Helper function to format timestamp (for start/end)
+            def format_timestamp(value, x_col):
+                """Format timestamp value based on X-axis column type."""
+                if x_col == 'actual_time':
+                    # Convert nanoseconds to datetime
+                    import pandas as pd
+                    timestamp_ns = int(value)
+                    dt = pd.Timestamp(timestamp_ns)
+                    return dt.strftime("%Y-%m-%d %H:%M:%S")
+                else:
+                    return f"{value:.2f}"
+            
+            # Helper function to format duration based on X-axis type
+            def format_duration(value, x_col):
+                """Format duration value based on X-axis column type."""
+                if x_col == 'actual_time':
+                    # Convert nanoseconds to readable units
+                    seconds = value / 1_000_000_000
+                    if seconds >= 86400:  # >= 1 day
+                        days = seconds / 86400
+                        return f"{days:.1f} Tage"
+                    elif seconds >= 3600:  # >= 1 hour
+                        hours = seconds / 3600
+                        return f"{hours:.1f} Stunden"
+                    elif seconds >= 60:  # >= 1 minute
+                        minutes = seconds / 60
+                        return f"{minutes:.1f} Minuten"
+                    else:
+                        return f"{seconds:.1f} Sekunden"
+                elif x_col in ['relative_time']:
+                    # Also in seconds (but relative)
+                    seconds = value
+                    if seconds >= 86400:
+                        days = seconds / 86400
+                        return f"{days:.1f} Tage"
+                    elif seconds >= 3600:
+                        hours = seconds / 3600
+                        return f"{hours:.1f} Stunden"
+                    elif seconds >= 60:
+                        minutes = seconds / 60
+                        return f"{minutes:.1f} Minuten"
+                    else:
+                        return f"{seconds:.1f} Sekunden"
+                elif x_col == 'relative_ratio':
+                    return f"{value:.3f} ({value*100:.1f}%)"
+                elif x_col in ['logical_time', 'logical_relative']:
+                    return f"{value:.0f} Events"
+                else:
+                    return f"{value:.2f}"
+
+            # Display results
+            st.success(
+                f"Gap detection completed! Found {summary.get('total_gaps', 0)} gaps")
+
+            # Show gap statistics
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Total Gaps", summary.get(
+                    'total_gaps', 0))
+            with col2:
+                total_duration = summary.get('total_gap_duration', 0)
+                formatted_total = format_duration(total_duration, x_col)
+                st.metric("Total Gap Duration", formatted_total)
+            with col3:
+                avg_duration = summary.get('average_gap_duration', 0)
+                formatted_avg = format_duration(avg_duration, x_col)
+                st.metric("Avg Gap Duration", formatted_avg)
+            with col4:
+                min_threshold = summary.get('min_gap_threshold', 0)
+                formatted_threshold = format_duration(min_threshold, x_col)
+                st.metric("Min Threshold", formatted_threshold)
+
+            # Show gap details
+            with st.expander("📊 Detailed Gap Information"):
+                st.json(summary)
+
+                # Show individual gaps (limited to first 50 for readability)
+                if summary.get('gaps'):
+                    st.write("**Detected Gaps:**")
+                    gaps_to_show = summary['gaps'][:50]  # Show first 50
+                    for i, gap in enumerate(gaps_to_show, 1):
+                        gap_duration = format_duration(gap['duration'], x_col)
+                        gap_start = format_timestamp(gap['start'], x_col)
+                        gap_end = format_timestamp(gap['end'], x_col)
+                        
+                        if group_by_y:
+                            st.write(
+                                f"- **Gap {i}** (Y='{gap['y_value']}'): "
+                                f"von {gap_start} bis {gap_end} "
+                                f"(Dauer: {gap_duration})")
+                        else:
+                            st.write(
+                                f"- **Gap {i}**: "
+                                f"von {gap_start} bis {gap_end} "
+                                f"(Dauer: {gap_duration})")
+                    
+                    if len(summary['gaps']) > 50:
+                        st.info(f"⚠️ Nur die ersten 50 von {len(summary['gaps'])} Gaps werden angezeigt. "
+                               f"Verwenden Sie die JSON-Ansicht für alle Details.")
 
     if st.button("Describe Chart with Ollama"):
         OllamaEvaluator_instance = OllamaEvaluator()
