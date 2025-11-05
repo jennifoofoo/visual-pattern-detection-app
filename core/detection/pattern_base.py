@@ -27,8 +27,8 @@ class Pattern(ABC):
             Name of the pattern (e.g., "Cluster", "Gap", "Trend")
         view_config : dict
             Configuration describing the Dotted Chart view attributes.
-            Expected keys: "x", "y", optionally "color".
-            Example: {"x": "timestamp", "y": "activity"}
+            Expected keys: "x", "y", optionally "view", "color".
+            Example: {"x": "timestamp", "y": "activity", "view": "time"}
         """
         self.name = name
         self.view_config = view_config

@@ -86,13 +86,16 @@ class ClusterPattern(Pattern):
             return
 
         try:
-            # Create view_config for preprocessor (view will be determined automatically)
+            # Create view_config for preprocessor
+            # Use view from view_config if available, otherwise let preprocessor determine it
             preprocessor_config = {
                 'x': self.view_config['x'],
                 'y': self.view_config['y'],
-                # 'view' is optional - Preprocessor will determine it automatically
                 'scaler': 'standard'  # Better for clustering
             }
+            # Include view if it's in view_config (should be part of config)
+            if 'view' in self.view_config:
+                preprocessor_config['view'] = self.view_config['view']
 
             # Use preprocessor to prepare data (automatically determines view type)
             processed_df = self.preprocessor.process(df, preprocessor_config)

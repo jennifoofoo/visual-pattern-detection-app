@@ -3,7 +3,7 @@ import plotly.express as px
 from core.evaluation.ollama import OllamaEvaluator
 from core.visualization.visualizer import plot_dotted_chart
 from core.evaluation.summary_generator import summarize_event_log
-from core.data_processing import load_xes_log
+from core.data_processing import load_xes_log, DataPreprocessor
 from core.detection.cluster_pattern import ClusterPattern
 
 
@@ -187,9 +187,14 @@ def main():
                 df_selected = plot_config['df_selected']
 
                 # Create view configuration for clustering
+                # Determine view type based on column types
+                preprocessor = DataPreprocessor()
+                view_type = preprocessor._determine_view_type(df_selected, plot_config['x_col'], plot_config['y_col'])
+                
                 view_config = {
                     'x': plot_config['x_col'],
-                    'y': plot_config['y_col']
+                    'y': plot_config['y_col'],
+                    'view': view_type  # View sollte Teil der Config sein
                 }
 
                 # Create cluster detector
