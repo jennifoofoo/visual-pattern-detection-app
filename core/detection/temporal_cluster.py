@@ -403,6 +403,7 @@ class TemporalClusterPattern(Pattern):
     # ==================== Visualization Support ====================
 
     def visualize(self, df: pd.DataFrame = None, fig=None):
+        #### FOR NOW ONLY ACTIVITY BURSTS IS VISUALISED
         """
         Add cluster visualizations to the figure.
 
