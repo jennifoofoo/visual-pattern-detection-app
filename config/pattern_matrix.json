@@ -1,0 +1,83 @@
+{
+  "time_activity_resource": {
+    "cluster": 1,
+    "gap": 1,
+    "trend": 1,
+    "burst": 1,
+    "outlier": 1,
+    "seasonality": 1,
+    "sequential": 0,
+    "overlap": 0
+  },
+  "time_resource_activity": {
+    "cluster": 1,
+    "gap": 1,
+    "trend": 1,
+    "burst": 1,
+    "outlier": 1,
+    "seasonality": 0,
+    "sequential": 0,
+    "overlap": 0
+  },
+  "case_time_activity": {
+    "cluster": 1,
+    "gap": 1,
+    "trend": 0,
+    "burst": 0,
+    "outlier": 1,
+    "seasonality": 0,
+    "sequential": 0,
+    "overlap": 1
+  },
+  "time_duration_resource": {
+    "cluster": 1,
+    "gap": 0,
+    "trend": 1,
+    "burst": 0,
+    "outlier": 1,
+    "seasonality": 0,
+    "sequential": 0,
+    "overlap": 0
+  },
+  "activity_time_resource": {
+    "cluster": 1,
+    "gap": 0,
+    "trend": 1,
+    "burst": 1,
+    "outlier": 1,
+    "seasonality": 1,
+    "sequential": 0,
+    "overlap": 0
+  },
+  "variant_duration_resource": {
+    "cluster": 0,
+    "gap": 0,
+    "trend": 1,
+    "burst": 0,
+    "outlier": 1,
+    "seasonality": 0,
+    "sequential": 0,
+    "overlap": 0
+  },
+  "case_eventindex_activity": {
+    "cluster": 0,
+    "gap": 0,
+    "trend": 0,
+    "burst": 0,
+    "outlier": 0,
+    "seasonality": 0,
+    "sequential": 1,
+    "overlap": 1
+  },
+  "time_case_resource": {
+    "cluster": 1,
+    "gap": 1,
+    "trend": 1,
+    "burst": 1,
+    "outlier": 1,
+    "seasonality": 0,
+    "sequential": 0,
+    "overlap": 1
+  }
+}
+
