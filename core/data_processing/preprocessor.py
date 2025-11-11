@@ -161,6 +161,55 @@ class DataPreprocessor:
         
         return df
     
+    def _determine_view_type(self, df: pd.DataFrame, x_col: str, y_col: str) -> str:
+        """
+        Automatically determine the appropriate view type based on column types.
+        
+        This method analyzes the X and Y columns to determine which view type
+        (time, case, resource, activity, performance) should be used for preprocessing.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Input dataframe
+        x_col : str
+            Column name for x-axis
+        y_col : str
+            Column name for y-axis
+            
+        Returns
+        -------
+        str
+            View type: 'time', 'case', 'resource', 'activity', or 'performance'
+        """
+        # Check column types
+        x_is_numeric = pd.api.types.is_numeric_dtype(df[x_col]) or pd.api.types.is_datetime64_any_dtype(df[x_col])
+        y_is_numeric = pd.api.types.is_numeric_dtype(df[y_col]) or pd.api.types.is_datetime64_any_dtype(df[y_col])
+        
+        # Determine view type based on common patterns
+        if x_is_numeric and not y_is_numeric:
+            # Numeric x (time) + categorical y (activity/resource) -> time or resource view
+            if 'activity' in y_col.lower() or 'activity' == y_col:
+                return 'time'
+            elif 'resource' in y_col.lower() or 'resource' == y_col:
+                return 'resource'
+            else:
+                return 'time'  # Default
+        elif not x_is_numeric and y_is_numeric:
+            # Categorical x + numeric y (time) -> case or activity view
+            if 'case' in x_col.lower() or 'case_id' in x_col.lower():
+                return 'case'
+            elif 'activity' in x_col.lower() or 'activity' == x_col:
+                return 'activity'
+            else:
+                return 'case'  # Default
+        elif x_is_numeric and y_is_numeric:
+            # Both numeric -> performance view
+            return 'performance'
+        else:
+            # Both categorical -> default to time view
+            return 'time'
+    
     def process(
         self, df: pd.DataFrame, view_config: Optional[Dict[str, str]] = None
     ) -> pd.DataFrame:
@@ -169,7 +218,8 @@ class DataPreprocessor:
         
         Applies encoding and normalization transformations based on the view type.
         The view_config controls which columns are encoded/normalized and which
-        scaling method is used.
+        scaling method is used. If 'view' is not specified, it will be automatically
+        determined based on column types.
         
         View configurations:
         - time: encode y (activity), normalize x (timestamp) with MinMax
@@ -184,9 +234,10 @@ class DataPreprocessor:
             Input dataframe with columns matching view_config
         view_config : dict, optional
             Configuration dictionary with keys:
-            - x: column name for x-axis
-            - y: column name for y-axis
-            - view: type of view (time, case, resource, activity, performance)
+            - x: column name for x-axis (required)
+            - y: column name for y-axis (required)
+            - view: type of view (time, case, resource, activity, performance), optional
+              If not provided, will be automatically determined
             - scaler: optional, "minmax" (default) or "standard"
             If None, defaults to Time View (x="timestamp", y="activity", view="time")
             
@@ -207,15 +258,21 @@ class DataPreprocessor:
                 "scaler": "minmax"
             }
         
-        # Validate view_config
-        required_keys = ["x", "y", "view"]
+        # Validate required keys
+        required_keys = ["x", "y"]
         missing_keys = [key for key in required_keys if key not in view_config]
         if missing_keys:
             raise ValueError(f"view_config must contain keys: {missing_keys}")
         
-        view = view_config["view"].lower()
         x_col = view_config["x"]
         y_col = view_config["y"]
+        
+        # Automatically determine view type if not provided
+        if "view" not in view_config:
+            view = self._determine_view_type(df, x_col, y_col)
+        else:
+            view = view_config["view"].lower()
+        
         scaler_method = view_config.get("scaler", "minmax").lower()
         
         # Validate required columns exist

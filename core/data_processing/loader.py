@@ -104,11 +104,19 @@ def load_xes_log(xes_path):
             #         logical_relative = logical_time / total_events
             
             # other attributes
+            # Extract resource/group information (try multiple common XES attributes)
+            resource = (event.get('org:resource') or
+                        event.get('org:group') or
+                        event.get('resource') or
+                        event.get('user') or
+                        None)
+
             events.append({
                 'case_id': case_id,
                 'event_index': idx,
                 # might be smart to add total_events for comparing this timestamp to overall
                 'activity': event.get('concept:name', None),
+                'resource': resource,
                 # time representations
                 'actual_time': actual_time,
                 'relative_time': relative_time,
@@ -122,3 +130,4 @@ def load_xes_log(xes_path):
 
 if __name__ == '__main__':
     load_xes_log("data/Hospital_log.xes")
+
