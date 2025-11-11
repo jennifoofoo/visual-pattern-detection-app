@@ -86,7 +86,8 @@ This guide explains which temporal cluster patterns are **meaningful** for each 
 Combinations with 
 - logical_time, 
 - logical_relative, 
-- event_index 
+- event_index,
+ - relative_ratio
 are NOT meaningful for temporal clustering because they're sequential counters, not actual time measurements.
 ---
 
