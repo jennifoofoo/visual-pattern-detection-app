@@ -26,19 +26,8 @@ This guide explains which temporal cluster patterns are **meaningful** for each 
 **Meaningful for**: `actual_time × {activity, resource, case_id}`
 
 **What it detects**: Periods where many events happen in a short time window
-
-**Business Examples**:
-- **actual_time × activity**: "Approval" activities all clustered on Friday afternoons
-- **actual_time × resource**: "Radiology Lab" processes 50 events between 9-10 AM
-- **actual_time × case_id**: 20 new cases started simultaneously (batch intake)
-
-**Use Cases**:
-- Identify batch processing patterns
-- Detect shift changes
-- Find system load peaks
-- Discover scheduling patterns
-
 **How it works**: Uses DBSCAN clustering on the time axis to find dense temporal regions
+- DBSCAN complexity: O(n log n) to O(n²) depending on data
 
 ---
 
@@ -46,18 +35,6 @@ This guide explains which temporal cluster patterns are **meaningful** for each 
 **Meaningful for**: `{actual_time, relative_time, relative_ratio} × activity`
 
 **What it detects**: When specific activities consistently occur at certain times
-
-**Business Examples**:
-- **actual_time × activity**: "Lab Tests" always happen 8-11 AM (hospital schedules)
-- **relative_time × activity**: "Quality Check" occurs 2-4 hours after case start
-- **relative_ratio × activity**: "Final Approval" always at 0.8-0.9 of case duration
-
-**Use Cases**:
-- Understand activity timing patterns
-- Identify process bottlenecks
-- Validate SLA compliance (activities at expected times)
-- Detect scheduling rules
-
 **How it works**: For each activity type, clusters events along the time axis
 
 ---
@@ -66,17 +43,6 @@ This guide explains which temporal cluster patterns are **meaningful** for each 
 **Meaningful for**: `{actual_time, relative_time} × case_id`
 
 **What it detects**: How many cases run simultaneously (concurrent execution)
-
-**Business Examples**:
-- **actual_time × case_id**: Max 15 cases running at same time (capacity limits)
-- **relative_time × case_id**: High overlap indicates parallel processing capability
-
-**Use Cases**:
-- Measure process capacity
-- Identify resource constraints
-- Understand workload distribution
-- Detect batching vs continuous flow
-
 **How it works**: Calculates case start/end times and tracks overlaps
 
 ---
@@ -85,17 +51,6 @@ This guide explains which temporal cluster patterns are **meaningful** for each 
 **Meaningful for**: `{actual_time, relative_time} × resource`
 
 **What it detects**: When resources work (shift patterns, availability)
-
-**Business Examples**:
-- **actual_time × resource**: "Dr. Smith" works 9-17h, "Night Nurse" works 22-6h
-- **relative_time × resource**: "Senior Analyst" only handles cases after 3 days
-
-**Use Cases**:
-- Identify shift schedules
-- Detect resource availability patterns
-- Find understaffing periods
-- Understand handover patterns
-
 **How it works**: Clusters each resource's activities along time to find distinct work periods
 
 ---
@@ -104,17 +59,6 @@ This guide explains which temporal cluster patterns are **meaningful** for each 
 **Meaningful for**: `{relative_time, relative_ratio} × variant`
 
 **What it detects**: If different process paths have different timing characteristics
-
-**Business Examples**:
-- **relative_ratio × variant**: "Fast-track" variant completes at 0.2, "Complex" at 1.0
-- **relative_time × variant**: Variant A takes 2 hours, Variant B takes 20 hours
-
-**Use Cases**:
-- Compare process variant performance
-- Identify fast vs slow paths
-- Optimize process routing
-- Detect variant-specific bottlenecks
-
 **How it works**: Compares timing distributions across different process variants
 
 ---
@@ -138,7 +82,6 @@ This guide explains which temporal cluster patterns are **meaningful** for each 
 **relative_ratio × {case_id, resource}**:
 - Normalized time [0,1] isn't meaningful across different cases
 - Each case has its own [0,1] scale
-
 
 Combinations with 
 - logical_time, 
@@ -179,19 +122,5 @@ The `TemporalClusterPattern` class automatically:
 - Only runs relevant pattern detections
 - Skips meaningless combinations
 
-### Performance Considerations
-- DBSCAN complexity: O(n log n) to O(n²) depending on data
-- Recommended dataset size: < 100,000 events for real-time detection
-- Use sampling for larger datasets
 
-### Parameter Tuning
-- `min_cluster_size`: Minimum events to form a cluster (default: 5)
-  - Increase for larger datasets
-  - Decrease for sparse processes
-  
-- `temporal_eps`: Distance threshold for clustering
-  - Auto-calculated based on data range
-  - Manual override for domain-specific requirements
-
----
 
