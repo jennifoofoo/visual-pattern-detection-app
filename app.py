@@ -113,7 +113,7 @@ def main():
     with col2:
         if st.session_state.data_loaded:
             df_info = st.session_state.df
-            summary = st.session_state.summary
+            summary = st.session_state.get('summary', {})
 
             # Show key metrics
             col2a, col2b, col2c, col2d = st.columns(4)
@@ -124,9 +124,12 @@ def main():
                 st.metric("File", st.session_state.get(
                     'loaded_file', '').split('/')[-1])
 
-        with st.expander("Event Log Summary", expanded=False):
-            for k, v in summary.items():
-                st.write(f"**{k}:** {v}")
+            with st.expander("Event Log Summary", expanded=False):
+                if summary:
+                    for k, v in summary.items():
+                        st.write(f"**{k}:** {v}")
+                else:
+                    st.info("Summary not available")
 
     # Only show configuration if data is loaded
     if not st.session_state.data_loaded:
@@ -229,6 +232,9 @@ def main():
                     fig = st.session_state['gap_detector'].visualize(df_selected, fig)
 
                 st.plotly_chart(fig, use_container_width=True)
+                
+                # Store the figure for later use (e.g., after gap detection)
+                st.session_state['fig'] = fig
 
             # Store the current plot configuration and figure
             st.session_state['current_plot_config'] = {
@@ -244,12 +250,18 @@ def main():
             }
 
             # Store the figure and view config for pattern detection
-            st.session_state['fig'] = fig
+            # (fig is already stored above if gap_detector exists)
+            if 'fig' not in st.session_state:
+                st.session_state['fig'] = fig
             st.session_state['view_config'] = {
-                'x_axis': x_col,
-                'y_axis': y_col
+                'x': x_col,
+                'y': y_col
             }
             st.session_state['chart_plotted'] = True
+            
+            # Clear old gap detector when new chart is plotted
+            if 'gap_detector' in st.session_state:
+                del st.session_state['gap_detector']
 
         st.success("Chart created successfully!")
 
@@ -430,64 +442,86 @@ def main():
 
         plot_config = st.session_state['current_plot_config']
         x_col = plot_config['x_col']
+        y_col = plot_config['y_col']
+        df_selected = plot_config['df_selected']
         
-        # Determine unit based on X-axis column
-        # Note: actual_time is shown in seconds for user convenience, but converted to nanoseconds internally
-        unit_info = {
-            'actual_time': ('Sekunden', '1 Minute = 60 Sekunden', 1.0, True),  # True = convert to nanoseconds
-            'relative_time': ('Sekunden', '1 Minute = 60 Sekunden', 1.0, False),
-            'relative_ratio': ('Ratio [0-1]', '0.1 = 10% der Trace-Dauer', 0.01, False),
-            'logical_time': ('Event-Index', '10 = 10 Events', 1.0, False),
-            'logical_relative': ('Event-Index in Trace', '5 = 5 Events im Trace', 1.0, False)
-        }
+        # Determine if Y is categorical
+        y_is_categorical = df_selected[y_col].nunique() <= 60
         
-        unit_name, unit_example, unit_scale, needs_conversion = unit_info.get(
-            x_col, ('Einheiten', 'Basierend auf X-Achse', 1.0, False))
+        if y_is_categorical:
+            st.info("🔍 **Categorical Y-Axis**: Detects horizontal gaps within category bands. A gap is detected when an empty region within a category covers at least the specified fraction of the X-axis width.")
+        else:
+            st.info("🔍 **Numeric Y-Axis**: Detects true 2D empty regions. A gap is detected when an empty 2D region covers at least the specified fraction of the total plot area.")
 
-        col1, col2 = st.columns([1, 1])
-
-        with col1:
-            min_gap_duration = st.number_input(
-                f"Min Gap Duration in {unit_name} (optional)",
-                min_value=0.0,
-                value=None,
-                step=unit_scale,
-                help=f"Minimum gap duration to detect in {unit_name}. {unit_example}. Leave empty for automatic detection based on data distribution."
-            )
-            if min_gap_duration is not None and min_gap_duration == 0.0:
-                min_gap_duration = None
-
-        with col2:
-            group_by_y = st.checkbox(
-                "Group by Y-Axis",
-                value=False,
-                help="If enabled, detects gaps separately for each Y-axis value (e.g., per activity). If disabled, detects global gaps."
-            )
+        # Show appropriate parameter input
+        if y_is_categorical:
+            use_default_x_gap = st.checkbox("Use default horizontal gap threshold (0.02)", value=True)
+            if use_default_x_gap:
+                min_gap_x_width = None
+            else:
+                min_gap_x_width = st.number_input(
+                    "Minimum Horizontal Gap Width (fraction of X-axis)",
+                    min_value=0.0,
+                    max_value=1.0,
+                    value=0.02,
+                    step=0.01,
+                    format="%.2f",
+                    help="A gap is detected when the empty region within a category covers at least this fraction of the X-axis width."
+                )
+            min_gap_area = None
+        else:
+            # Check if X-axis is time-based
+            x_col = plot_config['x_col']
+            is_time_based = x_col in ['actual_time', 'relative_time', 'relative_ratio', 'logical_time', 'logical_relative'] or \
+                           (x_col in df_selected.columns and pd.api.types.is_datetime64_any_dtype(df_selected[x_col]))
+            
+            if is_time_based:
+                default_threshold = 0.001  # 0.1% for time-based (more sensitive)
+                default_label = "Use default time-based threshold (0.001 = 0.1%)"
+                help_text = "For time-based X-axes, a gap is detected when the time interval between consecutive events exceeds this fraction of the total time span. Default 0.001 (0.1%) is recommended for large time ranges (years)."
+            else:
+                default_threshold = 0.01  # 1% for numeric 2D
+                default_label = "Use default 2D area threshold (0.01 = 1%)"
+                help_text = "A gap is detected when an empty 2D region covers at least this fraction of the plot area."
+            
+            use_default_area_gap = st.checkbox(default_label, value=True)
+            if use_default_area_gap:
+                min_gap_area = None
+            else:
+                min_gap_area = st.number_input(
+                    "Minimum Gap Area (fraction of total chart area)",
+                    min_value=0.0,
+                    max_value=1.0,
+                    value=default_threshold,
+                    step=0.001,
+                    format="%.3f",
+                    help=help_text
+                )
+            min_gap_x_width = None
 
         # Gap detection button
         if st.button("Detect Gaps", type="primary"):
             try:
-                plot_config = st.session_state['current_plot_config']
-                df_selected = plot_config['df_selected']
-
                 # Create view configuration for gap detection
-                # Determine view type based on column types
-                preprocessor = DataPreprocessor()
-                view_type = preprocessor._determine_view_type(df_selected, plot_config['x_col'], plot_config['y_col'])
-                
                 view_config = {
-                    'x': plot_config['x_col'],
-                    'y': plot_config['y_col'],
-                    'view': view_type
+                    'x': x_col,
+                    'y': y_col
                 }
 
-                # Create gap detector
+                # Create gap detector with appropriate parameters
                 with st.spinner("Detecting gaps..."):
-                    gap_detector = GapPattern(
-                        view_config=view_config,
-                        min_gap_duration=min_gap_duration,
-                        group_by_y=group_by_y
-                    )
+                    if y_is_categorical:
+                        gap_detector = GapPattern(
+                            view_config=view_config,
+                            min_gap_x_width=min_gap_x_width,
+                            y_is_categorical=y_is_categorical
+                        )
+                    else:
+                        gap_detector = GapPattern(
+                            view_config=view_config,
+                            min_gap_area=min_gap_area,
+                            y_is_categorical=y_is_categorical
+                        )
 
                     # Detect gaps
                     gap_detector.detect(df_selected)
@@ -497,12 +531,52 @@ def main():
                         if 'gap_detector' in st.session_state:
                             del st.session_state['gap_detector']
                         st.warning(
-                            "No gaps found with current parameters. Try adjusting the minimum gap duration or grouping settings.")
+                            "No gaps found with current parameters. Try adjusting the threshold.")
                     else:
                         # Store gap detection results
                         st.session_state['gap_detector'] = gap_detector
-                        # Store parameters for display
-                        st.session_state['gap_group_by_y'] = group_by_y
+                        # Recreate and store the figure with gap visualization
+                        if 'current_plot_config' in st.session_state:
+                            # Recreate the base chart
+                            plot_config = st.session_state['current_plot_config']
+                            df_selected = plot_config['df_selected']
+                            x_col = plot_config['x_col']
+                            y_col = plot_config['y_col']
+                            dots_config_col = plot_config.get('dots_config_col')
+                            x_axis_label = plot_config.get('x_axis_label', x_col)
+                            y_axis_label = plot_config.get('y_axis_label', y_col)
+                            dots_config_label = plot_config.get('dots_config_label', '')
+                            total_points = plot_config.get('total_points', len(df_selected))
+                            
+                            # Recreate the base figure
+                            hover_cols = ['activity', 'event_index', 'actual_time']
+                            fig = plot_dotted_chart(
+                                df=df_selected,
+                                x=x_col,
+                                y=y_col,
+                                color=dots_config_col,
+                                title=f"Dotted Chart: {y_axis_label} vs {x_axis_label} ({total_points:,} points)",
+                                labels={x_col: x_axis_label, y_col: y_axis_label,
+                                        dots_config_col: dots_config_label},
+                                hover_data=hover_cols
+                            )
+                            
+                            # Improve visual appearance
+                            fig.update_traces(marker=dict(size=5, opacity=0.8))
+                            
+                            # Layout settings
+                            fig.update_layout(
+                                showlegend=(dots_config_col is not None and dots_config_col != 'case_id'),
+                                hovermode='closest',
+                                template='plotly_white',
+                                yaxis=dict(autorange='reversed')
+                            )
+                            
+                            # Add gap visualization
+                            fig = gap_detector.visualize(df_selected, fig)
+                            
+                            # Store the updated figure
+                            st.session_state['fig'] = fig
                         # Trigger chart refresh to show gaps
                         st.rerun()
 
@@ -510,10 +584,15 @@ def main():
                 st.error(f"Error during gap detection: {str(e)}")
                 st.exception(e)
 
+        # Display chart with gaps if available (after gap detection)
+        if 'fig' in st.session_state and 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
+            st.subheader("📊 Chart with Detected Gaps")
+            st.plotly_chart(st.session_state['fig'], use_container_width=True)
+            st.divider()
+
         # Display gap detection results (persistent, outside button block)
         if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
             gap_detector = st.session_state['gap_detector']
-            group_by_y = st.session_state.get('gap_group_by_y', False)
             plot_config = st.session_state['current_plot_config']
             x_col = plot_config['x_col']
             
@@ -524,10 +603,17 @@ def main():
             def format_timestamp(value, x_col):
                 """Format timestamp value based on X-axis column type."""
                 if x_col == 'actual_time':
-                    # Convert nanoseconds to datetime
                     import pandas as pd
-                    timestamp_ns = int(value)
-                    dt = pd.Timestamp(timestamp_ns)
+                    # Check if value is already a Timestamp object
+                    if isinstance(value, pd.Timestamp):
+                        dt = value
+                    elif isinstance(value, (int, float)):
+                        # Convert nanoseconds to datetime
+                        timestamp_ns = int(value)
+                        dt = pd.Timestamp(timestamp_ns)
+                    else:
+                        # Try to convert string or other types
+                        dt = pd.Timestamp(value)
                     return dt.strftime("%Y-%m-%d %H:%M:%S")
                 else:
                     return f"{value:.2f}"
@@ -580,17 +666,14 @@ def main():
                 st.metric("Total Gaps", summary.get(
                     'total_gaps', 0))
             with col2:
-                total_duration = summary.get('total_gap_duration', 0)
-                formatted_total = format_duration(total_duration, x_col)
-                st.metric("Total Gap Duration", formatted_total)
+                total_area = summary.get('total_gap_area', 0)
+                st.metric("Total Gap Area", f"{total_area:.4f}")
             with col3:
-                avg_duration = summary.get('average_gap_duration', 0)
-                formatted_avg = format_duration(avg_duration, x_col)
-                st.metric("Avg Gap Duration", formatted_avg)
+                avg_area = summary.get('average_gap_area', 0)
+                st.metric("Avg Gap Area", f"{avg_area:.4f}")
             with col4:
                 min_threshold = summary.get('min_gap_threshold', 0)
-                formatted_threshold = format_duration(min_threshold, x_col)
-                st.metric("Min Threshold", formatted_threshold)
+                st.metric("Min Threshold", f"{min_threshold:.4f}")
 
             # Show gap details
             with st.expander("📊 Detailed Gap Information"):
@@ -598,23 +681,81 @@ def main():
 
                 # Show individual gaps (limited to first 50 for readability)
                 if summary.get('gaps'):
+                    # Determine gap types for subtitle
+                    gap_types = set(gap.get('gap_type', 'spatial_2d') for gap in summary['gaps'])
+                    
+                    # Main title
                     st.write("**Detected Gaps:**")
+                    
+                    # Subtitle based on gap types
+                    if len(gap_types) == 1:
+                        gap_type = list(gap_types)[0]
+                        if gap_type == 'time_x_interval':
+                            st.caption("Time gaps on X axis (no events between the shown timestamps).")
+                        elif gap_type == 'category_x_interval':
+                            st.caption("Horizontal gaps within category bands (no events in the shown X intervals for specific categories).")
+                        elif gap_type == 'spatial_2d':
+                            st.caption("2D empty regions in the dotted chart.")
+                        else:
+                            st.caption("Gaps detected in the chart.")
+                    else:
+                        st.caption("Mixed gap types detected (time-based and 2D).")
+                    
                     gaps_to_show = summary['gaps'][:50]  # Show first 50
                     for i, gap in enumerate(gaps_to_show, 1):
-                        gap_duration = format_duration(gap['duration'], x_col)
-                        gap_start = format_timestamp(gap['start'], x_col)
-                        gap_end = format_timestamp(gap['end'], x_col)
+                        x_start = format_timestamp(gap.get('x_start', 0), x_col)
+                        x_end = format_timestamp(gap.get('x_end', 0), x_col)
+                        y_start = str(gap.get('y_start', ''))
+                        y_end = str(gap.get('y_end', ''))
+                        area = gap.get('area', 0)
+                        gap_type = gap.get('gap_type', 'spatial_2d')
                         
-                        if group_by_y:
+                        # Format gap type for display
+                        gap_type_display = {
+                            'time_x_interval': 'time_x_interval',
+                            'category_x_interval': 'category_x_interval',
+                            'spatial_2d': 'spatial_2d'
+                        }.get(gap_type, gap_type)
+                        
+                        # Build description based on gap type
+                        if gap_type == 'time_x_interval':
+                            # Format duration for time gaps
+                            duration = gap.get('duration')
+                            if duration is not None:
+                                if isinstance(duration, (int, float)):
+                                    if duration >= 86400:  # >= 1 day
+                                        days = duration / 86400
+                                        duration_str = f"{days:.1f} days"
+                                    elif duration >= 3600:  # >= 1 hour
+                                        hours = duration / 3600
+                                        duration_str = f"{hours:.1f} hours"
+                                    elif duration >= 60:  # >= 1 minute
+                                        minutes = duration / 60
+                                        duration_str = f"{minutes:.1f} minutes"
+                                    else:
+                                        duration_str = f"{duration:.1f} seconds"
+                                else:
+                                    duration_str = str(duration)
+                            else:
+                                duration_str = "N/A"
+                            
                             st.write(
-                                f"- **Gap {i}** (Y='{gap['y_value']}'): "
-                                f"von {gap_start} bis {gap_end} "
-                                f"(Dauer: {gap_duration})")
-                        else:
+                                f"- **Gap {i}** ({gap_type_display}): "
+                                f"X: {x_start} → {x_end} "
+                                f"(duration: {duration_str})")
+                        elif gap_type == 'category_x_interval':
+                            # Show category range but hide numeric scaling details
                             st.write(
-                                f"- **Gap {i}**: "
-                                f"von {gap_start} bis {gap_end} "
-                                f"(Dauer: {gap_duration})")
+                                f"- **Gap {i}** ({gap_type_display}): "
+                                f"X: {x_start} → {x_end}, "
+                                f"Category: {y_start} → {y_end} "
+                                f"(Area: {area:.4f})")
+                        else:  # spatial_2d
+                            st.write(
+                                f"- **Gap {i}** ({gap_type_display}): "
+                                f"X: {x_start} → {x_end}, "
+                                f"Y: {y_start} → {y_end} "
+                                f"(Area: {area:.4f})")
                     
                     if len(summary['gaps']) > 50:
                         st.info(f"⚠️ Nur die ersten 50 von {len(summary['gaps'])} Gaps werden angezeigt. "
