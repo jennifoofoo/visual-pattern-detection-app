@@ -1,5 +1,7 @@
 import streamlit as st
 import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import pandas as pd
 from core.data_processing import load_xes_log, DataPreprocessor
 from core.detection import OutlierDetectionPattern, TemporalClusterPattern
@@ -226,7 +228,8 @@ def main():
 
                 # Add gap visualization if gaps were detected
                 if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
-                    fig = st.session_state['gap_detector'].visualize(df_selected, fig)
+                    fig = st.session_state['gap_detector'].visualize(
+                        df_selected, fig)
 
                 st.plotly_chart(fig, use_container_width=True)
 
@@ -306,6 +309,98 @@ def main():
                     st.plotly_chart(enhanced_fig, use_container_width=True)
 
             st.success("Temporal cluster detection completed!")
+
+        # Activity Cluster Analysis Section
+        # Only show activity clustering when it makes sense (not when Y-axis is already activity)
+        plot_config = st.session_state.get('current_plot_config', {})
+        y_col = plot_config.get('y_col', '')
+        x_col = plot_config.get('x_col', '')
+
+        # Activity clustering is meaningful when:
+        # - Y-axis is resource (show how activities cluster within each resource)
+        # - Y-axis is case_id or variant (show activity patterns per case/variant)
+        # - NOT when Y-axis is activity (would just highlight rows)
+        activity_clustering_meaningful = (
+            st.session_state.get('temporal_detected', False) and
+            'temporal_clusters' in st.session_state and
+            x_col in ['actual_time', 'relative_time', 'relative_ratio'] and
+            # Include resource for cross-analysis
+            y_col in ['resource', 'case_id', 'variant']
+        )
+
+        if activity_clustering_meaningful:
+            st.subheader("🎯 Activity Cluster Analysis")
+            st.info(
+                f"📊 Analyzing activity patterns across {y_col} dimension over time")
+
+            if st.button("🔍 Show Activity Clusters", type="secondary"):
+                temporal_detector = st.session_state.temporal_clusters
+                plot_config = st.session_state.get('current_plot_config', {})
+
+                with st.spinner("Analyzing activity clusters..."):
+                    try:
+                        # Get plot configuration
+                        x_col = plot_config.get('x_col', 'time:timestamp')
+                        y_col = plot_config.get('y_col', 'concept:name')
+                        color_col = plot_config.get(
+                            'dots_config_col', 'activity')
+
+                        # Create dedicated activity cluster plot using temporal detector
+                        cluster_fig = temporal_detector.create_activity_cluster_plot(
+                            x_col, y_col, color_col)
+                        st.session_state.activity_cluster_plot = cluster_fig
+                        st.rerun()
+
+                    except Exception as e:
+                        st.error(f"Error analyzing activity clusters: {e}")
+
+            # Display activity cluster plot if available
+            if 'activity_cluster_plot' in st.session_state:
+                st.plotly_chart(
+                    st.session_state.activity_cluster_plot, use_container_width=True)
+
+                if st.button("🗑️ Clear Activity Clusters", key="clear_activity_clusters"):
+                    del st.session_state.activity_cluster_plot
+                    st.rerun()
+
+        # Resource Pattern Analysis Section (complementary to activity clustering)
+        # Show resource patterns when Y-axis is activity (cross-analysis)
+        resource_pattern_meaningful = (
+            st.session_state.get('temporal_detected', False) and
+            'temporal_clusters' in st.session_state and
+            x_col in ['actual_time', 'relative_time', 'relative_ratio'] and
+            y_col == 'activity'  # Show resource patterns when viewing by activity
+        )
+
+        if resource_pattern_meaningful:
+            st.subheader("👥 Resource Pattern Analysis")
+            st.info(
+                "📊 Analyzing resource behavior patterns across different activities")
+
+            if st.button("🔍 Show Resource Patterns", type="secondary"):
+                temporal_detector = st.session_state.temporal_clusters
+
+                with st.spinner("Analyzing resource patterns..."):
+                    try:
+                        # Check if resource patterns were detected
+                        if hasattr(temporal_detector, 'clusters') and 'resource_time' in temporal_detector.clusters:
+                            # Create resource pattern visualization
+                            # For now, show a message about detected patterns
+                            resource_patterns = temporal_detector.clusters['resource_time']
+                            st.success(
+                                f"Found {len(resource_patterns)} resource patterns!")
+
+                            # Display resource pattern details
+                            with st.expander("Resource Pattern Details", expanded=True):
+                                for resource_id, pattern_info in resource_patterns.items():
+                                    st.write(
+                                        f"**{resource_id}:** {pattern_info}")
+                        else:
+                            st.info(
+                                "No resource patterns detected in current temporal analysis")
+
+                    except Exception as e:
+                        st.error(f"Error analyzing resource patterns: {e}")
 
         # Outlier Detection
         if st.button("Detect Outliers", type="primary"):
@@ -423,6 +518,65 @@ def main():
 
             st.success("Outlier detection completed!")
 
+        # Workload Visualization Section
+        if st.session_state.get('outlier_detected', False) and 'outlier_pattern' in st.session_state:
+            st.subheader("📊 Workload Analysis")
+
+            col_w1, col_w2 = st.columns(2)
+
+            with col_w1:
+                if st.button("📈 Show Workload Heatmap", type="secondary"):
+                    outlier_pattern = st.session_state.outlier_pattern
+
+                    with st.spinner("Creating workload heatmap..."):
+                        try:
+                            # Compute workload data first
+                            if outlier_pattern._compute_workload():
+                                workload_fig = outlier_pattern.create_workload_heatmap()
+                                st.session_state.workload_heatmap = workload_fig
+                                st.rerun()
+                            else:
+                                st.warning(
+                                    "No time/resource/activity columns found or no valid data to compute workload.")
+                        except Exception as e:
+                            st.error(f"Error creating workload heatmap: {e}")
+
+            with col_w2:
+                if st.button("📊 Show Workload Dashboard", type="secondary"):
+                    outlier_pattern = st.session_state.outlier_pattern
+
+                    with st.spinner("Creating workload dashboard..."):
+                        try:
+                            # Compute workload data first
+                            if outlier_pattern._compute_workload():
+                                dashboard_fig = outlier_pattern.create_workload_summary_chart()
+                                st.session_state.workload_dashboard = dashboard_fig
+                                st.rerun()
+                            else:
+                                st.warning(
+                                    "No time/resource/activity columns found or no valid data to compute workload.")
+                        except Exception as e:
+                            st.error(f"Error creating workload dashboard: {e}")
+
+            # Display stored workload visualizations
+            if 'workload_heatmap' in st.session_state:
+                st.subheader("🔥 Resource Workload Heatmap")
+                st.plotly_chart(st.session_state.workload_heatmap,
+                                use_container_width=True)
+
+                if st.button("🗑️ Clear Heatmap", key="clear_heatmap"):
+                    del st.session_state.workload_heatmap
+                    st.rerun()
+
+            if 'workload_dashboard' in st.session_state:
+                st.subheader("📈 Workload Analysis Dashboard")
+                st.plotly_chart(
+                    st.session_state.workload_dashboard, use_container_width=True)
+
+                if st.button("🗑️ Clear Dashboard", key="clear_dashboard"):
+                    del st.session_state.workload_dashboard
+                    st.rerun()
+
     # Gap Detection Section
     if 'df' in st.session_state and 'current_plot_config' in st.session_state:
         st.divider()
@@ -430,17 +584,18 @@ def main():
 
         plot_config = st.session_state['current_plot_config']
         x_col = plot_config['x_col']
-        
+
         # Determine unit based on X-axis column
         # Note: actual_time is shown in seconds for user convenience, but converted to nanoseconds internally
         unit_info = {
-            'actual_time': ('Sekunden', '1 Minute = 60 Sekunden', 1.0, True),  # True = convert to nanoseconds
+            # True = convert to nanoseconds
+            'actual_time': ('Sekunden', '1 Minute = 60 Sekunden', 1.0, True),
             'relative_time': ('Sekunden', '1 Minute = 60 Sekunden', 1.0, False),
             'relative_ratio': ('Ratio [0-1]', '0.1 = 10% der Trace-Dauer', 0.01, False),
             'logical_time': ('Event-Index', '10 = 10 Events', 1.0, False),
             'logical_relative': ('Event-Index in Trace', '5 = 5 Events im Trace', 1.0, False)
         }
-        
+
         unit_name, unit_example, unit_scale, needs_conversion = unit_info.get(
             x_col, ('Einheiten', 'Basierend auf X-Achse', 1.0, False))
 
@@ -473,8 +628,9 @@ def main():
                 # Create view configuration for gap detection
                 # Determine view type based on column types
                 preprocessor = DataPreprocessor()
-                view_type = preprocessor._determine_view_type(df_selected, plot_config['x_col'], plot_config['y_col'])
-                
+                view_type = preprocessor._determine_view_type(
+                    df_selected, plot_config['x_col'], plot_config['y_col'])
+
                 view_config = {
                     'x': plot_config['x_col'],
                     'y': plot_config['y_col'],
@@ -516,10 +672,10 @@ def main():
             group_by_y = st.session_state.get('gap_group_by_y', False)
             plot_config = st.session_state['current_plot_config']
             x_col = plot_config['x_col']
-            
+
             # Get gap summary
             summary = gap_detector.get_gap_summary()
-            
+
             # Helper function to format timestamp (for start/end)
             def format_timestamp(value, x_col):
                 """Format timestamp value based on X-axis column type."""
@@ -531,7 +687,7 @@ def main():
                     return dt.strftime("%Y-%m-%d %H:%M:%S")
                 else:
                     return f"{value:.2f}"
-            
+
             # Helper function to format duration based on X-axis type
             def format_duration(value, x_col):
                 """Format duration value based on X-axis column type."""
@@ -604,7 +760,7 @@ def main():
                         gap_duration = format_duration(gap['duration'], x_col)
                         gap_start = format_timestamp(gap['start'], x_col)
                         gap_end = format_timestamp(gap['end'], x_col)
-                        
+
                         if group_by_y:
                             st.write(
                                 f"- **Gap {i}** (Y='{gap['y_value']}'): "
@@ -615,10 +771,10 @@ def main():
                                 f"- **Gap {i}**: "
                                 f"von {gap_start} bis {gap_end} "
                                 f"(Dauer: {gap_duration})")
-                    
+
                     if len(summary['gaps']) > 50:
                         st.info(f"⚠️ Nur die ersten 50 von {len(summary['gaps'])} Gaps werden angezeigt. "
-                               f"Verwenden Sie die JSON-Ansicht für alle Details.")
+                                f"Verwenden Sie die JSON-Ansicht für alle Details.")
 
     # Ollama Description (moved to sidebar for better performance)
     with st.sidebar:

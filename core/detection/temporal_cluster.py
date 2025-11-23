@@ -22,7 +22,7 @@ class TemporalClusterPattern(Pattern):
     """
 
     def __init__(self, df: pd.DataFrame, x_axis: str, y_axis: str,
-                 min_cluster_size: int = 5,
+                 min_cluster_size: int = 15,
                  temporal_eps: float = None,
                  spatial_eps: float = None):
         """
@@ -49,6 +49,18 @@ class TemporalClusterPattern(Pattern):
 
         self.clusters = {}
         self.cluster_metadata = {}
+
+    def _has_column(self, *column_names: str):
+        """Check if any of the column names exist (case-insensitive)."""
+        available_columns = [col.lower() for col in self.df.columns]
+        for col_name in column_names:
+            if col_name.lower() in available_columns:
+                # Find the actual column name with correct case
+                for actual_col in self.df.columns:
+                    if actual_col.lower() == col_name.lower():
+                        return actual_col
+        return None
+# TODO: how to do the activity and ressource clustering without breaking the fe
 
     def detect(self, df: pd.DataFrame = None) -> bool:
         """
@@ -99,9 +111,11 @@ class TemporalClusterPattern(Pattern):
 
     def _should_detect_activity_clusters(self) -> bool:
         """Check if activity-time clustering is meaningful."""
-        # When Y-axis is activity and X-axis is any time representation
-        return (self.y_axis == 'activity' and
-                self.x_axis in ['actual_time', 'relative_time', 'relative_ratio'])
+        # Detect activity clusters for cross-analysis:
+        # - When Y-axis is resource, case_id, or variant (to see activity patterns within each)
+        # - When Y-axis is activity (to see temporal clustering of activities)
+        return (self.x_axis in ['actual_time', 'relative_time', 'relative_ratio'] and
+                self.y_axis in ['activity', 'resource', 'case_id', 'variant'])
 
     def _should_detect_case_parallelism(self) -> bool:
         """Check if case parallelism detection is meaningful."""
@@ -111,9 +125,11 @@ class TemporalClusterPattern(Pattern):
 
     def _should_detect_resource_patterns(self) -> bool:
         """Check if resource pattern detection is meaningful."""
-        # When Y-axis is resource and X-axis is time-based
-        return (self.y_axis == 'resource' and
-                self.x_axis in ['actual_time', 'relative_time'])
+        # Detect resource patterns for cross-analysis:
+        # - When Y-axis is resource (to see shift patterns)
+        # - When Y-axis is activity (to see which resources work on which activities)
+        return (self.x_axis in ['actual_time', 'relative_time'] and
+                self.y_axis in ['resource', 'activity'])
 
     def _should_detect_variant_patterns(self) -> bool:
         """Check if variant pattern detection is meaningful."""
@@ -185,12 +201,16 @@ class TemporalClusterPattern(Pattern):
         """
         Detect when specific activities cluster at certain times.
 
-        Meaningful for: {actual_time, relative_time, relative_ratio} × activity
+        This works for cross-analysis:
+        - Y=activity: See temporal clustering of activities
+        - Y=resource/case_id/variant: See which activities cluster within each group
 
         Example: 'Lab Test' activities clustered at morning hours,
         or 'Approval' activities clustered near case end
         """
-        if self.y_axis != 'activity':
+        # Check if activity column exists
+        activity_col = self._has_column('activity', 'concept:name')
+        if not activity_col:
             return False
 
         df_work = self.df.copy()
@@ -211,8 +231,9 @@ class TemporalClusterPattern(Pattern):
 
         # For each activity, find time clusters
         self.clusters['activity_time'] = {}
+        self.activity_clusters = []  # Store for dedicated visualization
 
-        for activity, activity_df in df_work.groupby('activity'):
+        for activity, activity_df in df_work.groupby(activity_col):
             if len(activity_df) < self.min_cluster_size:
                 continue
 
@@ -235,10 +256,19 @@ class TemporalClusterPattern(Pattern):
                         'cluster_id': int(cluster_id),
                         'event_count': len(cluster_events),
                         'time_mean': float(cluster_events['time_numeric'].mean()),
-                        'time_std': float(cluster_events['time_numeric'].std())
+                        'time_std': float(cluster_events['time_numeric'].std()),
+                        # Add event indices for visualization
+                        'event_indices': cluster_events.index.tolist()
                     })
 
                 self.clusters['activity_time'][activity] = cluster_info
+
+                # Store for dedicated activity cluster visualization
+                self.activity_clusters.append({
+                    'activities': [activity],
+                    'cluster_count': clusters_found,
+                    'total_events': len(activity_df)
+                })
 
         return len(self.clusters['activity_time']) > 0
 
@@ -301,14 +331,13 @@ class TemporalClusterPattern(Pattern):
         """
         Detect resource utilization patterns over time.
 
-        Meaningful for: {actual_time, relative_time} × resource
+        This works for cross-analysis:
+        - Y=resource: See shift patterns and time-based work patterns
+        - Y=activity: See which resources work on which activities
 
         Example: Certain resources only working at specific times,
         or resource shift patterns
         """
-        if self.y_axis != 'resource':
-            return False
-
         resource_col = self._has_column(
             'resource', 'org:resource', 'org:group')
         if not resource_col:
@@ -353,7 +382,9 @@ class TemporalClusterPattern(Pattern):
                         'cluster_id': int(cluster_id),
                         'event_count': len(cluster_events),
                         'time_min': float(cluster_events['time_numeric'].min()),
-                        'time_max': float(cluster_events['time_numeric'].max())
+                        'time_max': float(cluster_events['time_numeric'].max()),
+                        # Add event indices for visualization
+                        'event_indices': cluster_events.index.tolist()
                     })
 
                 self.clusters['resource_time'][resource] = cluster_info
@@ -403,7 +434,7 @@ class TemporalClusterPattern(Pattern):
     # ==================== Visualization Support ====================
 
     def visualize(self, df: pd.DataFrame = None, fig=None):
-        #### FOR NOW ONLY ACTIVITY BURSTS IS VISUALISED
+        # FOR NOW ONLY ACTIVITY BURSTS IS VISUALISED
         """
         Add cluster visualizations to the figure.
 
@@ -437,12 +468,12 @@ class TemporalClusterPattern(Pattern):
         if 'case_parallelism' in self.clusters:
             self._add_parallelism_visualization(fig)
 
-        # Visualize activity-time clusters
-        if 'activity_time' in self.clusters:
+        # Visualize activity-time clusters (only when meaningful - not when Y-axis is activity)
+        if 'activity_time' in self.clusters and self.y_axis != 'activity':
             self._add_activity_cluster_visualization(fig)
 
-        # Visualize resource patterns
-        if 'resource_time' in self.clusters:
+        # Visualize resource patterns (only when meaningful - not when Y-axis is resource)
+        if 'resource_time' in self.clusters and self.y_axis != 'resource':
             self._add_resource_pattern_visualization(fig)
 
         return fig
@@ -534,15 +565,94 @@ class TemporalClusterPattern(Pattern):
         )
 
     def _add_activity_cluster_visualization(self, fig):
-        """Add activity-time cluster visualization."""
+        """Add activity-time cluster visualization (top 10 largest clusters)."""
+        import plotly.graph_objects as go
+
         activity_clusters = self.clusters['activity_time']
 
-        # Count total clusters
+        # Color palette for activity clusters
+        colors = ['rgba(50,205,50,0.7)', 'rgba(34,139,34,0.7)', 'rgba(0,128,0,0.7)',
+                  'rgba(0,100,0,0.7)', 'rgba(46,139,87,0.7)', 'rgba(85,107,47,0.7)',
+                  'rgba(107,142,35,0.7)', 'rgba(154,205,50,0.7)', 'rgba(124,252,0,0.7)']
+
+        # Collect all clusters with their sizes for sorting
+        all_clusters = []
+        for activity_name, cluster_list in activity_clusters.items():
+            for i, cluster_info in enumerate(cluster_list):
+                if isinstance(cluster_info, dict) and 'event_indices' in cluster_info:
+                    event_count = cluster_info.get(
+                        'event_count', len(cluster_info['event_indices']))
+                    all_clusters.append(
+                        (activity_name, i, cluster_info, event_count))
+
+        # Sort by event count (descending) and take top 10
+        all_clusters.sort(key=lambda x: x[3], reverse=True)
+        top_clusters = all_clusters[:10]
+
+        cluster_count = 0
+
+        # Add scatter points for top 10 clusters
+        for activity_name, i, cluster_info, event_count in top_clusters:
+            try:
+                # Extract event indices from cluster info
+                if isinstance(cluster_info, dict) and 'event_indices' in cluster_info:
+                    cluster_indices = cluster_info['event_indices']
+                    event_count = cluster_info.get(
+                        'event_count', len(cluster_indices))
+                else:
+                    # Fallback for old format
+                    cluster_indices = cluster_info if isinstance(
+                        cluster_info, (list, tuple, np.ndarray)) else []
+                    event_count = len(cluster_indices)
+
+                # Ensure cluster_indices is a proper list of integers
+                if isinstance(cluster_indices, (list, tuple, np.ndarray)):
+                    cluster_indices = [
+                        int(idx) for idx in cluster_indices if idx in self.df.index]
+                else:
+                    continue
+
+                if len(cluster_indices) < 2:  # Skip single-point clusters
+                    continue
+
+                # Safely get cluster data
+                cluster_data = self.df.loc[cluster_indices]
+
+                if cluster_data.empty:
+                    continue
+
+                color = colors[cluster_count % len(colors)]
+
+                # Add cluster points
+                fig.add_trace(go.Scatter(
+                    x=cluster_data[self.x_axis],
+                    y=cluster_data[self.y_axis],
+                    mode='markers',
+                    marker=dict(
+                        size=8,
+                        color=color,
+                        symbol='diamond',
+                        line=dict(
+                            width=2, color=color.replace('0.7', '1.0'))
+                    ),
+                    name=f'{activity_name} Cluster {i+1}',
+                    hovertemplate=f'<b>{activity_name} Cluster {i+1}</b><br>' +
+                    f'{self.x_axis}: %{{x}}<br>{self.y_axis}: %{{y}}<br>' +
+                    f'Size: {event_count} events<extra></extra>',
+                    showlegend=True
+                ))
+
+                cluster_count += 1
+            except Exception as e:
+                print(f"Skipping cluster {i+1} for {activity_name}: {e}")
+                continue        # Count total clusters
         total_clusters = sum(len(clusters)
                              for clusters in activity_clusters.values())
+        shown_clusters = len(top_clusters)
 
+        # Add summary annotation
         fig.add_annotation(
-            text=f"🎯 Activity Clusters<br>{len(activity_clusters)} activities<br>{total_clusters} time clusters",
+            text=f"🎯 Activity Clusters<br>{len(activity_clusters)} activities<br>Showing top {shown_clusters} of {total_clusters} clusters",
             xref="paper", yref="paper",
             x=0.02, y=0.90,
             xanchor="left", yanchor="top",
@@ -554,14 +664,89 @@ class TemporalClusterPattern(Pattern):
         )
 
     def _add_resource_pattern_visualization(self, fig):
-        """Add resource pattern visualization."""
+        """Add resource pattern visualization (top 10 largest patterns)."""
+        import plotly.graph_objects as go
+
         resource_patterns = self.clusters['resource_time']
 
+        # Different symbols for resource clusters
+        symbols = ['square', 'triangle-up', 'star', 'hexagon', 'cross', 'x',
+                   'triangle-down', 'pentagon', 'octagon', 'diamond-tall']
+
+        # Collect all patterns with their sizes for sorting
+        all_patterns = []
+        for resource_name, clusters in resource_patterns.items():
+            for i, cluster_info in enumerate(clusters):
+                if isinstance(cluster_info, dict) and 'event_indices' in cluster_info:
+                    event_count = len(cluster_info['event_indices'])
+                    all_patterns.append(
+                        (resource_name, i, cluster_info, event_count))
+
+        # Sort by event count (descending) and take top 10
+        all_patterns.sort(key=lambda x: x[3], reverse=True)
+        top_patterns = all_patterns[:10]
+
+        cluster_count = 0
+
+        # Add scatter points for top 10 resource patterns
+        for resource_name, i, cluster_info, event_count in top_patterns:
+            try:
+                # Extract event indices from cluster info dictionary
+                if isinstance(cluster_info, dict) and 'event_indices' in cluster_info:
+                    cluster_indices = cluster_info['event_indices']
+                else:
+                    # Fallback for old format
+                    cluster_indices = cluster_info if isinstance(
+                        cluster_info, (list, tuple, np.ndarray)) else []
+
+                # Ensure cluster_indices is a proper list of integers
+                if isinstance(cluster_indices, (list, tuple, np.ndarray)):
+                    cluster_indices = [
+                        int(idx) for idx in cluster_indices if idx in self.df.index]
+                else:
+                    continue
+
+                if len(cluster_indices) < 2:  # Skip single-point clusters
+                    continue
+
+                # Safely get cluster data
+                cluster_data = self.df.loc[cluster_indices]
+
+                if cluster_data.empty:
+                    continue
+
+                symbol = symbols[cluster_count % len(symbols)]
+                color = f'rgba({100+cluster_count*30},{150+cluster_count*20},{50+cluster_count*40},0.8)'
+
+                # Add cluster points
+                fig.add_trace(go.Scatter(
+                    x=cluster_data[self.x_axis],
+                    y=cluster_data[self.y_axis],
+                    mode='markers',
+                    marker=dict(
+                        size=10,
+                        color=color,
+                        symbol=symbol,
+                        line=dict(width=2, color='darkblue')
+                    ),
+                    name=f'{resource_name} Pattern {i+1}',
+                    hovertemplate=f'<b>{resource_name} Pattern {i+1}</b><br>' +
+                    f'{self.x_axis}: %{{x}}<br>{self.y_axis}: %{{y}}<br>' +
+                    f'Size: {len(cluster_indices)} events<extra></extra>',
+                    showlegend=True
+                ))
+
+                cluster_count += 1
+            except Exception as e:
+                print(f"Skipping cluster {i+1} for {resource_name}: {e}")
+                continue        # Count total clusters
         total_clusters = sum(len(clusters)
                              for clusters in resource_patterns.values())
+        shown_patterns = len(top_patterns)
 
+        # Add summary annotation
         fig.add_annotation(
-            text=f"👥 Resource Patterns<br>{len(resource_patterns)} resources<br>{total_clusters} shift periods",
+            text=f"👥 Resource Patterns<br>{len(resource_patterns)} resources<br>Showing top {shown_patterns} of {total_clusters} patterns",
             xref="paper", yref="paper",
             x=0.98, y=0.90,
             xanchor="right", yanchor="top",
@@ -598,8 +783,8 @@ class TemporalClusterPattern(Pattern):
                     f"({burst['start_time'].strftime('%Y-%m-%d %H:%M:%S')})"
                 )
 
-        # Activity-time clusters
-        if 'activity_time' in self.clusters:
+        # Activity-time clusters (only show when meaningful - not when Y-axis is activity)
+        if 'activity_time' in self.clusters and self.y_axis != 'activity':
             summary.append(
                 f"\n🎯 **Activity-Time Patterns:** {len(self.clusters['activity_time'])} activities with temporal clustering")
             for activity, clusters in list(self.clusters['activity_time'].items())[:5]:
@@ -614,8 +799,8 @@ class TemporalClusterPattern(Pattern):
                 f"Avg {para['avg_parallel_cases']:.1f} cases"
             )
 
-        # Resource patterns
-        if 'resource_time' in self.clusters:
+        # Resource patterns (only show when meaningful - not when Y-axis is resource)
+        if 'resource_time' in self.clusters and self.y_axis != 'resource':
             summary.append(
                 f"\n👥 **Resource Time Patterns:** {len(self.clusters['resource_time'])} resources with shift-like behavior")
 
@@ -625,3 +810,150 @@ class TemporalClusterPattern(Pattern):
                 f"\n🔄 **Variant Timing Differences:** {len(self.clusters['variant_timing'])} variants with distinct timing")
 
         return '\n'.join(summary)
+
+    def create_activity_cluster_plot(self, x_col, y_col, color_col):
+        """
+        Create a dedicated plot showing activity clusters across different dimensions.
+
+        This is meaningful when:
+        - Y-axis represents cases, resources, or variants (not activities themselves)
+        - X-axis represents time
+        - We want to see how activities cluster within each Y-axis group
+
+        Args:
+            x_col: Column for X-axis (should be time-based)
+            y_col: Column for Y-axis (case_id, resource, variant, etc.)
+            color_col: Column for color mapping (typically activity)
+
+        Returns:
+            plotly.graph_objects.Figure: The activity cluster plot
+        """
+        import plotly.graph_objects as go
+
+        # Create base plot
+        fig = go.Figure()
+
+        # Add original data points as background
+        fig.add_trace(go.Scatter(
+            x=self.df[x_col],
+            y=self.df[y_col],
+            mode='markers',
+            marker=dict(
+                color='lightgray',
+                size=4,
+                opacity=0.3
+            ),
+            name='All Events',
+            hovertemplate=f'{x_col}: %{{x}}<br>{y_col}: %{{y}}<extra></extra>'
+        ))
+
+        # Add activity clusters if they exist (using detailed cluster data, not bursts)
+        if 'activity_time' in self.clusters:
+            try:
+                activity_clusters = self.clusters['activity_time']
+
+                # Color palette for different activities
+                colors = ['rgba(50,205,50,0.7)', 'rgba(34,139,34,0.7)', 'rgba(0,128,0,0.7)',
+                          'rgba(0,100,0,0.7)', 'rgba(46,139,87,0.7)', 'rgba(85,107,47,0.7)',
+                          'rgba(107,142,35,0.7)', 'rgba(154,205,50,0.7)', 'rgba(124,252,0,0.7)']
+
+                cluster_count = 0
+
+                # Add scatter points for each activity's time clusters
+                for activity_name, cluster_list in activity_clusters.items():
+                    for i, cluster_info in enumerate(cluster_list):
+                        if isinstance(cluster_info, dict) and 'event_indices' in cluster_info:
+                            cluster_indices = cluster_info['event_indices']
+                            event_count = cluster_info.get(
+                                'event_count', len(cluster_indices))
+
+                            # Ensure cluster_indices is valid
+                            if isinstance(cluster_indices, (list, tuple, np.ndarray)):
+                                cluster_indices = [
+                                    int(idx) for idx in cluster_indices if idx in self.df.index]
+                            else:
+                                continue
+
+                            if len(cluster_indices) < 2:  # Skip single-point clusters
+                                continue
+
+                            # Get cluster data
+                            cluster_data = self.df.loc[cluster_indices]
+                            if cluster_data.empty:
+                                continue
+
+                            color = colors[cluster_count % len(colors)]
+
+                            # Add cluster points (ONLY activity clusters, no bursts)
+                            fig.add_trace(go.Scatter(
+                                x=cluster_data[x_col],
+                                y=cluster_data[y_col],
+                                mode='markers',
+                                marker=dict(
+                                    size=10,
+                                    color=color,
+                                    symbol='diamond',
+                                    line=dict(
+                                        width=2, color=color.replace('0.7', '1.0'))
+                                ),
+                                name=f'{activity_name} Cluster {i+1}',
+                                hovertemplate=f'<b>{activity_name} Cluster {i+1}</b><br>' +
+                                f'{x_col}: %{{x}}<br>{y_col}: %{{y}}<br>' +
+                                f'Size: {event_count} events<extra></extra>',
+                                showlegend=True
+                            ))
+
+                            cluster_count += 1
+
+            except Exception as e:
+                # Add error message if cluster visualization fails
+                fig.add_annotation(
+                    x=0.5, y=0.95,
+                    xref="paper", yref="paper",
+                    text=f"Activity cluster visualization error: {str(e)}",
+                    showarrow=False,
+                    font=dict(color="red", size=12),
+                    bgcolor="white",
+                    bordercolor="red",
+                    borderwidth=1
+                )
+        else:
+            # Add message if no clusters found
+            fig.add_annotation(
+                x=0.5, y=0.5,
+                xref="paper", yref="paper",
+                text="No activity clusters detected in current data",
+                showarrow=False,
+                font=dict(size=14, color="gray"),
+                bgcolor="lightyellow",
+                bordercolor="orange",
+                borderwidth=1
+            )
+
+        # Update layout with clear distinction
+        fig.update_layout(
+            title="🎯 Activity Cluster Analysis (Temporal Patterns Only)",
+            xaxis_title=x_col,
+            yaxis_title=y_col,
+            showlegend=True,
+            hovermode='closest',
+            template='plotly_white'
+        )
+
+        # Add clear annotation that this shows only activity clusters
+        fig.add_annotation(
+            text="📊 Showing ONLY Activity Temporal Clusters<br>(No System Bursts)",
+            xref="paper", yref="paper",
+            x=0.02, y=0.02,
+            xanchor="left", yanchor="bottom",
+            showarrow=False,
+            bgcolor="rgba(144, 238, 144, 0.9)",
+            bordercolor="green",
+            borderwidth=2,
+            font=dict(size=12, color="darkgreen")
+        )
+
+        return fig
+
+#TODO: also need a resource cluster button, beasuese it is not an option for the case id as y 
+# TODO check
