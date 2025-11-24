@@ -268,7 +268,22 @@ def handle_temporal_cluster_detection_logic(x_col, y_col, x_axis_label, y_axis_l
                 st.session_state.temporal_clusters = detector
                 st.session_state.temporal_detected = True
                 st.session_state['chart_needs_display'] = True
-                st.success("Temporal clusters detected!")
+                
+                # Display summary
+                summary = detector.get_summary()
+                st.success(f"✅ {summary['count']} temporal clusters detected!")
+                
+                # Display metrics
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Total Clusters", summary['count'])
+                with col2:
+                    st.metric("Pattern Type", summary['pattern_type'].replace('_', ' ').title())
+                
+                # Display detailed summary
+                with st.expander("📊 Detailed Analysis", expanded=False):
+                    st.text(summary['details']['summary_text'])
+                
                 st.rerun()
             else:
                 st.session_state.temporal_detected = False
@@ -290,7 +305,28 @@ def handle_outlier_detection_logic():
                 st.session_state.outlier_pattern = outlier_pattern
                 st.session_state.outlier_detected = True
                 st.session_state['chart_needs_display'] = True
-                st.success("Outliers detected!")
+                
+                # Display summary
+                summary = outlier_pattern.get_summary()
+                st.success(f"✅ {summary['count']} outliers detected!")
+                
+                # Display metrics
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Total Outliers", summary['count'])
+                with col2:
+                    stats = summary['details'].get('statistics', {})
+                    st.metric("Outlier %", f"{stats.get('outlier_percentage', 0):.1f}%")
+                with col3:
+                    st.metric("Detection Methods", f"{stats.get('detection_methods_used', 0)}/6")
+                
+                # Display detailed summary
+                with st.expander("📊 Detailed Analysis", expanded=False):
+                    if summary['details'].get('outlier_details'):
+                        st.write("**Outlier Types:**")
+                        for outlier_type, details in summary['details']['outlier_details'].items():
+                            st.write(f"- {outlier_type.replace('_', ' ').title()}: {details['count']} events ({details['percentage']:.1f}%)")
+                
                 st.rerun()
             else:
                 st.session_state.outlier_detected = False
@@ -339,7 +375,46 @@ def handle_gap_detection_logic(df_selected, x_col, y_col, min_samples=5):
                 # Store gap detection results
                 st.session_state['gap_detector'] = gap_detector
                 st.session_state['chart_needs_display'] = True
-                st.success("Abnormal gaps detected!")
+                
+                # Display summary
+                summary = gap_detector.get_summary()
+                details = summary['details']
+                
+                st.success(f"✅ {summary['count']} abnormal gaps detected!")
+                
+                # Display metrics
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Abnormal Gaps", summary['count'])
+                with col2:
+                    st.metric("Transitions Analyzed", details['total_transitions'])
+                with col3:
+                    st.metric("Transitions w/ Anomalies", details['transitions_with_anomalies'])
+                with col4:
+                    # Format duration
+                    total_duration = details['total_magnitude']
+                    if total_duration > 86400:
+                        duration_str = f"{total_duration/86400:.1f}d"
+                    elif total_duration > 3600:
+                        duration_str = f"{total_duration/3600:.1f}h"
+                    else:
+                        duration_str = f"{total_duration:.0f}s"
+                    st.metric("Total Duration", duration_str)
+                
+                # Display detailed summary
+                with st.expander("📊 Detailed Analysis", expanded=False):
+                    st.write("**Top Transitions with Anomalies:**")
+                    trans_stats = details.get('transition_stats', {})
+                    for trans, stats in list(trans_stats.items())[:5]:
+                        st.write(f"- **{trans}**: {stats['count']} occurrences, threshold: {stats['threshold']/86400:.1f} days")
+                    
+                    st.write("\n**Top 10 Abnormal Gaps by Severity:**")
+                    abnormal_gaps = sorted(details['abnormal_gaps'], key=lambda x: x.get('severity', 0), reverse=True)[:10]
+                    for i, gap in enumerate(abnormal_gaps, 1):
+                        duration_days = gap['duration'] / 86400
+                        threshold_days = gap['threshold'] / 86400
+                        st.write(f"{i}. {gap['transition']} - Duration: {duration_days:.1f}d, Threshold: {threshold_days:.1f}d, Severity: {gap['severity']:.2f}x")
+                
                 # Trigger chart refresh to show gaps
                 st.rerun()
 
