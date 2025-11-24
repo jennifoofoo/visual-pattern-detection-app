@@ -12,6 +12,7 @@ from core.detection import OutlierDetectionPattern, TemporalClusterPattern
 from core.detection.gap_pattern import GapPattern
 from core.evaluation.ollama import OllamaEvaluator
 from core.utils.demo_sampling import sample_small_eventlog
+from config.extended_pattern_matrix import is_pattern_meaningful, get_pattern_info
 
 
 # Streamlit caching for performance
@@ -510,66 +511,50 @@ def handle_pattern_detection():
     y_axis_label = plot_config.get('y_axis_label')
     df_selected = plot_config.get('df_selected')
 
-    # Create three equal pattern detector containers
+    # Check which patterns are meaningful for this view
+    temporal_meaningful = is_pattern_meaningful(x_col, y_col, 'temporal_cluster')
+    outlier_meaningful = is_pattern_meaningful(x_col, y_col, 'outlier')
+    gap_meaningful = is_pattern_meaningful(x_col, y_col, 'gap')
+    
+    # Get pattern info for tooltips
+    temporal_info = get_pattern_info(x_col, y_col, 'temporal_cluster')
+    outlier_info = get_pattern_info(x_col, y_col, 'outlier')
+    gap_info = get_pattern_info(x_col, y_col, 'gap')
+    
+    # Create three equal columns (always show all patterns)
     col1, col2, col3 = st.columns(3)
     
     # === TEMPORAL CLUSTERS ===
     with col1:
         with st.container(border=True):
-            st.subheader("⏱️ Temporal Clusters")
-            st.write("Finds time periods with unusually high or low event activity.")
-            st.caption("Uses density-based clustering (OPTICS, DBSCAN, K-Means) on temporal event distributions.")
+            if temporal_meaningful:
+                st.subheader("⏱️ Temporal Clusters")
+                st.write("Finds time periods with unusually high or low event activity.")
+                st.caption("Uses density-based clustering (OPTICS, DBSCAN, K-Means) on temporal event distributions.")
+            else:
+                st.subheader("⏱️ Temporal Clusters", help=temporal_info.get('interpretation', 'Not available for this view') if temporal_info else 'Not available')
+                st.write("Finds time periods with unusually high or low event activity.")
+                st.caption(f"❌ {temporal_info.get('use_case', 'Not meaningful for this view configuration')}" if temporal_info else "Not available")
             
-            if st.button("Detect Temporal Clusters", type="primary", use_container_width=True):
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("Detect Temporal Clusters", type="primary", use_container_width=True, disabled=not temporal_meaningful):
                 handle_temporal_cluster_detection_logic(x_col, y_col, x_axis_label, y_axis_label, df_selected)
-            
-            # Display results if detected
-            if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
-                detector = st.session_state.temporal_clusters
-                summary = detector.get_summary()
-                
-                st.success(f"✅ {summary['count']} clusters detected!")
-                
-                col_m1, col_m2 = st.columns(2)
-                with col_m1:
-                    st.metric("Clusters", summary['count'])
-                with col_m2:
-                    st.metric("Type", summary['pattern_type'].replace('_', ' ').title())
-                
-                with st.expander("📊 Details", expanded=False):
-                    st.text(summary['details']['summary_text'])
     
     # === OUTLIER DETECTION ===
     with col2:
         with st.container(border=True):
-            st.subheader("🎯 Outlier Detection")
-            st.write("Identifies unusual events or cases based on temporal deviations.")
-            st.caption("Uses IQR-based statistical analysis for time, duration, frequency, resource, and sequence anomalies.")
+            if outlier_meaningful:
+                st.subheader("🎯 Outlier Detection")
+                st.write("Identifies unusual events or cases based on temporal deviations.")
+                st.caption("Uses IQR-based statistical analysis for time, duration, frequency, resource, and sequence anomalies.")
+            else:
+                st.subheader("🎯 Outlier Detection", help=outlier_info.get('interpretation', 'Not available for this view') if outlier_info else 'Not available')
+                st.write("Identifies unusual events or cases based on temporal deviations.")
+                st.caption(f"❌ {outlier_info.get('use_case', 'Not meaningful for this view configuration')}" if outlier_info else "Not available")
             
-            if st.button("Detect Outliers", type="primary", use_container_width=True):
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("Detect Outliers", type="primary", use_container_width=True, disabled=not outlier_meaningful):
                 handle_outlier_detection_logic()
-            
-            # Display results if detected
-            if st.session_state.get('outlier_detected', False) and 'outlier_pattern' in st.session_state:
-                outlier_pattern = st.session_state.outlier_pattern
-                summary = outlier_pattern.get_summary()
-                
-                st.success(f"✅ {summary['count']} outliers detected!")
-                
-                col_m1, col_m2, col_m3 = st.columns(3)
-                with col_m1:
-                    st.metric("Outliers", summary['count'])
-                with col_m2:
-                    stats = summary['details'].get('statistics', {})
-                    st.metric("Outlier %", f"{stats.get('outlier_percentage', 0):.1f}%")
-                with col_m3:
-                    st.metric("Methods", f"{stats.get('detection_methods_used', 0)}/6")
-                
-                with st.expander("📊 Details", expanded=False):
-                    if summary['details'].get('outlier_details'):
-                        st.write("**Outlier Types:**")
-                        for outlier_type, details in summary['details']['outlier_details'].items():
-                            st.write(f"- {outlier_type.replace('_', ' ').title()}: {details['count']} ({details['percentage']:.1f}%)")
     
     # === GAP DETECTION ===
     with col3:
@@ -577,65 +562,138 @@ def handle_pattern_detection():
             # Header with settings icon
             header_col1, header_col2 = st.columns([0.9, 0.1])
             with header_col1:
-                st.subheader("🔬 Gap Detection")
+                if gap_meaningful:
+                    st.subheader("🔬 Gap Detection")
+                else:
+                    st.subheader("🔬 Gap Detection", help=gap_info.get('interpretation', 'Not available for this view') if gap_info else 'Not available')
             with header_col2:
-                with st.popover("⚙️"):
-                    st.write("**Settings**")
-                    min_samples = st.number_input(
-                        "Minimum samples per transition",
-                        min_value=3,
-                        max_value=20,
-                        value=5,
-                        step=1,
-                        key="gap_min_samples_popover",
-                        help="Transitions with fewer samples are skipped (insufficient data)"
-                    )
+                if gap_meaningful:
+                    with st.popover("⚙️"):
+                        st.write("**Settings**")
+                        min_samples = st.number_input(
+                            "Minimum samples per transition",
+                            min_value=3,
+                            max_value=20,
+                            value=5,
+                            step=1,
+                            key="gap_min_samples_popover",
+                            help="Transitions with fewer samples are skipped (insufficient data)"
+                        )
             
-            st.write("Learns normal transition durations (A → B) and detects unusually long gaps.")
-            st.caption("Uses statistical learning (Q1, Q3, IQR, P95) per activity transition to identify abnormal delays.")
+            if gap_meaningful:
+                st.write("Learns normal transition durations (A → B) and detects unusually long gaps.")
+                st.caption("Uses statistical learning (Q1, Q3, IQR, P95) per activity transition to identify abnormal delays.")
+            else:
+                st.write("Learns normal transition durations (A → B) and detects unusually long gaps.")
+                st.caption(f"❌ {gap_info.get('use_case', 'Not meaningful for this view configuration')}" if gap_info else "Not available")
             
-            if st.button("Detect Gaps", type="primary", use_container_width=True):
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("Detect Gaps", type="primary", use_container_width=True, disabled=not gap_meaningful):
                 # Use min_samples from popover if exists, otherwise default
                 gap_min_samples = st.session_state.get('gap_min_samples_popover', 5)
                 handle_gap_detection_logic(df_selected, x_col, y_col, gap_min_samples)
-            
-            # Display results if detected
+    
+    # ========== PATTERN SUMMARY SECTION ==========
+    st.markdown("---")
+    st.subheader("📋 Pattern Summary")
+    
+    # Check if any pattern was detected
+    any_detected = (
+        st.session_state.get('temporal_detected', False) or 
+        st.session_state.get('outlier_detected', False) or 
+        ('gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None)
+    )
+    
+    if not any_detected:
+        st.info("Run pattern detection above to see results here.")
+    else:
+        # Create three columns for summary boxes
+        sum_col1, sum_col2, sum_col3 = st.columns(3)
+        
+        # === TEMPORAL CLUSTERS SUMMARY ===
+        with sum_col1:
+            if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
+                detector = st.session_state.temporal_clusters
+                summary = detector.get_summary()
+                
+                with st.container(border=True):
+                    st.markdown("### ⏱️ Temporal Clusters")
+                    st.success(f"✅ {summary['count']} clusters detected")
+                    
+                    col_m1, col_m2 = st.columns(2)
+                    with col_m1:
+                        st.metric("Clusters", summary['count'])
+                    with col_m2:
+                        st.metric("Type", summary['pattern_type'].replace('_', ' ').title())
+                    
+                    with st.expander("📊 Details", expanded=False):
+                        st.text(summary['details']['summary_text'])
+        
+        # === OUTLIER DETECTION SUMMARY ===
+        with sum_col2:
+            if st.session_state.get('outlier_detected', False) and 'outlier_pattern' in st.session_state:
+                outlier_pattern = st.session_state.outlier_pattern
+                summary = outlier_pattern.get_summary()
+                
+                with st.container(border=True):
+                    st.markdown("### 🎯 Outlier Detection")
+                    st.success(f"✅ {summary['count']} outliers detected")
+                    
+                    col_m1, col_m2, col_m3 = st.columns(3)
+                    with col_m1:
+                        st.metric("Outliers", summary['count'])
+                    with col_m2:
+                        stats = summary['details'].get('statistics', {})
+                        st.metric("Outlier %", f"{stats.get('outlier_percentage', 0):.1f}%")
+                    with col_m3:
+                        st.metric("Methods", f"{stats.get('detection_methods_used', 0)}/6")
+                    
+                    with st.expander("📊 Details", expanded=False):
+                        if summary['details'].get('outlier_details'):
+                            st.write("**Outlier Types:**")
+                            for outlier_type, details in summary['details']['outlier_details'].items():
+                                st.write(f"- {outlier_type.replace('_', ' ').title()}: {details['count']} ({details['percentage']:.1f}%)")
+        
+        # === GAP DETECTION SUMMARY ===
+        with sum_col3:
             if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
                 gap_detector = st.session_state['gap_detector']
                 summary = gap_detector.get_summary()
                 details = summary['details']
                 
-                st.success(f"✅ {summary['count']} abnormal gaps detected!")
-                
-                col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-                with col_m1:
-                    st.metric("Gaps", summary['count'])
-                with col_m2:
-                    st.metric("Transitions", details['total_transitions'])
-                with col_m3:
-                    st.metric("Anomalies", details['transitions_with_anomalies'])
-                with col_m4:
-                    total_duration = details['total_magnitude']
-                    if total_duration > 86400:
-                        duration_str = f"{total_duration/86400:.1f}d"
-                    elif total_duration > 3600:
-                        duration_str = f"{total_duration/3600:.1f}h"
-                    else:
-                        duration_str = f"{total_duration:.0f}s"
-                    st.metric("Duration", duration_str)
-                
-                with st.expander("📊 Details", expanded=False):
-                    st.write("**Top Transitions with Anomalies:**")
-                    trans_stats = details.get('transition_stats', {})
-                    for trans, stats in list(trans_stats.items())[:5]:
-                        st.write(f"- **{trans}**: {stats['count']} occurrences, threshold: {stats['threshold']/86400:.1f} days")
+                with st.container(border=True):
+                    st.markdown("### 🔬 Gap Detection")
+                    st.success(f"✅ {summary['count']} abnormal gaps detected")
                     
-                    st.write("\n**Top 10 Abnormal Gaps by Severity:**")
-                    abnormal_gaps = sorted(details['abnormal_gaps'], key=lambda x: x.get('severity', 0), reverse=True)[:10]
-                    for i, gap in enumerate(abnormal_gaps, 1):
-                        duration_days = gap['duration'] / 86400
-                        threshold_days = gap['threshold'] / 86400
-                        st.write(f"{i}. {gap['transition']} - Duration: {duration_days:.1f}d, Threshold: {threshold_days:.1f}d, Severity: {gap['severity']:.2f}x")
+                    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+                    with col_m1:
+                        st.metric("Gaps", summary['count'])
+                    with col_m2:
+                        st.metric("Transitions", details['total_transitions'])
+                    with col_m3:
+                        st.metric("Anomalies", details['transitions_with_anomalies'])
+                    with col_m4:
+                        total_duration = details['total_magnitude']
+                        if total_duration > 86400:
+                            duration_str = f"{total_duration/86400:.1f}d"
+                        elif total_duration > 3600:
+                            duration_str = f"{total_duration/3600:.1f}h"
+                        else:
+                            duration_str = f"{total_duration:.0f}s"
+                        st.metric("Duration", duration_str)
+                    
+                    with st.expander("📊 Details", expanded=False):
+                        st.write("**Top Transitions with Anomalies:**")
+                        trans_stats = details.get('transition_stats', {})
+                        for trans, stats in list(trans_stats.items())[:5]:
+                            st.write(f"- **{trans}**: {stats['count']} occurrences, threshold: {stats['threshold']/86400:.1f} days")
+                        
+                        st.write("\n**Top 10 Abnormal Gaps by Severity:**")
+                        abnormal_gaps = sorted(details['abnormal_gaps'], key=lambda x: x.get('severity', 0), reverse=True)[:10]
+                        for i, gap in enumerate(abnormal_gaps, 1):
+                            duration_days = gap['duration'] / 86400
+                            threshold_days = gap['threshold'] / 86400
+                            st.write(f"{i}. {gap['transition']} - Duration: {duration_days:.1f}d, Threshold: {threshold_days:.1f}d, Severity: {gap['severity']:.2f}x")
                         
 def ollama_description_button():
     with st.spinner("Generating description..."):

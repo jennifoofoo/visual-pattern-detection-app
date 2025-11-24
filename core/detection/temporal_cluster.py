@@ -50,6 +50,14 @@ class TemporalClusterPattern(Pattern):
         self.clusters = {}
         self.cluster_metadata = {}
 
+    def _has_column(self, *column_names: str):
+        """Check if any of the column names exist (case-insensitive)."""
+        for col_name in column_names:
+            for actual_col in self.df.columns:
+                if actual_col.lower() == col_name.lower():
+                    return actual_col
+        return None
+
     def detect(self, df: pd.DataFrame = None) -> bool:
         """
         Main detection method - routes to appropriate pattern detection based on axes.
