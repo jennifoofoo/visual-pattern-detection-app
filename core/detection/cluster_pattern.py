@@ -332,3 +332,21 @@ class ClusterPattern(Pattern):
                 summary['silhouette_score'] = None
 
         return summary
+    
+    def get_summary(self) -> Dict[str, Any]:
+        """
+        Get standardized pattern summary.
+        
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized summary with pattern_type, detected, count, and details
+        """
+        cluster_summary = self.get_cluster_summary()
+        
+        return {
+            'pattern_type': 'cluster',
+            'detected': self.detected is not None and cluster_summary.get('total_clusters', 0) > 0,
+            'count': cluster_summary.get('total_clusters', 0),
+            'details': cluster_summary
+        }

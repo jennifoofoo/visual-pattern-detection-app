@@ -506,3 +506,21 @@ class GapPattern(Pattern):
             'gaps': abnormal_gaps,  # Alias for backward compatibility with UI
             'transition_stats': self.detected['transition_stats']
         }
+    
+    def get_summary(self) -> Dict[str, Any]:
+        """
+        Get standardized pattern summary.
+        
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized summary with pattern_type, detected, count, and details
+        """
+        gap_summary = self.get_gap_summary()
+        
+        return {
+            'pattern_type': 'gap',
+            'detected': self.detected is not None and gap_summary['total_abnormal_gaps'] > 0,
+            'count': gap_summary['total_abnormal_gaps'],
+            'details': gap_summary
+        }
