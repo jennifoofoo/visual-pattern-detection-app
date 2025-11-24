@@ -7,6 +7,12 @@ from core.detection.gap_pattern import GapPattern
 from core.evaluation.ollama import OllamaEvaluator
 from core.visualization.visualizer import plot_dotted_chart
 from core.evaluation.summary_generator import summarize_event_log
+from core.utils.demo_sampling import sample_small_eventlog, print_sampling_stats
+
+# ⚠️ DEMO MODE - Set to True for fast gap detection during presentations
+# This samples the event log to ~100 cases for instant results
+# Set to False for full production analysis
+DEMO_MODE = True
 
 # Configure page for better performance
 st.set_page_config(
@@ -92,6 +98,22 @@ def main():
                     st.warning(
                         "The log file was loaded but contains no events.")
                     return
+
+                # ⚠️ DEMO MODE: Sample event log for fast gap detection
+                if DEMO_MODE and 'case_id' in df.columns:
+                    df_original = df
+                    df = sample_small_eventlog(
+                        df,
+                        max_cases=100,
+                        max_events_per_case=30,
+                        time_col='actual_time',
+                        random_state=42
+                    )
+                    # Print sampling stats to console (for debugging)
+                    print_sampling_stats(df_original, df)
+                    # Show info in UI
+                    st.info(f"🎬 DEMO MODE: Sampled to {len(df):,} events from {len(df_original):,} events "
+                           f"({df['case_id'].nunique()} cases) for fast gap detection.")
 
                 # Store in session state
                 st.session_state.df = df
@@ -448,56 +470,40 @@ def main():
         # Determine if Y is categorical
         y_is_categorical = df_selected[y_col].nunique() <= 60
         
-        if y_is_categorical:
-            st.info("🔍 **Categorical Y-Axis**: Detects horizontal gaps within category bands. A gap is detected when an empty region within a category covers at least the specified fraction of the X-axis width.")
-        else:
-            st.info("🔍 **Numeric Y-Axis**: Detects true 2D empty regions. A gap is detected when an empty 2D region covers at least the specified fraction of the total plot area.")
-
-        # Show appropriate parameter input
-        if y_is_categorical:
-            use_default_x_gap = st.checkbox("Use default horizontal gap threshold (0.02)", value=True)
-            if use_default_x_gap:
-                min_gap_x_width = None
-            else:
-                min_gap_x_width = st.number_input(
-                    "Minimum Horizontal Gap Width (fraction of X-axis)",
-                    min_value=0.0,
-                    max_value=1.0,
-                    value=0.02,
-                    step=0.01,
-                    format="%.2f",
-                    help="A gap is detected when the empty region within a category covers at least this fraction of the X-axis width."
-                )
-            min_gap_area = None
-        else:
-            # Check if X-axis is time-based
-            x_col = plot_config['x_col']
-            is_time_based = x_col in ['actual_time', 'relative_time', 'relative_ratio', 'logical_time', 'logical_relative'] or \
-                           (x_col in df_selected.columns and pd.api.types.is_datetime64_any_dtype(df_selected[x_col]))
+        # Check if X-axis is time-based
+        is_time_based = x_col in ['actual_time', 'relative_time', 'relative_ratio', 'logical_time', 'logical_relative'] or \
+                       (x_col in df_selected.columns and pd.api.types.is_datetime64_any_dtype(df_selected[x_col]))
+        
+        # Show detection mode info
+        st.info(
+            "🔬 **Process-Aware Gap Detection**\n\n"
+            "Detects **abnormal gaps** by learning normal transition durations from your process:\n"
+            "- Analyzes consecutive events within each case (A → B transitions)\n"
+            "- Learns normal duration per transition using statistical analysis (Q1, Q3, IQR, P95)\n"
+            "- Marks gaps as abnormal when duration > threshold\n"
+            "- Requires at least 5 samples per transition for reliable statistics"
+        )
+        
+        # Optional: Advanced settings
+        with st.expander("⚙️ Advanced Settings"):
+            min_samples = st.number_input(
+                "Minimum samples per transition",
+                min_value=3,
+                max_value=20,
+                value=5,
+                step=1,
+                help="Transitions with fewer samples will be skipped (not enough data for reliable statistics)"
+            )
             
-            if is_time_based:
-                default_threshold = 0.001  # 0.1% for time-based (more sensitive)
-                default_label = "Use default time-based threshold (0.001 = 0.1%)"
-                help_text = "For time-based X-axes, a gap is detected when the time interval between consecutive events exceeds this fraction of the total time span. Default 0.001 (0.1%) is recommended for large time ranges (years)."
-            else:
-                default_threshold = 0.01  # 1% for numeric 2D
-                default_label = "Use default 2D area threshold (0.01 = 1%)"
-                help_text = "A gap is detected when an empty 2D region covers at least this fraction of the plot area."
-            
-            use_default_area_gap = st.checkbox(default_label, value=True)
-            if use_default_area_gap:
-                min_gap_area = None
-            else:
-                min_gap_area = st.number_input(
-                    "Minimum Gap Area (fraction of total chart area)",
-                    min_value=0.0,
-                    max_value=1.0,
-                    value=default_threshold,
-                    step=0.001,
-                    format="%.3f",
-                    help=help_text
-                )
-            min_gap_x_width = None
+            st.caption(
+                "💡 **How it works:** For each activity transition (e.g., 'Check-in → Lab Test'), "
+                "the detector computes the distribution of gap durations across all cases. "
+                "It then calculates a threshold as max(P95, Q3 + 1.5×IQR). "
+                "Gaps exceeding this threshold are marked as abnormal."
+            )
+        
+        # Store settings (for now we only use min_samples in future updates)
+        # Currently GapPattern uses hardcoded MIN_SAMPLES_FOR_NORMALITY = 5
 
         # Gap detection button
         if st.button("Detect Gaps", type="primary"):
@@ -508,20 +514,16 @@ def main():
                     'y': y_col
                 }
 
-                # Create gap detector with appropriate parameters
-                with st.spinner("Detecting gaps..."):
-                    if y_is_categorical:
-                        gap_detector = GapPattern(
-                            view_config=view_config,
-                            min_gap_x_width=min_gap_x_width,
-                            y_is_categorical=y_is_categorical
-                        )
-                    else:
-                        gap_detector = GapPattern(
-                            view_config=view_config,
-                            min_gap_area=min_gap_area,
-                            y_is_categorical=y_is_categorical
-                        )
+                # Create gap detector
+                with st.spinner("Analyzing process transitions and detecting abnormal gaps..."):
+                    gap_detector = GapPattern(
+                        view_config=view_config,
+                        y_is_categorical=y_is_categorical
+                    )
+                    
+                    # Apply min_samples setting if changed from default
+                    if 'min_samples' in locals() and min_samples != 5:
+                        gap_detector.MIN_SAMPLES_FOR_NORMALITY = min_samples
 
                     # Detect gaps
                     gap_detector.detect(df_selected)
@@ -531,7 +533,11 @@ def main():
                         if 'gap_detector' in st.session_state:
                             del st.session_state['gap_detector']
                         st.warning(
-                            "No gaps found with current parameters. Try adjusting the threshold.")
+                            "No abnormal gaps detected. This could mean:\n"
+                            "- All gaps are within normal thresholds for their transitions\n"
+                            "- Not enough transitions have sufficient samples (≥5)\n"
+                            "- The log doesn't contain 'case_id' or 'activity' columns"
+                        )
                     else:
                         # Store gap detection results
                         st.session_state['gap_detector'] = gap_detector
@@ -595,6 +601,11 @@ def main():
             gap_detector = st.session_state['gap_detector']
             plot_config = st.session_state['current_plot_config']
             x_col = plot_config['x_col']
+            y_col = plot_config['y_col']
+            df_selected = plot_config['df_selected']
+            
+            # Get Y categorical status
+            y_is_categorical = df_selected[y_col].nunique() <= 60
             
             # Get gap summary
             summary = gap_detector.get_gap_summary()
@@ -657,109 +668,124 @@ def main():
                     return f"{value:.2f}"
 
             # Display results
+            total_abnormal = summary.get('total_abnormal_gaps', 0)
+            total_transitions = summary.get('total_transitions', 0)
+            transitions_with_anomalies = summary.get('transitions_with_anomalies', 0)
+            
             st.success(
-                f"Gap detection completed! Found {summary.get('total_gaps', 0)} gaps")
+                f"Process-aware gap detection completed! Found {total_abnormal} abnormal gaps "
+                f"across {transitions_with_anomalies} of {total_transitions} transitions")
 
             # Show gap statistics
             col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("Total Gaps", summary.get(
-                    'total_gaps', 0))
+                st.metric("Abnormal Gaps", total_abnormal)
             with col2:
-                total_area = summary.get('total_gap_area', 0)
-                st.metric("Total Gap Area", f"{total_area:.4f}")
+                st.metric("Transitions Analyzed", total_transitions)
             with col3:
-                avg_area = summary.get('average_gap_area', 0)
-                st.metric("Avg Gap Area", f"{avg_area:.4f}")
+                total_magnitude = summary.get('total_magnitude', 0)
+                # Format based on magnitude size (duration in seconds)
+                if total_magnitude > 86400:  # > 1 day
+                    st.metric("Total Duration", f"{total_magnitude/86400:.1f} days")
+                elif total_magnitude > 3600:  # > 1 hour
+                    st.metric("Total Duration", f"{total_magnitude/3600:.1f} hours")
+                else:
+                    st.metric("Total Duration", f"{total_magnitude:.1f}s")
             with col4:
-                min_threshold = summary.get('min_gap_threshold', 0)
-                st.metric("Min Threshold", f"{min_threshold:.4f}")
+                avg_magnitude = summary.get('average_magnitude', 0)
+                # Format based on magnitude size
+                if avg_magnitude > 86400:  # > 1 day
+                    st.metric("Avg Duration", f"{avg_magnitude/86400:.1f} days")
+                elif avg_magnitude > 3600:  # > 1 hour
+                    st.metric("Avg Duration", f"{avg_magnitude/3600:.1f} hours")
+                else:
+                    st.metric("Avg Duration", f"{avg_magnitude:.1f}s")
 
             # Show gap details
             with st.expander("📊 Detailed Gap Information"):
-                st.json(summary)
-
-                # Show individual gaps (limited to first 50 for readability)
+                # Show transition statistics
+                if summary.get('transition_stats'):
+                    st.write("**Transition Statistics:**")
+                    st.caption(f"Learned normality thresholds for {len(summary['transition_stats'])} transitions")
+                    
+                    # Show top 5 transitions with most samples
+                    top_transitions = sorted(
+                        summary['transition_stats'].items(),
+                        key=lambda x: x[1]['count'],
+                        reverse=True
+                    )[:5]
+                    
+                    st.write("Top 5 most frequent transitions:")
+                    for trans, stats in top_transitions:
+                        st.write(f"- **{trans}**: {stats['count']} occurrences, "
+                                f"threshold: {stats['threshold']:.1f}s "
+                                f"(P95: {stats['p95']:.1f}s, median: {stats['median']:.1f}s)")
+                
+                st.write("---")
+                
+                # Show individual abnormal gaps (limited to first 50 for readability)
                 if summary.get('gaps'):
-                    # Determine gap types for subtitle
-                    gap_types = set(gap.get('gap_type', 'spatial_2d') for gap in summary['gaps'])
+                    st.write("**Abnormal Gaps (Top 50 by Severity):**")
+                    st.caption("✅ Process-aware gaps that exceed transition-specific thresholds")
                     
-                    # Main title
-                    st.write("**Detected Gaps:**")
+                    # Sort by severity (most severe first)
+                    gaps_sorted = sorted(
+                        summary['gaps'],
+                        key=lambda g: g.get('severity', 0),
+                        reverse=True
+                    )
+                    gaps_to_show = gaps_sorted[:50]  # Show top 50
                     
-                    # Subtitle based on gap types
-                    if len(gap_types) == 1:
-                        gap_type = list(gap_types)[0]
-                        if gap_type == 'time_x_interval':
-                            st.caption("Time gaps on X axis (no events between the shown timestamps).")
-                        elif gap_type == 'category_x_interval':
-                            st.caption("Horizontal gaps within category bands (no events in the shown X intervals for specific categories).")
-                        elif gap_type == 'spatial_2d':
-                            st.caption("2D empty regions in the dotted chart.")
-                        else:
-                            st.caption("Gaps detected in the chart.")
-                    else:
-                        st.caption("Mixed gap types detected (time-based and 2D).")
-                    
-                    gaps_to_show = summary['gaps'][:50]  # Show first 50
                     for i, gap in enumerate(gaps_to_show, 1):
                         x_start = format_timestamp(gap.get('x_start', 0), x_col)
                         x_end = format_timestamp(gap.get('x_end', 0), x_col)
-                        y_start = str(gap.get('y_start', ''))
-                        y_end = str(gap.get('y_end', ''))
-                        area = gap.get('area', 0)
-                        gap_type = gap.get('gap_type', 'spatial_2d')
                         
-                        # Format gap type for display
-                        gap_type_display = {
-                            'time_x_interval': 'time_x_interval',
-                            'category_x_interval': 'category_x_interval',
-                            'spatial_2d': 'spatial_2d'
-                        }.get(gap_type, gap_type)
+                        # Get transition info
+                        transition = gap.get('transition', 'Unknown')
+                        case_id = gap.get('case_id', 'Unknown')
+                        duration = gap.get('duration', 0)
+                        threshold = gap.get('threshold', 0)
+                        severity = gap.get('severity', 0)
                         
-                        # Build description based on gap type
-                        if gap_type == 'time_x_interval':
-                            # Format duration for time gaps
-                            duration = gap.get('duration')
-                            if duration is not None:
-                                if isinstance(duration, (int, float)):
-                                    if duration >= 86400:  # >= 1 day
-                                        days = duration / 86400
-                                        duration_str = f"{days:.1f} days"
-                                    elif duration >= 3600:  # >= 1 hour
-                                        hours = duration / 3600
-                                        duration_str = f"{hours:.1f} hours"
-                                    elif duration >= 60:  # >= 1 minute
-                                        minutes = duration / 60
-                                        duration_str = f"{minutes:.1f} minutes"
-                                    else:
-                                        duration_str = f"{duration:.1f} seconds"
-                                else:
-                                    duration_str = str(duration)
-                            else:
-                                duration_str = "N/A"
-                            
-                            st.write(
-                                f"- **Gap {i}** ({gap_type_display}): "
-                                f"X: {x_start} → {x_end} "
-                                f"(duration: {duration_str})")
-                        elif gap_type == 'category_x_interval':
-                            # Show category range but hide numeric scaling details
-                            st.write(
-                                f"- **Gap {i}** ({gap_type_display}): "
-                                f"X: {x_start} → {x_end}, "
-                                f"Category: {y_start} → {y_end} "
-                                f"(Area: {area:.4f})")
-                        else:  # spatial_2d
-                            st.write(
-                                f"- **Gap {i}** ({gap_type_display}): "
-                                f"X: {x_start} → {x_end}, "
-                                f"Y: {y_start} → {y_end} "
-                                f"(Area: {area:.4f})")
+                        # Format duration
+                        if duration >= 86400:  # >= 1 day
+                            duration_str = f"{duration/86400:.1f} days"
+                        elif duration >= 3600:  # >= 1 hour
+                            duration_str = f"{duration/3600:.1f} hours"
+                        elif duration >= 60:  # >= 1 minute
+                            duration_str = f"{duration/60:.1f} minutes"
+                        else:
+                            duration_str = f"{duration:.1f}s"
+                        
+                        # Format threshold
+                        if threshold >= 86400:
+                            threshold_str = f"{threshold/86400:.1f} days"
+                        elif threshold >= 3600:
+                            threshold_str = f"{threshold/3600:.1f} hours"
+                        elif threshold >= 60:
+                            threshold_str = f"{threshold/60:.1f} minutes"
+                        else:
+                            threshold_str = f"{threshold:.1f}s"
+                        
+                        # Color code by severity
+                        if severity >= 5:
+                            severity_emoji = "🔴"
+                        elif severity >= 3:
+                            severity_emoji = "🟠"
+                        elif severity >= 2:
+                            severity_emoji = "🟡"
+                        else:
+                            severity_emoji = "🟢"
+                        
+                        st.write(
+                            f"{severity_emoji} **Gap {i}** - Transition: **{transition}**  \n"
+                            f"  Case: {case_id} | Time: {x_start} → {x_end}  \n"
+                            f"  Duration: {duration_str} | Threshold: {threshold_str} | "
+                            f"**Severity: {severity:.2f}x**"
+                        )
                     
                     if len(summary['gaps']) > 50:
-                        st.info(f"⚠️ Nur die ersten 50 von {len(summary['gaps'])} Gaps werden angezeigt. "
-                               f"Verwenden Sie die JSON-Ansicht für alle Details.")
+                        st.info(f"⚠️ Showing top 50 of {len(summary['gaps'])} abnormal gaps (sorted by severity).")
 
     # Ollama Description (moved to sidebar for better performance)
     with st.sidebar:
