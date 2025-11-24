@@ -13,9 +13,6 @@ from core.detection.gap_pattern import GapPattern
 from core.evaluation.ollama import OllamaEvaluator
 from core.utils.demo_sampling import sample_small_eventlog
 
-# ⚠️ DEMO MODE - Set to True for fast gap detection during presentations
-DEMO_MODE = True
-
 
 # Streamlit caching for performance
 @st.cache_data(ttl=3600)  # Cache for 1 hour
@@ -36,7 +33,7 @@ def init_state():
     if 'chart_plotted' not in st.session_state:
         st.session_state.chart_plotted = False
 
-def load_data_button(xes_path):
+def load_data_button(xes_path, demo_mode=False):
     try:
         with st.spinner(f"Loading {xes_path}..."):
             # Use cached loading
@@ -47,8 +44,8 @@ def load_data_button(xes_path):
                 "The log file was loaded but contains no events.")
             return
 
-        # ⚠️ DEMO MODE: Sample event log for fast gap detection
-        if DEMO_MODE and 'case_id' in df.columns:
+        # Demo Mode: Sample event log for fast gap detection
+        if demo_mode and 'case_id' in df.columns:
             df_original = df
             df = sample_small_eventlog(
                 df,
@@ -59,8 +56,9 @@ def load_data_button(xes_path):
             )
             # Show info in UI
             st.info(
-                f"🎬 DEMO MODE: Sampled to {len(df):,} events from {len(df_original):,} events "
-                f"({df['case_id'].nunique()} cases) for fast gap detection."
+                f"🎬 **DEMO MODE Active:** Sampled to {len(df):,} events from {len(df_original):,} events "
+                f"({df['case_id'].nunique()} cases) for fast gap detection. "
+                f"Uncheck 'Demo Mode' to analyze full dataset."
             )
 
         # Store in session state
@@ -164,11 +162,8 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
             yaxis=dict(autorange='reversed')
         )
 
-        # Add gap visualization if gaps were detected
-        if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
-            fig = st.session_state['gap_detector'].visualize(df_selected, fig)
-
-        st.plotly_chart(fig, use_container_width=True)
+        # Note: Visualization overlays will be added by display_chart()
+        # Do not display chart here - it will be displayed persistently
 
     # Store the current plot configuration and figure
     st.session_state['current_plot_config'] = {
@@ -190,11 +185,168 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
         'y_axis': y_col
     }
     st.session_state['chart_plotted'] = True
+    st.session_state['chart_needs_display'] = True
 
     st.success("Chart created successfully!")
 
+def display_chart():
+    """Display the chart from session state (persistent across reruns)."""
+    if not st.session_state.get('chart_plotted', False):
+        return
+    
+    if not st.session_state.get('chart_needs_display', False):
+        return
+        
+    plot_config = st.session_state.get('current_plot_config', {})
+    if not plot_config:
+        return
+    
+    df_selected = plot_config['df_selected']
+    x_col = plot_config['x_col']
+    y_col = plot_config['y_col']
+    dots_config_col = plot_config['dots_config_col']
+    x_axis = plot_config['x_axis_label']
+    y_axis = plot_config['y_axis_label']
+    dots_config_label = plot_config['dots_config_label']
+    total_points = plot_config['total_points']
+    color_col = dots_config_col
+    hover_cols = ['activity', 'event_index', 'actual_time']
+    
+    # Recreate the chart
+    fig = plot_chart(
+        df=df_selected,
+        x=x_col,
+        y=y_col,
+        color=color_col,
+        title=f"Dotted Chart: {y_axis} vs {x_axis} ({total_points:,} points)",
+        labels={x_col: x_axis, y_col: y_axis, color_col: dots_config_label},
+        hover_data=hover_cols
+    )
+    
+    # Improve visual appearance
+    fig.update_traces(marker=dict(size=5, opacity=0.8))
+    
+    # Layout settings
+    fig.update_layout(
+        showlegend=(color_col is not None and color_col != 'case_id'),
+        hovermode='closest',
+        template='plotly_white',
+        yaxis=dict(autorange='reversed')
+    )
+    
+    # Add gap visualization if gaps were detected
+    if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
+        fig = st.session_state['gap_detector'].visualize(df_selected, fig)
+    
+    # Add outlier visualization if detected
+    if st.session_state.get('outlier_detected', False) and 'outlier_pattern' in st.session_state:
+        fig = st.session_state.outlier_pattern.visualize(fig)
+    
+    # Add temporal cluster visualization if detected  
+    if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
+        fig = st.session_state.temporal_clusters.visualize(df=df_selected, fig=fig)
+    
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Update stored figure
+    st.session_state['fig'] = fig
+
 
 # region Pattern Detection
+def handle_temporal_cluster_detection_logic(x_col, y_col, x_axis_label, y_axis_label, df_selected):
+    """Execute temporal cluster detection logic."""
+    if x_col and y_col and df_selected is not None:
+        with st.spinner("Detecting temporal patterns..."):
+            detector = TemporalClusterPattern(
+                df=df_selected,
+                x_axis=x_col,
+                y_axis=y_col,
+                min_cluster_size=10
+            )
+
+            if detector.detect():
+                st.session_state.temporal_clusters = detector
+                st.session_state.temporal_detected = True
+                st.session_state['chart_needs_display'] = True
+                st.success("Temporal clusters detected!")
+                st.rerun()
+            else:
+                st.session_state.temporal_detected = False
+                st.info(f"No meaningful temporal patterns for {y_axis_label} × {x_axis_label}")
+    else:
+        st.warning("Please plot a chart first")
+
+def handle_outlier_detection_logic():
+    """Execute outlier detection logic."""
+    with st.spinner("Analyzing outliers..."):
+        try:
+            # Use original data for outlier detection (not sampled data)
+            outlier_pattern = OutlierDetectionPattern(
+                df=st.session_state.df,  # Use full dataset
+                view_config=st.session_state.view_config
+            )
+            if outlier_pattern.detect():
+                # Store outlier results in session state
+                st.session_state.outlier_pattern = outlier_pattern
+                st.session_state.outlier_detected = True
+                st.session_state['chart_needs_display'] = True
+                st.success("Outliers detected!")
+                st.rerun()
+            else:
+                st.session_state.outlier_detected = False
+                st.info("No significant outliers detected!")
+
+        except Exception as e:
+            st.session_state.outlier_detected = False
+            st.error(f"Error during outlier detection: {str(e)}")
+
+def handle_gap_detection_logic(df_selected, x_col, y_col, min_samples=5):
+    """Execute gap detection logic."""
+    try:
+        # Determine if Y is categorical
+        y_is_categorical = df_selected[y_col].nunique() <= 60
+        
+        # Create view configuration for gap detection
+        view_config = {
+            'x': x_col,
+            'y': y_col
+        }
+
+        # Create gap detector
+        with st.spinner("Analyzing process transitions and detecting abnormal gaps..."):
+            gap_detector = GapPattern(
+                view_config=view_config,
+                y_is_categorical=y_is_categorical
+            )
+            
+            # Apply min_samples setting
+            gap_detector.MIN_SAMPLES_FOR_NORMALITY = min_samples
+
+            # Detect gaps
+            gap_detector.detect(df_selected)
+
+            if gap_detector.detected is None:
+                # Clear gap detector if no gaps found
+                if 'gap_detector' in st.session_state:
+                    del st.session_state['gap_detector']
+                st.warning(
+                    "No abnormal gaps detected. This could mean:\n"
+                    "- All gaps are within normal thresholds for their transitions\n"
+                    "- Not enough transitions have sufficient samples (≥5)\n"
+                    "- The log doesn't contain 'case_id' or 'activity' columns"
+                )
+            else:
+                # Store gap detection results
+                st.session_state['gap_detector'] = gap_detector
+                st.session_state['chart_needs_display'] = True
+                st.success("Abnormal gaps detected!")
+                # Trigger chart refresh to show gaps
+                st.rerun()
+
+    except Exception as e:
+        st.error(f"Error during gap detection: {str(e)}")
+        st.exception(e)
+
 def handle_temporal_cluster_detection(x_col, y_col, x_axis_label, y_axis_label, df_selected):
     # Temporal Cluster Detection
     if st.button('Detect Temporal Clusters', type="secondary"):
@@ -353,227 +505,6 @@ def handle_temporal_cluster_detection(x_col, y_col, x_axis_label, y_axis_label, 
 
         st.success("Outlier detection completed!")
 
-def handle_gap_detection():
-    plot_config = st.session_state['current_plot_config']
-    df_selected = plot_config['df_selected']
-    x_col = plot_config['x_col']
-    y_col = plot_config['y_col']
-    
-    # Determine if Y is categorical
-    y_is_categorical = df_selected[y_col].nunique() <= 60
-    
-    # Show detection mode info
-    st.info(
-        "🔬 **Process-Aware Gap Detection**\n\n"
-        "Detects **abnormal gaps** by learning normal transition durations from your process:\n"
-        "- Analyzes consecutive events within each case (A → B transitions)\n"
-        "- Learns normal duration per transition using statistical analysis (Q1, Q3, IQR, P95)\n"
-        "- Marks gaps as abnormal when duration > threshold\n"
-        "- Requires at least 5 samples per transition for reliable statistics"
-    )
-    
-    # Optional: Advanced settings
-    with st.expander("⚙️ Advanced Settings"):
-        min_samples = st.number_input(
-            "Minimum samples per transition",
-            min_value=3,
-            max_value=20,
-            value=5,
-            step=1,
-            help="Transitions with fewer samples will be skipped (not enough data for reliable statistics)"
-        )
-        
-        st.caption(
-            "💡 **How it works:** For each activity transition (e.g., 'Check-in → Lab Test'), "
-            "the detector computes the distribution of gap durations across all cases. "
-            "It then calculates a threshold as max(P95, Q3 + 1.5×IQR). "
-            "Gaps exceeding this threshold are marked as abnormal."
-        )
-
-    # Gap detection button
-    if st.button("Detect Gaps", type="primary"):
-        try:
-            # Create view configuration for gap detection
-            view_config = {
-                'x': x_col,
-                'y': y_col
-            }
-
-            # Create gap detector
-            with st.spinner("Analyzing process transitions and detecting abnormal gaps..."):
-                gap_detector = GapPattern(
-                    view_config=view_config,
-                    y_is_categorical=y_is_categorical
-                )
-                
-                # Apply min_samples setting if changed from default
-                if 'min_samples' in locals() and min_samples != 5:
-                    gap_detector.MIN_SAMPLES_FOR_NORMALITY = min_samples
-
-                # Detect gaps
-                gap_detector.detect(df_selected)
-
-                if gap_detector.detected is None:
-                    # Clear gap detector if no gaps found
-                    if 'gap_detector' in st.session_state:
-                        del st.session_state['gap_detector']
-                    st.warning(
-                        "No abnormal gaps detected. This could mean:\n"
-                        "- All gaps are within normal thresholds for their transitions\n"
-                        "- Not enough transitions have sufficient samples (≥5)\n"
-                        "- The log doesn't contain 'case_id' or 'activity' columns"
-                    )
-                else:
-                    # Store gap detection results
-                    st.session_state['gap_detector'] = gap_detector
-                    # Trigger chart refresh to show gaps
-                    st.rerun()
-
-        except Exception as e:
-            st.error(f"Error during gap detection: {str(e)}")
-            st.exception(e)
-
-    # Display gap detection results (persistent, outside button block)
-    if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
-        gap_detector = st.session_state['gap_detector']
-        plot_config = st.session_state['current_plot_config']
-        x_col = plot_config['x_col']
-        
-        # Get gap summary
-        summary = gap_detector.get_gap_summary()
-        
-        # Helper function to format timestamp
-        def format_timestamp(value, x_col):
-            """Format timestamp value."""
-            if x_col == 'actual_time':
-                import pandas as pd
-                if isinstance(value, pd.Timestamp):
-                    return value.strftime("%Y-%m-%d %H:%M:%S")
-                else:
-                    return str(value)
-            else:
-                return f"{value:.2f}"
-        
-        # Display results
-        total_abnormal = summary.get('total_abnormal_gaps', 0)
-        total_transitions = summary.get('total_transitions', 0)
-        transitions_with_anomalies = summary.get('transitions_with_anomalies', 0)
-        
-        st.success(
-            f"Process-aware gap detection completed! Found {total_abnormal} abnormal gaps "
-            f"across {transitions_with_anomalies} of {total_transitions} transitions"
-        )
-
-        # Show gap statistics
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Abnormal Gaps", total_abnormal)
-        with col2:
-            st.metric("Transitions Analyzed", total_transitions)
-        with col3:
-            total_magnitude = summary.get('total_magnitude', 0)
-            if total_magnitude > 86400:  # > 1 day
-                st.metric("Total Duration", f"{total_magnitude/86400:.1f} days")
-            elif total_magnitude > 3600:  # > 1 hour
-                st.metric("Total Duration", f"{total_magnitude/3600:.1f} hours")
-            else:
-                st.metric("Total Duration", f"{total_magnitude:.1f}s")
-        with col4:
-            avg_magnitude = summary.get('average_magnitude', 0)
-            if avg_magnitude > 86400:  # > 1 day
-                st.metric("Avg Duration", f"{avg_magnitude/86400:.1f} days")
-            elif avg_magnitude > 3600:  # > 1 hour
-                st.metric("Avg Duration", f"{avg_magnitude/3600:.1f} hours")
-            else:
-                st.metric("Avg Duration", f"{avg_magnitude:.1f}s")
-
-        # Show gap details
-        with st.expander("📊 Detailed Gap Information"):
-            # Show transition statistics
-            if summary.get('transition_stats'):
-                st.write("**Transition Statistics:**")
-                st.caption(f"Learned normality thresholds for {len(summary['transition_stats'])} transitions")
-                
-                # Show top 5 transitions with most samples
-                top_transitions = sorted(
-                    summary['transition_stats'].items(),
-                    key=lambda x: x[1]['count'],
-                    reverse=True
-                )[:5]
-                
-                st.write("Top 5 most frequent transitions:")
-                for trans, stats in top_transitions:
-                    st.write(
-                        f"- **{trans}**: {stats['count']} occurrences, "
-                        f"threshold: {stats['threshold']:.1f}s "
-                        f"(P95: {stats['p95']:.1f}s, median: {stats['median']:.1f}s)"
-                    )
-            
-            st.write("---")
-            
-            # Show individual abnormal gaps
-            if summary.get('gaps'):
-                st.write("**Abnormal Gaps (Top 50 by Severity):**")
-                st.caption("✅ Process-aware gaps that exceed transition-specific thresholds")
-                
-                # Sort by severity
-                gaps_sorted = sorted(
-                    summary['gaps'],
-                    key=lambda g: g.get('severity', 0),
-                    reverse=True
-                )
-                gaps_to_show = gaps_sorted[:50]
-                
-                for i, gap in enumerate(gaps_to_show, 1):
-                    x_start = format_timestamp(gap.get('x_start', 0), x_col)
-                    x_end = format_timestamp(gap.get('x_end', 0), x_col)
-                    
-                    transition = gap.get('transition', 'Unknown')
-                    case_id = gap.get('case_id', 'Unknown')
-                    duration = gap.get('duration', 0)
-                    threshold = gap.get('threshold', 0)
-                    severity = gap.get('severity', 0)
-                    
-                    # Format duration
-                    if duration >= 86400:
-                        duration_str = f"{duration/86400:.1f} days"
-                    elif duration >= 3600:
-                        duration_str = f"{duration/3600:.1f} hours"
-                    elif duration >= 60:
-                        duration_str = f"{duration/60:.1f} minutes"
-                    else:
-                        duration_str = f"{duration:.1f}s"
-                    
-                    # Format threshold
-                    if threshold >= 86400:
-                        threshold_str = f"{threshold/86400:.1f} days"
-                    elif threshold >= 3600:
-                        threshold_str = f"{threshold/3600:.1f} hours"
-                    elif threshold >= 60:
-                        threshold_str = f"{threshold/60:.1f} minutes"
-                    else:
-                        threshold_str = f"{threshold:.1f}s"
-                    
-                    # Color code by severity
-                    if severity >= 5:
-                        severity_emoji = "🔴"
-                    elif severity >= 3:
-                        severity_emoji = "🟠"
-                    elif severity >= 2:
-                        severity_emoji = "🟡"
-                    else:
-                        severity_emoji = "🟢"
-                    
-                    st.write(
-                        f"{severity_emoji} **Gap {i}** - Transition: **{transition}**  \n"
-                        f"  Case: {case_id} | Time: {x_start} → {x_end}  \n"
-                        f"  Duration: {duration_str} | Threshold: {threshold_str} | "
-                        f"**Severity: {severity:.2f}x**"
-                    )
-                
-                if len(summary['gaps']) > 50:
-                    st.info(f"⚠️ Showing top 50 of {len(summary['gaps'])} abnormal gaps (sorted by severity).")
-
 def handle_pattern_detection():
     # Get current plot configuration from session state
     plot_config = st.session_state.get('current_plot_config', {})
@@ -583,14 +514,56 @@ def handle_pattern_detection():
     y_axis_label = plot_config.get('y_axis_label')
     df_selected = plot_config.get('df_selected')
 
-    handle_temporal_cluster_detection(x_col, y_col, x_axis_label, y_axis_label, df_selected)
-
-    # Gap Detection Section
-    if 'df' in st.session_state and 'current_plot_config' in st.session_state:
-        st.divider()
-        st.subheader("Gap Detection")
-
-        handle_gap_detection()
+    # Create three equal pattern detector containers
+    col1, col2, col3 = st.columns(3)
+    
+    # === TEMPORAL CLUSTERS ===
+    with col1:
+        with st.container(border=True):
+            st.subheader("⏱️ Temporal Clusters")
+            st.write("Finds time periods with unusually high or low event activity.")
+            st.caption("Uses density-based clustering (OPTICS, DBSCAN, K-Means) on temporal event distributions.")
+            
+            if st.button("Detect Temporal Clusters", type="primary", use_container_width=True):
+                handle_temporal_cluster_detection_logic(x_col, y_col, x_axis_label, y_axis_label, df_selected)
+    
+    # === OUTLIER DETECTION ===
+    with col2:
+        with st.container(border=True):
+            st.subheader("🎯 Outlier Detection")
+            st.write("Identifies unusual events or cases based on temporal deviations.")
+            st.caption("Uses IQR-based statistical analysis for time, duration, frequency, resource, and sequence anomalies.")
+            
+            if st.button("Detect Outliers", type="primary", use_container_width=True):
+                handle_outlier_detection_logic()
+    
+    # === GAP DETECTION ===
+    with col3:
+        with st.container(border=True):
+            # Header with settings icon
+            header_col1, header_col2 = st.columns([0.9, 0.1])
+            with header_col1:
+                st.subheader("🔬 Gap Detection")
+            with header_col2:
+                with st.popover("⚙️"):
+                    st.write("**Settings**")
+                    min_samples = st.number_input(
+                        "Minimum samples per transition",
+                        min_value=3,
+                        max_value=20,
+                        value=5,
+                        step=1,
+                        key="gap_min_samples_popover",
+                        help="Transitions with fewer samples are skipped (insufficient data)"
+                    )
+            
+            st.write("Learns normal transition durations (A → B) and detects unusually long gaps.")
+            st.caption("Uses statistical learning (Q1, Q3, IQR, P95) per activity transition to identify abnormal delays.")
+            
+            if st.button("Detect Gaps", type="primary", use_container_width=True):
+                # Use min_samples from popover if exists, otherwise default
+                gap_min_samples = st.session_state.get('gap_min_samples_popover', 5)
+                handle_gap_detection_logic(df_selected, x_col, y_col, gap_min_samples)
                         
 def ollama_description_button():
     with st.spinner("Generating description..."):
