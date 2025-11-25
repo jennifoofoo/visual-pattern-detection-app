@@ -7,7 +7,7 @@ available in the visualization system.
 
 import numpy as np
 import pandas as pd
-from typing import Dict
+from typing import Dict, Any
 from sklearn.cluster import DBSCAN
 from datetime import datetime
 from .pattern_base import Pattern
@@ -49,6 +49,14 @@ class TemporalClusterPattern(Pattern):
 
         self.clusters = {}
         self.cluster_metadata = {}
+
+    def _has_column(self, *column_names: str):
+        """Check if any of the column names exist (case-insensitive)."""
+        for col_name in column_names:
+            for actual_col in self.df.columns:
+                if actual_col.lower() == col_name.lower():
+                    return actual_col
+        return None
 
     def detect(self, df: pd.DataFrame = None) -> bool:
         """
@@ -572,9 +580,9 @@ class TemporalClusterPattern(Pattern):
             font=dict(size=10)
         )
 
-    def get_summary(self) -> str:
+    def get_summary_text(self) -> str:
         """
-        Generate human-readable summary of detected clusters.
+        Generate human-readable summary text of detected clusters.
 
         Returns:
             Formatted string describing all detected patterns
@@ -625,3 +633,31 @@ class TemporalClusterPattern(Pattern):
                 f"\n🔄 **Variant Timing Differences:** {len(self.clusters['variant_timing'])} variants with distinct timing")
 
         return '\n'.join(summary)
+    
+    def get_summary(self) -> Dict[str, Any]:
+        """
+        Get standardized pattern summary.
+        
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized summary with pattern_type, detected, count, and details
+        """
+        # Count total clusters across all types
+        total_count = sum(
+            len(v) if isinstance(v, (list, dict)) else 1
+            for v in self.clusters.values()
+        ) if self.clusters else 0
+
+        return {
+            'pattern_type': 'temporal_cluster',
+            'detected': bool(self.clusters),
+            'count': total_count,
+            'details': {
+                'x_axis': self.x_axis,
+                'y_axis': self.y_axis,
+                'clusters': self.clusters,
+                'metadata': self.cluster_metadata,
+                'summary_text': self.get_summary_text()
+            }
+        }

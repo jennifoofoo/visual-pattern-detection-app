@@ -695,3 +695,21 @@ class OutlierDetectionPattern(Pattern):
             ]
 
         return summary
+    
+    def get_summary(self) -> Dict[str, Any]:
+        """
+        Get standardized pattern summary.
+        
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized summary with pattern_type, detected, count, and details
+        """
+        outlier_summary = self.get_outlier_summary()
+        
+        return {
+            'pattern_type': 'outlier',
+            'detected': self.detected,
+            'count': outlier_summary.get('statistics', {}).get('total_outliers', 0),
+            'details': outlier_summary
+        }
