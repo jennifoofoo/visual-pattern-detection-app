@@ -16,7 +16,6 @@ This guide explains which temporal cluster patterns are **meaningful** for each 
 - **activity**: Activity/task name
 - **event_index**: Position/sequence number of event
 - **resource**: Person/department/system performing the activity
-- **variant**: Process variant (activity sequence pattern)
 
 ---
 
@@ -53,15 +52,6 @@ This guide explains which temporal cluster patterns are **meaningful** for each 
 **What it detects**: When resources work (shift patterns, availability)
 **How it works**: Clusters each resource's activities along time to find distinct work periods
 
----
-
-### 5. **Variant Timing Patterns** 🔄
-**Meaningful for**: `{relative_time, relative_ratio} × variant`
-
-**What it detects**: If different process paths have different timing characteristics
-**How it works**: Compares timing distributions across different process variants
-
----
 
 ## Non-Meaningful Combinations ❌
 
@@ -102,15 +92,10 @@ are NOT meaningful for temporal clustering because they're sequential counters, 
 ### For **Within-Case Analysis** (how does each case unfold?):
 1. `relative_time × activity` → Activity-Time Clustering
 2. `relative_ratio × activity` → Activity-Time Clustering
-3. `relative_ratio × variant` → Variant Timing Patterns
 
 ### For **Resource Analysis**:
 1. `actual_time × resource` → Resource Time Patterns
 2. `relative_time × resource` → Resource involvement timing
-
-### For **Process Variant Analysis**:
-1. `relative_ratio × variant` → Variant Timing Patterns
-2. `relative_time × variant` → Variant duration comparison
 
 ---
 
