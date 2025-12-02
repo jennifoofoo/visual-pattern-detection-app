@@ -509,12 +509,12 @@ def handle_pattern_detection():
     df_selected = plot_config.get('df_selected')
 
     # Check which patterns are meaningful for this view
-    temporal_meaningful = is_pattern_meaningful(x_col, y_col, 'temporal_cluster')
+    temporal_meaningful = is_pattern_meaningful(x_col, y_col, 'temporal_cluster_x')
     outlier_meaningful = is_pattern_meaningful(x_col, y_col, 'outlier')
     gap_meaningful = is_pattern_meaningful(x_col, y_col, 'gap')
     
     # Get pattern info for tooltips
-    temporal_info = get_pattern_info(x_col, y_col, 'temporal_cluster')
+    temporal_info = get_pattern_info(x_col, y_col, 'temporal_cluster_x')
     outlier_info = get_pattern_info(x_col, y_col, 'outlier')
     gap_info = get_pattern_info(x_col, y_col, 'gap')
     

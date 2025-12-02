@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional, List
 
 EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
     # ========== TIME-BASED VIEWS ==========
-    
+
     "actual_time_resource": {
         "gap": {
             "can_be_found": True,
@@ -23,13 +23,13 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "actual_time",
             "y_axis": "resource"
         },
-        "temporal_cluster": {
+        "temporal_cluster_x": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "Colored regions highlighting dense temporal periods",
-            "interpretation": "Identifies periods when resources are particularly busy or idle. Shows resource work patterns and shift structures.",
-            "algorithm": "DBSCAN/OPTICS clustering on temporal event distribution",
-            "use_case": "Understanding resource utilization, identifying shift patterns, workload analysis",
+            "visual": "Colored circles around event dots highlighting temporal bursts of activities",
+            "interpretation": "Detects time periods with high event concentration across all Y-axis groupings (e.g., resources, activities, cases).",
+            "algorithm": "DBSCAN clustering on temporal event distribution",
+            "use_case": "Finding peak workload periods, batch processing times, shift changes",
             "requirements": ["actual_time", "resource"],
             "output": "Temporal clusters with event density and time ranges",
             "x_axis": "actual_time",
@@ -38,7 +38,7 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
         "outlier": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "Red highlighted dots on outlier events",
+            "visual": "Red highlighted circles over the outlier events with the highest anomaly scores, listing the outlier reasons",
             "interpretation": "Detects unusual events based on timing, resource behavior, and frequency patterns.",
             "algorithm": "IQR-based statistical analysis for time, duration, frequency, and resource anomalies",
             "use_case": "Finding exceptional cases, data quality issues, process violations",
@@ -48,7 +48,7 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "y_axis": "resource"
         }
     },
-    
+
     "actual_time_activity": {
         "gap": {
             "can_be_found": True,
@@ -62,15 +62,15 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "actual_time",
             "y_axis": "activity"
         },
-        "temporal_cluster": {
+        "temporal_cluster_x": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "Colored regions highlighting when specific activities occur",
-            "interpretation": "Shows when specific activities typically happen (e.g., all payments happen in morning).",
-            "algorithm": "DBSCAN clustering per activity type",
-            "use_case": "Understanding activity timing patterns, seasonal effects on activities",
+            "visual": "Colored circles around event dots showing temporal bursts (many events happening in a short time window)",
+            "interpretation": "Detects time periods with high event concentration across all Y-axis groupings (e.g., resources, activities, cases).",
+            "algorithm": "DBSCAN clustering on temporal event distribution",
+            "use_case": "Finding peak workload periods, batch processing times, shift changes",
             "requirements": ["actual_time", "activity"],
-            "output": "Temporal clusters grouped by activity",
+            "output": "Temporal clusters with event density and time ranges",
             "x_axis": "actual_time",
             "y_axis": "activity"
         },
@@ -87,7 +87,7 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "y_axis": "activity"
         }
     },
-    
+
     "actual_time_case_id": {
         "gap": {
             "can_be_found": True,
@@ -101,15 +101,15 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "actual_time",
             "y_axis": "case_id"
         },
-        "temporal_cluster": {
+        "temporal_cluster_x": {
             "can_be_found": True,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: Each case is independent, temporal clustering across cases doesn't provide useful insights.",
-            "algorithm": "N/A",
-            "use_case": "Use actual_time × resource or actual_time × activity instead",
-            "requirements": [],
-            "output": "N/A",
+            "makes_sense": True,
+            "visual": "Colored circles around event dots showing temporal bursts (many events happening in a short time window)",
+            "interpretation": "Detects time periods with high event concentration across all Y-axis groupings (e.g., resources, activities, cases).",
+            "algorithm": "DBSCAN clustering on temporal event distribution",
+            "use_case": "Finding peak workload periods, batch processing times, shift changes",
+            "requirements": ["actual_time", "case_id"],
+            "output": "Temporal clusters with event density and time ranges",
             "x_axis": "actual_time",
             "y_axis": "case_id"
         },
@@ -126,7 +126,7 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "y_axis": "case_id"
         }
     },
-    
+
     "relative_time_resource": {
         "gap": {
             "can_be_found": True,
@@ -140,15 +140,15 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "relative_time",
             "y_axis": "resource"
         },
-        "temporal_cluster": {
+        "temporal_cluster_x": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "Colored regions showing when resources typically get involved",
-            "interpretation": "Shows at which process stage resources typically become active.",
-            "algorithm": "DBSCAN clustering on relative time per resource",
-            "use_case": "Understanding resource involvement patterns in process flow",
+            "visual": "Colored circles around event dots showing temporal bursts (many events happening in a short time window)",
+            "interpretation": "Detects time periods with high event concentration across all Y-axis groupings (e.g., resources, activities, cases).",
+            "algorithm": "DBSCAN clustering on temporal event distribution",
+            "use_case": "Finding peak workload periods at specific process stages",
             "requirements": ["relative_time", "resource"],
-            "output": "Clusters showing resource involvement timing",
+            "output": "Temporal clusters with event density and time ranges",
             "x_axis": "relative_time",
             "y_axis": "resource"
         },
@@ -165,7 +165,7 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "y_axis": "resource"
         }
     },
-    
+
     "relative_time_activity": {
         "gap": {
             "can_be_found": True,
@@ -179,15 +179,15 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "relative_time",
             "y_axis": "activity"
         },
-        "temporal_cluster": {
+        "temporal_cluster_x": {
             "can_be_found": True,
             "makes_sense": True,
             "visual": "Colored regions showing typical activity timing in process",
-            "interpretation": "Shows when in the process flow specific activities typically occur.",
-            "algorithm": "DBSCAN clustering per activity",
+            "interpretation": "Detects time periods with high event concentration across all Y-axis groupings (e.g., resources, activities, cases).",
+            "algorithm": "DBSCAN clustering on temporal event distribution",
             "use_case": "Understanding activity sequencing patterns",
             "requirements": ["relative_time", "activity"],
-            "output": "Activity timing clusters in process flow",
+            "output": "Temporal clusters with event density and time ranges",
             "x_axis": "relative_time",
             "y_axis": "activity"
         },
@@ -204,7 +204,7 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "y_axis": "activity"
         }
     },
-    
+
     "relative_time_case_id": {
         "gap": {
             "can_be_found": True,
@@ -218,32 +218,32 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "relative_time",
             "y_axis": "case_id"
         },
-        "temporal_cluster": {
+        "temporal_cluster_x": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "visual": "Colored circles around event dots showing temporal bursts at similar relative process stages across cases",
+            "interpretation": "Detects groups of events occurring at similar relative times (seconds since case start) across different cases. Identifies common process stages where many events cluster.",
+            "algorithm": "DBSCAN clustering on relative_time values across all events, independent of case duration",
+            "use_case": "Finding events at similar process stages (e.g., '30 minutes after admission', '2 hours into production'), identifying common process milestones",
+            "requirements": ["relative_time", "case_id"],
+            "output": "Temporal clusters with event density at specific relative time points",
             "x_axis": "relative_time",
             "y_axis": "case_id"
         },
         "outlier": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "visual": "Red highlighted dots on outlier events",
+            "interpretation": "Detects cases with unusual timing at specific process stages or events occurring at abnormal relative times.",
+            "algorithm": "IQR-based analysis on relative timing patterns and case complexity",
+            "use_case": "Finding cases with unusual process execution timing, events at unexpected process stages",
+            "requirements": ["relative_time", "case_id"],
+            "output": "Outlier events with relative timing anomalies and case-specific patterns",
             "x_axis": "relative_time",
             "y_axis": "case_id"
         }
     },
-    
+
     "relative_ratio_resource": {
         "gap": {
             "can_be_found": True,
@@ -257,32 +257,32 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "relative_ratio",
             "y_axis": "resource"
         },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio is not a time measurement.",
+            "algorithm": "N/A",
+            "use_case": "Use temporal axis for temporal analysis",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "relative_ratio",
             "y_axis": "resource"
         },
         "outlier": {
             "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Current implementation detects outliers based on actual_time, not relative_ratio. Results don't match visualization.",
+            "algorithm": "N/A - would require relative_ratio-specific analysis",
+            "use_case": "Use actual_time or relative_time views for meaningful outlier detection",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "relative_ratio",
             "y_axis": "resource"
         }
     },
-    
+
     "relative_ratio_activity": {
         "gap": {
             "can_be_found": True,
@@ -296,32 +296,32 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "relative_ratio",
             "y_axis": "activity"
         },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio is not a time measurement.",
+            "algorithm": "N/A",
+            "use_case": "Use temporal axis for temporal analysis",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "relative_ratio",
             "y_axis": "activity"
         },
         "outlier": {
             "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Current implementation detects outliers based on actual_time, not relative_ratio. Results don't match visualization.",
+            "algorithm": "N/A - would require relative_ratio-specific analysis",
+            "use_case": "Use actual_time or relative_time views for meaningful outlier detection",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "relative_ratio",
             "y_axis": "activity"
         }
     },
-    
+
     "relative_ratio_case_id": {
         "gap": {
             "can_be_found": True,
@@ -335,32 +335,32 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "relative_ratio",
             "y_axis": "case_id"
         },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio is not a time measurement.",
+            "algorithm": "N/A",
+            "use_case": "Use temporal axis for temporal analysis",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "relative_ratio",
             "y_axis": "case_id"
         },
         "outlier": {
             "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Current implementation detects outliers based on actual_time, not relative_ratio. Results don't match visualization.",
+            "algorithm": "N/A - would require relative_ratio-specific analysis",
+            "use_case": "Use actual_time or relative_time views for meaningful outlier detection",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "relative_ratio",
             "y_axis": "case_id"
         }
     },
-    
+
     "logical_relative_resource": {
         "gap": {
             "can_be_found": False,
@@ -374,32 +374,32 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "logical_relative",
             "y_axis": "resource"
         },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative is a sequential index, not temporal data. Temporal clustering requires actual time measurements.",
+            "algorithm": "N/A",
+            "use_case": "Use relative_time or relative_ratio for meaningful time-based clustering",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "logical_relative",
             "y_axis": "resource"
         },
         "outlier": {
             "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Current implementation detects outliers based on actual_time, not sequential position. Results don't match visualization.",
+            "algorithm": "N/A - would require logical_relative-specific analysis",
+            "use_case": "Use actual_time or relative_time views for meaningful outlier detection",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "logical_relative",
             "y_axis": "resource"
         }
     },
-    
+
     "logical_relative_activity": {
         "gap": {
             "can_be_found": False,
@@ -413,32 +413,32 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "logical_relative",
             "y_axis": "activity"
         },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative is a sequential index without temporal meaning. Temporal clustering requires actual time measurements.",
+            "algorithm": "N/A",
+            "use_case": "Use relative_time or relative_ratio for meaningful time-based clustering",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "logical_relative",
             "y_axis": "activity"
         },
         "outlier": {
             "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Current implementation detects outliers based on actual_time, not sequential position. Results don't match visualization.",
+            "algorithm": "N/A - would require logical_relative-specific analysis",
+            "use_case": "Use actual_time or relative_time views for meaningful outlier detection",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "logical_relative",
             "y_axis": "activity"
         }
     },
-    
+
     "logical_relative_case_id": {
         "gap": {
             "can_be_found": False,
@@ -452,34 +452,34 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "logical_relative",
             "y_axis": "case_id"
         },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative is a sequential index without temporal meaning. Temporal clustering requires actual time measurements.",
+            "algorithm": "N/A",
+            "use_case": "Use relative_time or relative_ratio for meaningful time-based clustering",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "logical_relative",
             "y_axis": "case_id"
         },
         "outlier": {
             "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Current implementation detects outliers based on actual_time, not sequential position. Results don't match visualization.",
+            "algorithm": "N/A - would require logical_relative-specific analysis",
+            "use_case": "Use actual_time or relative_time views for meaningful outlier detection",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "logical_relative",
             "y_axis": "case_id"
         }
     },
-    
+
     # ========== NON-TEMPORAL VIEWS ==========
-    
+
     "logical_time_resource": {
         "gap": {
             "can_be_found": False,
@@ -493,7 +493,7 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "logical_time",
             "y_axis": "resource"
         },
-        "temporal_cluster": {
+        "temporal_cluster_x": {
             "can_be_found": False,
             "makes_sense": False,
             "visual": "N/A",
@@ -518,7 +518,7 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "y_axis": "resource"
         }
     },
-    
+
     "logical_time_activity": {
         "gap": {
             "can_be_found": False,
@@ -532,32 +532,32 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "logical_time",
             "y_axis": "activity"
         },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_time has no temporal meaning, just sequential order.",
+            "algorithm": "N/A",
+            "use_case": "Use actual_time for temporal analysis",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "logical_time",
             "y_axis": "activity"
         },
         "outlier": {
             "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Current implementation detects outliers based on actual_time, not global sequential order. Results don't match visualization.",
+            "algorithm": "N/A - would require logical_time-specific analysis",
+            "use_case": "Use actual_time views for meaningful outlier detection",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "logical_time",
             "y_axis": "activity"
         }
     },
-    
+
     "logical_time_case_id": {
         "gap": {
             "can_be_found": False,
@@ -571,34 +571,34 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "logical_time",
             "y_axis": "case_id"
         },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_time has no temporal meaning, just sequential order.",
+            "algorithm": "N/A",
+            "use_case": "Use actual_time for temporal analysis",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "logical_time",
             "y_axis": "case_id"
         },
         "outlier": {
             "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Current implementation detects outliers based on actual_time, not global sequential order. Results don't match visualization.",
+            "algorithm": "N/A - would require logical_time-specific analysis",
+            "use_case": "Use actual_time views for meaningful outlier detection",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "logical_time",
             "y_axis": "case_id"
         }
     },
-    
+
     # ========== EVENT INDEX VIEWS ==========
-    
+
     "actual_time_event_index": {
         "gap": {
             "can_be_found": False,
@@ -612,32 +612,32 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "actual_time",
             "y_axis": "event_index"
         },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: event_index is a counter within each case. Temporal clustering requires actual time measurements.",
+            "algorithm": "N/A",
+            "use_case": "Use actual_time for temporal analysis",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "actual_time",
             "y_axis": "event_index"
         },
         "outlier": {
             "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Current implementation ignores Y-axis (event_index). Outliers found don't relate to sequential position shown in view.",
+            "algorithm": "N/A - would require event_index-specific analysis",
+            "use_case": "Use activity or resource on Y-axis for meaningful outlier detection",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "actual_time",
             "y_axis": "event_index"
         }
     },
-    
+
     "relative_time_event_index": {
         "gap": {
             "can_be_found": False,
@@ -651,32 +651,32 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "relative_time",
             "y_axis": "event_index"
         },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: event_index doesn't provide semantic grouping for temporal clustering.",
+            "algorithm": "N/A",
+            "use_case": "Use actual_time for temporal analysis",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "relative_time",
             "y_axis": "event_index"
         },
         "outlier": {
             "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Current implementation ignores Y-axis (event_index). Outliers found don't relate to sequential position shown in view.",
+            "algorithm": "N/A - would require event_index-specific analysis",
+            "use_case": "Use activity or resource on Y-axis for meaningful outlier detection",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "relative_time",
             "y_axis": "event_index"
         }
     },
-    
+
     "relative_ratio_event_index": {
         "gap": {
             "can_be_found": False,
@@ -690,27 +690,27 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "relative_ratio",
             "y_axis": "event_index"
         },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio is not a time measurement.",
+            "algorithm": "N/A",
+            "use_case": "Use temporal axis for temporal analysis",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "relative_ratio",
             "y_axis": "event_index"
         },
         "outlier": {
             "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Current implementation uses actual_time, not relative_ratio, and ignores event_index. Results don't match visualization.",
+            "algorithm": "N/A - would require relative_ratio and event_index-specific analysis",
+            "use_case": "Use actual_time or relative_time with activity/resource for meaningful outlier detection",
             "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
+            "output": "N/A",
             "x_axis": "relative_ratio",
             "y_axis": "event_index"
         }
@@ -720,7 +720,7 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
 def get_pattern_info(x_axis: str, y_axis: str, pattern_name: str) -> Optional[Dict[str, Any]]:
     """
     Get detailed information about a pattern for a specific view configuration.
-    
+
     Parameters
     ----------
     x_axis : str
@@ -728,8 +728,8 @@ def get_pattern_info(x_axis: str, y_axis: str, pattern_name: str) -> Optional[Di
     y_axis : str
         Y-axis column name (e.g., 'resource', 'activity', 'case_id')
     pattern_name : str
-        Pattern name (e.g., 'gap', 'temporal_cluster', 'outlier')
-        
+        Pattern name (e.g., 'gap', 'temporal_cluster_x', 'outlier')
+
     Returns
     -------
     Optional[Dict[str, Any]]
@@ -742,7 +742,7 @@ def get_pattern_info(x_axis: str, y_axis: str, pattern_name: str) -> Optional[Di
 def is_pattern_meaningful(x_axis: str, y_axis: str, pattern_name: str) -> bool:
     """
     Check if a pattern is both technically possible AND semantically meaningful.
-    
+
     Parameters
     ----------
     x_axis : str
@@ -751,7 +751,7 @@ def is_pattern_meaningful(x_axis: str, y_axis: str, pattern_name: str) -> bool:
         Y-axis column name
     pattern_name : str
         Pattern name
-        
+
     Returns
     -------
     bool
@@ -766,14 +766,14 @@ def is_pattern_meaningful(x_axis: str, y_axis: str, pattern_name: str) -> bool:
 def get_meaningful_patterns(x_axis: str, y_axis: str) -> List[str]:
     """
     Get list of all meaningful patterns for a view configuration.
-    
+
     Parameters
     ----------
     x_axis : str
         X-axis column name
     y_axis : str
         Y-axis column name
-        
+
     Returns
     -------
     list[str]
@@ -781,7 +781,7 @@ def get_meaningful_patterns(x_axis: str, y_axis: str) -> List[str]:
     """
     view_key = f"{x_axis}_{y_axis}"
     view_patterns = EXTENDED_PATTERN_MATRIX.get(view_key, {})
-    
+
     return [
         pattern_name
         for pattern_name, info in view_patterns.items()
@@ -795,4 +795,3 @@ __all__ = [
     "is_pattern_meaningful",
     "get_meaningful_patterns"
 ]
-
