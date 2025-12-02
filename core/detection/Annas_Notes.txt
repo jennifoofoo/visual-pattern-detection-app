@@ -1,0 +1,26 @@
+in the frontend only one button for temporal clusters, but there are
+temporal bursts and a burst of a specific activity or resource in 
+a certain period of time: 
+    0. we need multiple buttons for clustering: temporal bursts of events, normal clustering 
+    1. Check, whether the both are separated from each other and if one axis is one of them is this cancelled out
+    1a. activity should not be shown when one of the axis is activity
+    2. how to handle that in frontend
+    3. how to handle that in the table 
+    4. rethink case parallelism, this might be wrong for the visual representation 
+
+Note to myself: now i work with temporal clusters for both, so tc in wider understanding
+now clustering is ignoring y axis completely, would we need that once we have other clustering? 
+relative time and ressource is too slow 
+counting the best cluster size based on the given data
+why all the demo chart is maced as a cluster 
+Take out variant
+
+Insignt 
+ The current outlier detection implementation is view-agnostic - it always analyzes:
+
+actual_time for temporal patterns
+activity for frequency patterns
+resource for workload patterns
+case_id for complexity patterns
+
+should i extend????

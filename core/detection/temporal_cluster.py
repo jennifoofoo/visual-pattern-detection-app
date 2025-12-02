@@ -11,6 +11,7 @@ from typing import Dict, Any
 from sklearn.cluster import DBSCAN
 from datetime import datetime
 from .pattern_base import Pattern
+from config.extended_pattern_matrix import is_pattern_meaningful
 
 
 class TemporalClusterPattern(Pattern):
@@ -22,7 +23,6 @@ class TemporalClusterPattern(Pattern):
     """
 
     def __init__(self, df: pd.DataFrame, x_axis: str, y_axis: str,
-                 min_cluster_size: int = 5,
                  temporal_eps: float = None,
                  spatial_eps: float = None):
         """
@@ -43,7 +43,7 @@ class TemporalClusterPattern(Pattern):
         self.df = df
         self.x_axis = x_axis
         self.y_axis = y_axis
-        self.min_cluster_size = min_cluster_size
+        self.min_cluster_size = max(5, int(np.sqrt(len(df))))
         self.temporal_eps = temporal_eps
         self.spatial_eps = spatial_eps
 
@@ -68,6 +68,10 @@ class TemporalClusterPattern(Pattern):
         Returns:
             True if any meaningful patterns are detected
         """
+        # Check if temporal_cluster_x is meaningful for this view
+        if not is_pattern_meaningful(self.x_axis, self.y_axis, 'temporal_cluster_x'):
+            return False
+        
         # Use provided df or fall back to self.df
         if df is not None:
             self.df = df
@@ -83,26 +87,14 @@ class TemporalClusterPattern(Pattern):
             if self._detect_activity_time_clusters():
                 detected_patterns.append('activity_clusters')
 
-        if self._should_detect_case_parallelism():
-            if self._detect_case_parallelism():
-                detected_patterns.append('case_parallelism')
-
-        if self._should_detect_resource_patterns():
-            if self._detect_resource_time_patterns():
-                detected_patterns.append('resource_patterns')
-
-        if self._should_detect_variant_patterns():
-            if self._detect_variant_timing_patterns():
-                detected_patterns.append('variant_patterns')
-
         return len(detected_patterns) > 0
 
     # ==================== Pattern Applicability Logic ====================
 
     def _should_detect_temporal_bursts(self) -> bool:
         """Check if temporal burst detection is meaningful for current axes."""
-        # Meaningful when X-axis is actual time and Y-axis groups events
-        return (self.x_axis == 'actual_time' and
+        # Meaningful when X-axis is time-based and Y-axis groups events
+        return (self.x_axis in ['actual_time', 'relative_time'] and
                 self.y_axis in ['activity', 'resource', 'case_id'])
 
     def _should_detect_activity_clusters(self) -> bool:
@@ -111,50 +103,40 @@ class TemporalClusterPattern(Pattern):
         return (self.y_axis == 'activity' and
                 self.x_axis in ['actual_time', 'relative_time', 'relative_ratio'])
 
-    def _should_detect_case_parallelism(self) -> bool:
-        """Check if case parallelism detection is meaningful."""
-        # When Y-axis is case_id and X-axis is actual or relative time
-        return (self.y_axis == 'case_id' and
-                self.x_axis in ['actual_time', 'relative_time'])
-
-    def _should_detect_resource_patterns(self) -> bool:
-        """Check if resource pattern detection is meaningful."""
-        # When Y-axis is resource and X-axis is time-based
-        return (self.y_axis == 'resource' and
-                self.x_axis in ['actual_time', 'relative_time'])
-
-    def _should_detect_variant_patterns(self) -> bool:
-        """Check if variant pattern detection is meaningful."""
-        # When Y-axis is variant and X-axis is relative time/ratio
-        return (self.y_axis == 'variant' and
-                self.x_axis in ['relative_time', 'relative_ratio'])
-
     # ==================== Temporal Burst Detection ====================
 
     def _detect_temporal_bursts(self) -> bool:
         """
         Detect temporal bursts - periods of high event concentration.
 
-        Meaningful for: actual_time × {activity, resource, case_id}
+        Meaningful for: {actual_time, relative_time} × {activity, resource, case_id}
 
         Example: Many events happening in a short time period (e.g., batch processing,
         shift changes, system issues)
         """
-        if self.x_axis != 'actual_time':
+        if self.x_axis not in ['actual_time', 'relative_time']:
             return False
 
-        # Convert timestamps to numeric values (seconds since epoch)
+        # Convert time to numeric values
         df_work = self.df.copy()
-        df_work['time_numeric'] = pd.to_datetime(
-            df_work[self.x_axis]).astype(np.int64) / 1e9
+        if self.x_axis == 'actual_time':
+            df_work['time_numeric'] = pd.to_datetime(
+                df_work[self.x_axis]).astype(np.int64) / 1e9
+        else:
+            df_work['time_numeric'] = df_work[self.x_axis]
 
-        # Auto-calculate epsilon if not provided (5% of time range or max 1 hour)
+        # Auto-calculate epsilon if not provided
         if self.temporal_eps is None:
             time_range = df_work['time_numeric'].max() - \
                 df_work['time_numeric'].min()
-            self.temporal_eps = min(time_range * 0.05, 3600)  # Max 1 hour
-
-        # Perform DBSCAN clustering on time dimension
+            if self.x_axis == 'actual_time':
+                self.temporal_eps = min(time_range * 0.05, 3600)  # Max 1 hour
+            else:  # relative_time
+                # For relative_time, use std-based approach capped at 5% of range
+                # This adapts to the actual process duration
+                std_based = df_work['time_numeric'].std() * 0.5
+                range_based = time_range * 0.05
+                self.temporal_eps = min(std_based, range_based, 7200)  # Max 2 hours        # Perform DBSCAN clustering on time dimension
         X = df_work[['time_numeric']].values
         clustering = DBSCAN(eps=self.temporal_eps,
                             min_samples=self.min_cluster_size)
@@ -172,9 +154,17 @@ class TemporalClusterPattern(Pattern):
         # Store burst information
         self.clusters['temporal_bursts'] = []
         for cluster_id, row in bursts.iterrows():
-            start_time = datetime.fromtimestamp(row[('time_numeric', 'min')])
-            end_time = datetime.fromtimestamp(row[('time_numeric', 'max')])
-            duration = (end_time - start_time).total_seconds()
+            min_time = row[('time_numeric', 'min')]
+            max_time = row[('time_numeric', 'max')]
+
+            if self.x_axis == 'actual_time':
+                start_time = datetime.fromtimestamp(min_time)
+                end_time = datetime.fromtimestamp(max_time)
+                duration = (end_time - start_time).total_seconds()
+            else:  # relative_time
+                start_time = min_time
+                end_time = max_time
+                duration = max_time - min_time
 
             self.clusters['temporal_bursts'].append({
                 'cluster_id': int(cluster_id),
@@ -250,168 +240,12 @@ class TemporalClusterPattern(Pattern):
 
         return len(self.clusters['activity_time']) > 0
 
-    # ==================== Case Parallelism Detection ====================
 
-    def _detect_case_parallelism(self) -> bool:
-        """
-        Detect parallel case execution - multiple cases running simultaneously.
-
-        Meaningful for: {actual_time, relative_time} × case_id
-
-        Example: High degree of case overlap indicating concurrent processing
-        """
-        if self.y_axis != 'case_id' or self.x_axis not in ['actual_time', 'relative_time']:
-            return False
-
-        # Calculate case start and end times
-        df_work = self.df.copy()
-
-        if self.x_axis == 'actual_time':
-            df_work['time_numeric'] = pd.to_datetime(
-                df_work[self.x_axis]).astype(np.int64) / 1e9
-        else:
-            df_work['time_numeric'] = df_work[self.x_axis]
-
-        case_ranges = df_work.groupby(
-            'case_id')['time_numeric'].agg(['min', 'max'])
-
-        # Find maximum overlapping cases at any point in time
-        # Create events for case start (+1) and end (-1)
-        events = []
-        for case_id, row in case_ranges.iterrows():
-            events.append((row['min'], 1))  # Case start
-            events.append((row['max'], -1))  # Case end
-
-        events.sort()
-
-        max_parallel = 0
-        current_parallel = 0
-        parallel_over_time = []
-
-        for time, delta in events:
-            current_parallel += delta
-            max_parallel = max(max_parallel, current_parallel)
-            parallel_over_time.append((time, current_parallel))
-
-        # Store parallelism statistics
-        self.clusters['case_parallelism'] = {
-            'max_parallel_cases': max_parallel,
-            'avg_parallel_cases': np.mean([count for _, count in parallel_over_time]),
-            'timeline': parallel_over_time[:100]  # Limit to avoid huge data
-        }
-
-        # Return True if significant parallelism detected (more than 3 cases)
-        return max_parallel > 3
-
-    # ==================== Resource Pattern Detection ====================
-
-    def _detect_resource_time_patterns(self) -> bool:
-        """
-        Detect resource utilization patterns over time.
-
-        Meaningful for: {actual_time, relative_time} × resource
-
-        Example: Certain resources only working at specific times,
-        or resource shift patterns
-        """
-        if self.y_axis != 'resource':
-            return False
-
-        resource_col = self._has_column(
-            'resource', 'org:resource', 'org:group')
-        if not resource_col:
-            return False
-
-        df_work = self.df.copy()
-
-        if self.x_axis == 'actual_time':
-            df_work['time_numeric'] = pd.to_datetime(
-                df_work[self.x_axis]).astype(np.int64) / 1e9
-            if self.temporal_eps is None:
-                time_range = df_work['time_numeric'].max(
-                ) - df_work['time_numeric'].min()
-                self.temporal_eps = min(time_range * 0.05, 3600)
-        else:
-            df_work['time_numeric'] = df_work[self.x_axis]
-            if self.temporal_eps is None:
-                self.temporal_eps = df_work['time_numeric'].std() * 0.5
-
-        # For each resource, detect time-based work patterns
-        self.clusters['resource_time'] = {}
-
-        for resource, resource_df in df_work.groupby(resource_col):
-            if len(resource_df) < self.min_cluster_size:
-                continue
-
-            X = resource_df[['time_numeric']].values
-            clustering = DBSCAN(eps=self.temporal_eps, min_samples=max(
-                3, self.min_cluster_size // 2))
-            labels = clustering.fit_predict(X)
-
-            clusters_found = len(set(labels) - {-1})
-
-            if clusters_found > 1:  # Resource works in distinct time periods
-                cluster_info = []
-                for cluster_id in set(labels):
-                    if cluster_id == -1:
-                        continue
-
-                    cluster_events = resource_df[labels == cluster_id]
-                    cluster_info.append({
-                        'cluster_id': int(cluster_id),
-                        'event_count': len(cluster_events),
-                        'time_min': float(cluster_events['time_numeric'].min()),
-                        'time_max': float(cluster_events['time_numeric'].max())
-                    })
-
-                self.clusters['resource_time'][resource] = cluster_info
-
-        return len(self.clusters['resource_time']) > 0
-
-    # ==================== Variant Timing Pattern Detection ====================
-
-    def _detect_variant_timing_patterns(self) -> bool:
-        """
-        Detect if different process variants have different timing patterns.
-
-        Meaningful for: {relative_time, relative_ratio} × variant
-
-        Example: Fast-track variant completes in 0.2 normalized time,
-        while complex variant takes full duration
-        """
-        if self.y_axis != 'variant':
-            return False
-
-        if 'variant' not in self.df.columns:
-            return False
-
-        df_work = self.df.copy()
-        df_work['time_numeric'] = df_work[self.x_axis]
-
-        # For each variant, calculate timing statistics
-        variant_stats = df_work.groupby('variant')['time_numeric'].agg([
-            'min', 'max', 'mean', 'std', 'count'
-        ])
-
-        # Only consider variants with enough events
-        variant_stats = variant_stats[variant_stats['count']
-                                      >= self.min_cluster_size]
-
-        if len(variant_stats) < 2:
-            return False
-
-        # Detect if variants have statistically different timing patterns
-        # Use coefficient of variation to identify distinct patterns
-        variant_stats['cv'] = variant_stats['std'] / variant_stats['mean']
-
-        self.clusters['variant_timing'] = variant_stats.to_dict('index')
-
-        return True
 
     # ==================== Visualization Support ====================
 
     def visualize(self, df: pd.DataFrame = None, fig=None):
-        #### FOR NOW ONLY ACTIVITY BURSTS IS VISUALISED
+        # FOR NOW ONLY ACTIVITY BURSTS IS VISUALISED
         """
         Add cluster visualizations to the figure.
 
@@ -441,17 +275,9 @@ class TemporalClusterPattern(Pattern):
         if 'temporal_bursts' in self.clusters:
             self._add_burst_visualization(fig)
 
-        # Visualize case parallelism
-        if 'case_parallelism' in self.clusters:
-            self._add_parallelism_visualization(fig)
-
         # Visualize activity-time clusters
         if 'activity_time' in self.clusters:
             self._add_activity_cluster_visualization(fig)
-
-        # Visualize resource patterns
-        if 'resource_time' in self.clusters:
-            self._add_resource_pattern_visualization(fig)
 
         return fig
 
@@ -473,8 +299,11 @@ class TemporalClusterPattern(Pattern):
 
         # Get cluster assignments for all events
         df_work = self.df.copy()
-        df_work['time_numeric'] = pd.to_datetime(
-            df_work[self.x_axis]).astype(np.int64) / 1e9
+        if self.x_axis == 'actual_time':
+            df_work['time_numeric'] = pd.to_datetime(
+                df_work[self.x_axis]).astype(np.int64) / 1e9
+        else:  # relative_time
+            df_work['time_numeric'] = df_work[self.x_axis]
 
         X = df_work[['time_numeric']].values
         clustering = DBSCAN(eps=self.temporal_eps,
@@ -506,9 +335,9 @@ class TemporalClusterPattern(Pattern):
                     name=f'Burst {i+1} ({burst["event_count"]} events)',
                     showlegend=True,
                     hovertemplate=f"<b>Burst Cluster {i+1}</b><br>" +
-                                  f"Events: {burst['event_count']}<br>" +
-                                  f"{self.x_axis}: %{{x}}<br>" +
-                                  f"{self.y_axis}: %{{y}}<extra></extra>"
+                    f"Events: {burst['event_count']}<br>" +
+                    f"{self.x_axis}: %{{x}}<br>" +
+                    f"{self.y_axis}: %{{y}}<extra></extra>"
                 ))
 
         # Add summary annotation
@@ -600,11 +429,17 @@ class TemporalClusterPattern(Pattern):
             summary.append(
                 f"📊 **Temporal Bursts Detected:** {len(bursts)} burst periods")
             for i, burst in enumerate(bursts[:5], 1):  # Show top 5
-                summary.append(
-                    f"   Burst {i}: {burst['event_count']} events in "
-                    f"{burst['duration_seconds']:.1f}s "
-                    f"({burst['start_time'].strftime('%Y-%m-%d %H:%M:%S')})"
-                )
+                if self.x_axis == 'actual_time':
+                    summary.append(
+                        f"   Burst {i}: {burst['event_count']} events in "
+                        f"{burst['duration_seconds']:.1f}s "
+                        f"({burst['start_time'].strftime('%Y-%m-%d %H:%M:%S')})"
+                    )
+                else:  # relative_time
+                    summary.append(
+                        f"   Burst {i}: {burst['event_count']} events "
+                        f"(duration: {burst['duration_seconds']:.2f} time units)"
+                    )
 
         # Activity-time clusters
         if 'activity_time' in self.clusters:
@@ -633,11 +468,11 @@ class TemporalClusterPattern(Pattern):
                 f"\n🔄 **Variant Timing Differences:** {len(self.clusters['variant_timing'])} variants with distinct timing")
 
         return '\n'.join(summary)
-    
+
     def get_summary(self) -> Dict[str, Any]:
         """
         Get standardized pattern summary.
-        
+
         Returns
         -------
         Dict[str, Any]
@@ -650,7 +485,7 @@ class TemporalClusterPattern(Pattern):
         ) if self.clusters else 0
 
         return {
-            'pattern_type': 'temporal_cluster',
+            'pattern_type': 'temporal_cluster_x',
             'detected': bool(self.clusters),
             'count': total_count,
             'details': {
