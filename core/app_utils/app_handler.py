@@ -7,7 +7,6 @@ from core.evaluation.summary_generator import summarize_event_log
 from core.app_utils.mappings import X_AXIS_COLUMN_MAP, Y_AXIS_COLUMN_MAP, DOTS_COLOR_MAP
 
 from core.visualization.visualizer import plot_dotted_chart as plot_chart
-from core.visualization.registry import VisualizationRegistry
 
 from core.detection import OutlierDetectionPattern, TemporalClusterPattern
 from core.detection.gap_pattern import GapPattern
@@ -264,9 +263,6 @@ def display_chart():
     if layer_visibility.get('temporal_cluster', True):
         if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
             fig = st.session_state.temporal_clusters.visualize(df_selected, fig)
-    
-    # Apply all registered custom visualizations (Registry system)
-    fig = VisualizationRegistry.apply_all(df_selected, fig)
     
     st.plotly_chart(fig, use_container_width=True)
     
