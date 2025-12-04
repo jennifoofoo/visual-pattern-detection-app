@@ -18,6 +18,7 @@ def main():
     # File input
     xes_path = st.text_input(
         'Enter XES log file path:',
+        # value='data\Sepsis Cases - Event Log.xes\Sepsis Cases - Event Log.xes',
         value='data/Hospital_log.xes',
         key='xes_path_input'
     )

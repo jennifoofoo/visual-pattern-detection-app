@@ -9,7 +9,9 @@ from core.visualization.visualizer import plot_dotted_chart as plot_chart
 
 from core.detection import OutlierDetectionPattern, TemporalClusterPattern
 from core.detection.gap_pattern import GapPattern
+from core.detection.sequence_detecter import SequencePatternDetector, ChartConfig
 from core.evaluation.ollama import OllamaEvaluator
+
 from core.utils.demo_sampling import sample_small_eventlog
 from config.extended_pattern_matrix import is_pattern_meaningful, get_pattern_info
 
@@ -244,6 +246,10 @@ def display_chart():
     if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
         fig = st.session_state.temporal_clusters.visualize(df=df_selected, fig=fig)
     
+    # Add sequence visualization if detected  
+    if st.session_state.get('sequences_detected', False) and 'sequences' in st.session_state and st.session_state.get('selected_patterns', False):
+        fig = st.session_state.sequences.visualize(df=df_selected, fig=fig, patterns_to_highlight=st.session_state.selected_patterns)
+
     st.plotly_chart(fig, use_container_width=True)
     
     # Update stored figure
@@ -499,6 +505,111 @@ def handle_temporal_cluster_detection(x_col, y_col, x_axis_label, y_axis_label, 
 
         st.success("Outlier detection completed!")
 
+def handle_sequence_detection_logic(
+        x_col, y_col, x_axis_label, y_axis_label,
+        dot_label, df_selected,
+        min_support, min_occurrences, min_len, max_len):
+    '''
+    x_col: contains the column name for x-axis (from X_AXIS_COLUMN_MAP)
+    y_col: contains the column name for y-axis (from Y_AXIS_COLUMN_MAP)
+    x_axis_label: contains the label for x-axis (from user selection = GUI Text)
+    y_axis_label: contains the label for y-axis  (from user selection = GUI Text)
+    df_selected: contains the DataFrame from xes (not the selected for plotting, but the full one)'''
+    
+    plot_config = ChartConfig(
+        x_axis_label=x_axis_label,
+        y_axis_label=y_axis_label,
+        dot_label=dot_label,
+        df_full=st.session_state['df']
+    )
+    plot_df = plot_config.df
+    
+    # # Get sequence detection parameters from sliders
+    # min_support, min_occurrences, min_len, max_len = get_sequence_detection_parameters_with_sliders()
+        
+    if x_col and y_col and plot_df is not None:
+        with st.spinner("Detecting sequence patterns..."):
+            detector = SequencePatternDetector(
+                config=plot_config,
+                min_support=min_support,
+                min_length=min_len,
+                max_length=max_len,
+                min_occurrences=min_occurrences
+            )
+
+            sequences = detector.detect()
+
+            if not sequences.empty:
+                st.session_state.sequences = detector
+                st.session_state.sequences_detected = True
+                st.session_state['chart_needs_display'] = True
+
+                print(sequences)
+                st.rerun()
+            else:
+                st.session_state.sequences_detected = False
+                st.info(f"No meaningful sequences patterns for {plot_config.y_axis_label} × {plot_config.x_axis_label} × {plot_config.dot_label}")
+    else:
+        st.warning("Please plot a chart first")
+
+def get_sequence_detection_parameters_with_sliders():
+    # --- Sliders for parameters (No Change) ---
+    col_params_1, col_params_2, col_params_3 = st.columns(3)
+    
+    with col_params_1:
+        min_support = st.slider(
+            'Minimum Support (Traces %)',
+            min_value=0.01, max_value=1.0, value=0.05, step=0.01,
+            format='%.2f',
+            key='min_support_slider',
+            help="Minimum fraction of traces that must contain the sequence."
+        )
+    
+    with col_params_2:
+        min_occurrences = st.number_input(
+            'Minimum Absolute Occurrences',
+            min_value=2, value=10, step=1,
+            key='min_occ_input',
+            help="Minimum total count of the sequence across all traces."
+        )
+    
+    with col_params_3:
+        min_len = st.number_input('Min Seq Length', min_value=2, value=2, step=1, key='min_len_input')
+        max_len = st.number_input('Max Seq Length', min_value=min_len, value=5, step=1, key='max_len_input')
+
+    return min_support, min_occurrences, min_len, max_len
+
+def help_visualize_sequences():
+        # st.subheader("Select One Pattern to Highlight")
+    
+        # df_summary = st.session_state.sequences.df_patterns_summary
+        
+        # if not df_summary.empty:
+        
+        # TODO Fix tis visualization part for the selected sequences
+        # also need to find out how to select them properly with the multi-row selectmode
+        st.subheader("Filter Detected Sequences")
+            
+        # Get the list of all available sequences
+        all_sequences = st.session_state.sequences.get_detected_sequence_list()
+        
+        # --- Create the Filter Widget ---
+        # Using st.multiselect to allow the user to choose which patterns to highlight
+        selected_patterns = st.multiselect(
+            label="Select patterns to highlight:",
+            options=all_sequences,
+            default=all_sequences # Default to highlighting all of them
+        )
+
+        st.session_state['selected_patterns'] = selected_patterns
+        
+        # Optional: Display the DataFrame summary of selected patterns
+        if selected_patterns:
+            st.dataframe(
+                st.session_state.sequences.df_patterns_summary[st.session_state.sequences.df_patterns_summary['sequence'].isin(selected_patterns)]
+            )
+
+
 def handle_pattern_detection():
     # Get current plot configuration from session state
     plot_config = st.session_state.get('current_plot_config', {})
@@ -506,17 +617,20 @@ def handle_pattern_detection():
     y_col = plot_config.get('y_col')
     x_axis_label = plot_config.get('x_axis_label')
     y_axis_label = plot_config.get('y_axis_label')
+    dot_label = plot_config.get('dots_config_label')
     df_selected = plot_config.get('df_selected')
 
     # Check which patterns are meaningful for this view
     temporal_meaningful = is_pattern_meaningful(x_col, y_col, 'temporal_cluster_x')
     outlier_meaningful = is_pattern_meaningful(x_col, y_col, 'outlier')
     gap_meaningful = is_pattern_meaningful(x_col, y_col, 'gap')
+    sequence_meaningful = is_pattern_meaningful(x_col, y_col, 'sequence_pattern')
     
     # Get pattern info for tooltips
     temporal_info = get_pattern_info(x_col, y_col, 'temporal_cluster_x')
     outlier_info = get_pattern_info(x_col, y_col, 'outlier')
     gap_info = get_pattern_info(x_col, y_col, 'gap')
+    sequence_info = get_pattern_info(x_col, y_col, 'sequence_pattern')
     
     # Create three equal columns (always show all patterns)
     col1, col2, col3 = st.columns(3)
@@ -590,6 +704,39 @@ def handle_pattern_detection():
                 gap_min_samples = st.session_state.get('gap_min_samples_popover', 5)
                 handle_gap_detection_logic(df_selected, x_col, y_col, gap_min_samples)
     
+    # col1, col2, col3 = st.columns(3)
+    # col1 = st.columns(1)
+    # === SEQUENCE DETECTION ===
+    # with col1:
+    with st.container(border=True):
+        if sequence_meaningful:
+            st.subheader("🔗 Sequence Patterns")
+            st.write("Detect frequent sequences.")
+            st.caption("Uses sequence mining algorithms to find common or rare activity patterns.")
+        else:
+            st.subheader("🔗 Sequence Patterns", help=sequence_info.get('interpretation', 'Not available for this view') if sequence_info else 'Not available')
+            st.write("Detect frequent or anomalous activity sequences.")
+            st.caption(f"❌ {sequence_info.get('use_case', 'Not meaningful for this view configuration')}" if sequence_info else "Not available")
+    
+        st.markdown("<br>", unsafe_allow_html=True)
+        # if st.button("Detect Sequences", type="primary", use_container_width=True, disabled=not sequence_meaningful):
+        min_support, min_occurrences, min_len, max_len = get_sequence_detection_parameters_with_sliders()
+        if st.button("Detect Sequences"):
+                handle_sequence_detection_logic(
+                    x_col=x_col, 
+                    y_col=y_col, 
+                    x_axis_label=x_axis_label, 
+                    y_axis_label=y_axis_label, 
+                    dot_label=dot_label, 
+                    df_selected=df_selected,
+                    min_support=min_support,
+                    min_occurrences=min_occurrences,
+                    min_len=min_len,
+                    max_len=max_len
+            )
+    if st.session_state.get('sequences_detected', False) and 'sequences' in st.session_state:
+        help_visualize_sequences()
+
     # ========== PATTERN SUMMARY SECTION ==========
     st.markdown("---")
     st.subheader("📋 Pattern Summary")
