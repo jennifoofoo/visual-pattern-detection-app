@@ -195,16 +195,13 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
 def display_chart():
     """Display the chart from session state (persistent across reruns)."""
     if not st.session_state.get('chart_plotted', False):
-        print("No chart has been plotted yet.")
         return
     
     if not st.session_state.get('chart_needs_display', False):
-        print("Chart does not need display refresh.")
         return
         
     plot_config = st.session_state.get('current_plot_config', {})
     if not plot_config:
-        print("No plot configuration found in session state.")
         return
     
     df_selected = plot_config['df_selected']
@@ -252,12 +249,9 @@ def display_chart():
     if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
         fig = st.session_state.temporal_clusters.visualize(df=df_selected, fig=fig)
     
-    # Add temporal cluster visualization if detected  
-    print("Sequences detected:", st.session_state.get('sequences_detected', False))
+    # Add sequence visualization if detected  
     if st.session_state.get('sequences_detected', False) and 'sequences' in st.session_state and st.session_state.get('selected_patterns', False):
         fig = st.session_state.sequences.visualize(df=df_selected, fig=fig, patterns_to_highlight=st.session_state.selected_patterns)
-        
-        print("Added sequence visualization to chart.")
 
     st.plotly_chart(fig, use_container_width=True)
     
@@ -588,6 +582,37 @@ def get_sequence_detection_parameters_with_sliders():
 
     return min_support, min_occurrences, min_len, max_len
 
+def help_visualize_sequences():
+        # st.subheader("Select One Pattern to Highlight")
+    
+        # df_summary = st.session_state.sequences.df_patterns_summary
+        
+        # if not df_summary.empty:
+        
+        # TODO Fix tis visualization part for the selected sequences
+        # also need to find out how to select them properly with the multi-row selectmode
+        st.subheader("Filter Detected Sequences")
+            
+        # Get the list of all available sequences
+        all_sequences = st.session_state.sequences.get_detected_sequence_list()
+        
+        # --- Create the Filter Widget ---
+        # Using st.multiselect to allow the user to choose which patterns to highlight
+        selected_patterns = st.multiselect(
+            label="Select patterns to highlight:",
+            options=all_sequences,
+            default=all_sequences # Default to highlighting all of them
+        )
+
+        st.session_state['selected_patterns'] = selected_patterns
+        
+        # Optional: Display the DataFrame summary of selected patterns
+        if selected_patterns:
+            st.dataframe(
+                st.session_state.sequences.df_patterns_summary[st.session_state.sequences.df_patterns_summary['sequence'].isin(selected_patterns)]
+            )
+
+
 def handle_pattern_detection():
     # Get current plot configuration from session state
     plot_config = st.session_state.get('current_plot_config', {})
@@ -713,34 +738,7 @@ def handle_pattern_detection():
                     max_len=max_len
             )
     if st.session_state.get('sequences_detected', False) and 'sequences' in st.session_state:
-        # st.subheader("Select One Pattern to Highlight")
-    
-        # df_summary = st.session_state.sequences.df_patterns_summary
-        
-        # if not df_summary.empty:
-        
-        # TODO Fix tis visualization part for the selected sequences
-        # also need to find out how to select them properly with the multi-row selectmode
-        st.subheader("Filter Detected Sequences")
-            
-        # Get the list of all available sequences
-        all_sequences = st.session_state.sequences.get_detected_sequence_list()
-        
-        # --- Create the Filter Widget ---
-        # Using st.multiselect to allow the user to choose which patterns to highlight
-        selected_patterns = st.multiselect(
-            label="Select patterns to highlight:",
-            options=all_sequences,
-            default=all_sequences # Default to highlighting all of them
-        )
-
-        st.session_state['selected_patterns'] = selected_patterns
-        
-        # Optional: Display the DataFrame summary of selected patterns
-        if selected_patterns:
-            st.dataframe(
-                st.session_state.sequences.df_patterns_summary[st.session_state.sequences.df_patterns_summary['sequence'].isin(selected_patterns)]
-            )
+        help_visualize_sequences()
 
     # ========== PATTERN SUMMARY SECTION ==========
     st.markdown("---")
