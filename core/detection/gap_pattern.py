@@ -13,6 +13,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from typing import Dict, Any, List, Optional
+from config.extended_pattern_matrix import is_pattern_meaningful
 
 
 class GapPattern(Pattern):
@@ -36,6 +37,7 @@ class GapPattern(Pattern):
         self, 
         view_config: Dict[str, str],
         y_is_categorical: bool = False,
+        consider_processing_time: bool = True,
         **kwargs
     ):
         """
@@ -47,17 +49,25 @@ class GapPattern(Pattern):
             Configuration with "x" and "y" keys for chart dimensions
         y_is_categorical : bool, default False
             Whether Y-axis is categorical
+        consider_processing_time : bool, default True
+            Whether to subtract processing time from gaps to get waiting time.
+            Only works for actual_time and relative_time axes.
         """
         super().__init__("Process-Aware Gap Detection", view_config)
         self.y_is_categorical = y_is_categorical
+        self.consider_processing_time = consider_processing_time
         self.detected = None
         self.transition_stats = None
+        self.processing_times = None  # Will store median processing time per activity
         self.y_categories = None
         self.y_to_index = None
     
-    def _is_time_like(self, x_series: pd.Series, x_col: str) -> bool:
+    def _is_time_like(self, x_series: pd.Series, x_col: str, y_col: str) -> bool:
         """
         Check if X-axis is time-like (required for gap detection).
+        
+        Uses extended_pattern_matrix to determine if gap detection is meaningful
+        for this X/Y axis combination.
         
         Parameters
         ----------
@@ -65,22 +75,99 @@ class GapPattern(Pattern):
             X-axis data series
         x_col : str
             Column name for X-axis
+        y_col : str
+            Column name for Y-axis
             
         Returns
         -------
         bool
-            True if X is datetime or time-like column
+            True if gap detection is meaningful for this configuration
         """
-        # Check if datetime dtype
+        # Use extended_pattern_matrix to check if gap detection is meaningful
+        if is_pattern_meaningful(x_col, y_col, 'gap'):
+            return True
+        
+        # Fallback: Check if datetime dtype (for backward compatibility)
         if pd.api.types.is_datetime64_any_dtype(x_series):
             return True
         
-        # Check column name
+        # Only allow actual_time and relative_time (not relative_ratio, logical_time, logical_relative)
         time_like_names = [
-            "actual_time", "relative_time", "relative_ratio",
-            "logical_time", "logical_relative"
+            "actual_time",      # ✅ Real timestamps
+            "relative_time"     # ✅ Time in seconds (relative to case start)
+            # "relative_ratio"   # ❌ Normalized [0,1], not absolute time
+            # "logical_time"     # ❌ Event count, not time
+            # "logical_relative" # ❌ Event index, not time
         ]
         return x_col in time_like_names
+    
+    def _compute_processing_times(self, df: pd.DataFrame, x_col: str) -> Dict[str, float]:
+        """
+        Compute median processing time per activity.
+        
+        Processing time is estimated from consecutive events with the same activity
+        within a case. Only works for actual_time and relative_time (absolute time values).
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Event log dataframe
+        x_col : str
+            X-axis column name (must be actual_time or relative_time)
+            
+        Returns
+        -------
+        dict
+            Mapping from activity name to median processing time in seconds
+        """
+        if x_col not in ['actual_time', 'relative_time']:
+            return {}  # Can't compute for other axes
+        
+        processing_times_by_activity = {}
+        x_is_datetime = pd.api.types.is_datetime64_any_dtype(df[x_col])
+        
+        # Group by case
+        for case_id, case_df in df.groupby('case_id'):
+            case_df = case_df.sort_values(x_col).reset_index(drop=True)
+            
+            if len(case_df) < 2:
+                continue
+            
+            # Look for consecutive events with same activity (activity repetition)
+            for i in range(len(case_df) - 1):
+                event_a = case_df.iloc[i]
+                event_b = case_df.iloc[i + 1]
+                
+                # If same activity, this might be processing time
+                if event_a['activity'] == event_b['activity']:
+                    activity = event_a['activity']
+                    
+                    # Calculate duration
+                    if x_is_datetime:
+                        if not isinstance(event_a[x_col], pd.Timestamp):
+                            time_a = pd.Timestamp(int(event_a[x_col]) if isinstance(event_a[x_col], (int, float)) else event_a[x_col])
+                        else:
+                            time_a = event_a[x_col]
+                        if not isinstance(event_b[x_col], pd.Timestamp):
+                            time_b = pd.Timestamp(int(event_b[x_col]) if isinstance(event_b[x_col], (int, float)) else event_b[x_col])
+                        else:
+                            time_b = event_b[x_col]
+                        duration = (time_b - time_a).total_seconds()
+                    else:
+                        duration = float(event_b[x_col] - event_a[x_col])
+                    
+                    if duration > 0:
+                        if activity not in processing_times_by_activity:
+                            processing_times_by_activity[activity] = []
+                        processing_times_by_activity[activity].append(duration)
+        
+        # Return median per activity
+        result = {}
+        for activity, durations in processing_times_by_activity.items():
+            if len(durations) >= 3:  # Need at least 3 samples for meaningful median
+                result[activity] = float(np.median(durations))
+        
+        return result
     
     def _extract_transition_gaps(
         self,
@@ -156,6 +243,15 @@ class GapPattern(Pattern):
                 if duration <= 0:
                     continue
                 
+                # Compute processing time and waiting time if enabled
+                processing_time = 0.0
+                waiting_time = duration
+                
+                if self.consider_processing_time and self.processing_times:
+                    # Get processing time for the FROM activity
+                    processing_time = self.processing_times.get(activity_a, 0.0)
+                    waiting_time = max(0.0, duration - processing_time)
+                
                 gaps.append({
                     'case_id': case_id,
                     'activity_from': activity_a,
@@ -165,14 +261,17 @@ class GapPattern(Pattern):
                     'x_end': x_end,
                     'y_value_from': y_value_a,
                     'y_value_to': y_value_b,
-                    'duration': duration
+                    'duration': duration,  # Total time (processing + waiting)
+                    'processing_time': processing_time,  # Estimated processing time
+                    'waiting_time': waiting_time  # Waiting time (duration - processing_time)
                 })
         
         return gaps
     
     def _compute_normality_per_transition(
         self,
-        gaps: List[Dict[str, Any]]
+        gaps: List[Dict[str, Any]],
+        use_waiting_time: bool = False
     ) -> Dict[str, Dict[str, float]]:
         """
         Compute statistical normality thresholds per transition.
@@ -183,6 +282,8 @@ class GapPattern(Pattern):
         ----------
         gaps : list of dict
             List of gaps with transition information
+        use_waiting_time : bool, default False
+            If True, use waiting_time instead of duration for threshold computation
             
         Returns
         -------
@@ -206,7 +307,10 @@ class GapPattern(Pattern):
             transition = gap['transition']
             if transition not in transition_durations:
                 transition_durations[transition] = []
-            transition_durations[transition].append(gap['duration'])
+            
+            # Use waiting_time if available and requested, otherwise duration
+            gap_value = gap.get('waiting_time', gap['duration']) if use_waiting_time else gap['duration']
+            transition_durations[transition].append(gap_value)
         
         # Compute statistics per transition
         transition_stats = {}
@@ -311,8 +415,9 @@ class GapPattern(Pattern):
                 self.detected = None
                 return
             
-            # Check if X is time-like (required for gap detection)
-            if not self._is_time_like(df[x_col], x_col):
+            # Check if gap detection is meaningful for this X/Y configuration
+            # Uses extended_pattern_matrix to determine if this combination makes sense
+            if not self._is_time_like(df[x_col], x_col, y_col):
                 self.detected = None
                 return
             
@@ -320,6 +425,12 @@ class GapPattern(Pattern):
             if self.y_is_categorical:
                 self.y_categories = list(pd.unique(df[y_col]))
                 self.y_to_index = {cat: idx for idx, cat in enumerate(self.y_categories)}
+            
+            # Compute processing times if enabled and axis supports it
+            if self.consider_processing_time and x_col in ['actual_time', 'relative_time']:
+                self.processing_times = self._compute_processing_times(df, x_col)
+            else:
+                self.processing_times = None
             
             # Extract transition gaps
             all_gaps = self._extract_transition_gaps(df, x_col, y_col)
@@ -329,7 +440,9 @@ class GapPattern(Pattern):
                 return
             
             # Compute normality per transition
-            self.transition_stats = self._compute_normality_per_transition(all_gaps)
+            # Use waiting_time if processing time is considered
+            use_waiting_time = (self.consider_processing_time and self.processing_times)
+            self.transition_stats = self._compute_normality_per_transition(all_gaps, use_waiting_time=use_waiting_time)
             
             if not self.transition_stats:
                 # No transitions with sufficient samples
@@ -337,6 +450,9 @@ class GapPattern(Pattern):
                 return
             
             # Identify abnormal gaps
+            # Use waiting_time if processing time is considered, otherwise use duration
+            gap_metric = 'waiting_time' if (self.consider_processing_time and self.processing_times) else 'duration'
+            
             abnormal_gaps = []
             
             for gap in all_gaps:
@@ -346,12 +462,21 @@ class GapPattern(Pattern):
                 if transition not in self.transition_stats:
                     continue
                 
-                duration = gap['duration']
+                # Use waiting_time or duration for comparison
+                gap_value = gap.get(gap_metric, gap['duration'])
                 threshold = self.transition_stats[transition]['threshold']
                 
-                if duration > threshold:
+                # Adjust threshold if we're using waiting_time
+                # Threshold was computed on duration, but we compare waiting_time
+                # This is a simplification - ideally we'd recompute thresholds on waiting_time
+                if gap_metric == 'waiting_time':
+                    # Use the same threshold (assumes processing time is relatively constant)
+                    # In practice, this might need adjustment
+                    pass
+                
+                if gap_value > threshold:
                     # Compute severity
-                    severity = duration / threshold
+                    severity = gap_value / threshold
                     
                     # Compute Y position for visualization
                     y_low, y_high = self._compute_y_position(gap, df, y_col)
@@ -364,7 +489,9 @@ class GapPattern(Pattern):
                         'activity_to': gap['activity_to'],
                         'x_start': gap['x_start'],
                         'x_end': gap['x_end'],
-                        'duration': duration,
+                        'duration': gap['duration'],  # Total time
+                        'processing_time': gap.get('processing_time', 0.0),
+                        'waiting_time': gap.get('waiting_time', gap['duration']),
                         'threshold': threshold,
                         'severity': severity,
                         'y_low': y_low,

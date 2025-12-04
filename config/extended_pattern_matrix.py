@@ -246,14 +246,14 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
 
     "relative_ratio_resource": {
         "gap": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "Red rectangles showing normalized gaps in resource activity",
-            "interpretation": "Detects abnormal waiting times between activities, normalized by case duration. Shows which resources have delays relative to total case time.",
-            "algorithm": "Transition-specific normality learning using normalized time ratios",
-            "use_case": "Comparing delays across cases of different lengths, identifying resource bottlenecks independent of case duration",
-            "requirements": ["case_id", "activity", "relative_ratio"],
-            "output": "Abnormal gaps with normalized time ratios",
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio is normalized [0,1] representing position within case, not absolute time duration. Gap detection requires actual time measurements to compute meaningful waiting times.",
+            "algorithm": "N/A - relative_ratio represents position, not duration",
+            "use_case": "Use actual_time or relative_time for meaningful gap detection with absolute time measurements",
+            "requirements": [],
+            "output": "N/A",
             "x_axis": "relative_ratio",
             "y_axis": "resource"
         },
@@ -285,14 +285,14 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
 
     "relative_ratio_activity": {
         "gap": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "Red rectangles showing normalized gaps between activities",
-            "interpretation": "Detects abnormal delays between activity transitions, normalized by case duration. Enables comparison across cases of different lengths.",
-            "algorithm": "Transition-specific normality learning using normalized time ratios",
-            "use_case": "Finding relative bottlenecks in activity sequences, comparing process efficiency across fast and slow cases",
-            "requirements": ["case_id", "activity", "relative_ratio"],
-            "output": "Abnormal gaps with normalized time ratios per transition",
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio is normalized [0,1] representing position within case, not absolute time duration. Gap detection requires actual time measurements to compute meaningful waiting times.",
+            "algorithm": "N/A - relative_ratio represents position, not duration",
+            "use_case": "Use actual_time or relative_time for meaningful gap detection with absolute time measurements",
+            "requirements": [],
+            "output": "N/A",
             "x_axis": "relative_ratio",
             "y_axis": "activity"
         },
@@ -324,14 +324,14 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
 
     "relative_ratio_case_id": {
         "gap": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "Red rectangles showing normalized gaps within individual cases",
-            "interpretation": "Detects abnormal delays within cases on a normalized scale [0,1]. Useful for comparing delay patterns across cases of vastly different durations.",
-            "algorithm": "Transition-specific normality learning using normalized time ratios",
-            "use_case": "Identifying relative bottlenecks within cases, detecting structural delays independent of absolute time",
-            "requirements": ["case_id", "activity", "relative_ratio"],
-            "output": "Abnormal gaps with normalized positions within case timeline",
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio is normalized [0,1] representing position within case, not absolute time duration. Gap detection requires actual time measurements to compute meaningful waiting times.",
+            "algorithm": "N/A - relative_ratio represents position, not duration",
+            "use_case": "Use actual_time or relative_time for meaningful gap detection with absolute time measurements",
+            "requirements": [],
+            "output": "N/A",
             "x_axis": "relative_ratio",
             "y_axis": "case_id"
         },

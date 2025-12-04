@@ -7,6 +7,7 @@ available in the visualization system.
 
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 from typing import Dict, Any
 from sklearn.cluster import DBSCAN
 from datetime import datetime
@@ -410,29 +411,28 @@ class TemporalClusterPattern(Pattern):
 
     # ==================== Visualization Support ====================
 
-    def visualize(self, df: pd.DataFrame = None, fig=None):
-        #### FOR NOW ONLY ACTIVITY BURSTS IS VISUALISED
+    def visualize(self, df: pd.DataFrame, fig: go.Figure) -> go.Figure:
         """
         Add cluster visualizations to the figure.
-
-        Args:
-            df: DataFrame (uses self.df if not provided)
-            fig: Plotly figure to annotate (creates metadata dict if None)
-
-        Returns:
-            Plotly Figure with cluster overlays, or Dict with cluster metadata
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Event log dataframe (for consistency with Pattern API)
+        fig : go.Figure
+            Plotly figure to annotate
+            
+        Returns
+        -------
+        go.Figure
+            Figure with cluster overlays added
         """
         if df is None:
             df = self.df
-
-        # If no figure provided, return metadata for visualization
+        
         if fig is None:
-            visualization_data = {
-                'clusters': self.clusters,
-                'x_axis': self.x_axis,
-                'y_axis': self.y_axis
-            }
-            return visualization_data
+            # If no figure provided, return original (should not happen in normal flow)
+            return fig
 
         # Add visual overlays to the figure
         import plotly.graph_objects as go
