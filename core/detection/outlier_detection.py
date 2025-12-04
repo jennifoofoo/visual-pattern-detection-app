@@ -8,6 +8,7 @@ import pandas as pd
 from typing import Dict, Any, Optional
 import plotly.graph_objects as go
 from .pattern_base import Pattern
+from config.extended_pattern_matrix import is_pattern_meaningful
 
 
 class OutlierDetectionPattern(Pattern):
@@ -38,6 +39,13 @@ class OutlierDetectionPattern(Pattern):
 
     def detect(self) -> bool:
         """Detect various types of outliers in the event log."""
+        # Check if outlier detection is meaningful for this view
+        x_axis = self.view_config.get('x', '')
+        y_axis = self.view_config.get('y', '')
+        
+        if not is_pattern_meaningful(x_axis, y_axis, 'outlier'):
+            return False
+        
         try:
             detection_count = 0
 
