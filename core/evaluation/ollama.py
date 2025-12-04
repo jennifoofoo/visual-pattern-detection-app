@@ -6,12 +6,12 @@ class OllamaEvaluator:
     def __init__(self, model="llama2"):
         self.model = model
     
-    def describe_chart(self, top_variants, df_base):
+    def describe_chart(self, input_data, df_base):
         prompt = f"""
         Analyze this process mining data and provide insights:
         
-        Top process variants:
-        {top_variants.to_string()}
+        Top process data:
+        {input_data.to_string()}
         
         Total cases: {df_base['case_id'].nunique()}
         Total events: {len(df_base)}

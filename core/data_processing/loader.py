@@ -128,28 +128,6 @@ def load_xes_log(xes_path):
     # maybe ToDo: add trace dataframe so we have meta data about traces
     return pd.DataFrame(events)
 
-# currently this is only being done when y_axis == 'Variant' in app.py is chosen
-# ToDo: refactor this and add to df when loading xes
-def compute_variants(df_base):
-    # Need a copy for variant calculation
-    df_selected = df_base.copy()
-    if 'variant' not in df_selected.columns:
-        n = 10  # Number of most common variants to show
-
-        # Combine activities into a string per case
-        case_variants = df_selected.groupby('case_id')['activity'].apply(
-            lambda x: '-'.join(x.astype(str)))
-        variant_counts = case_variants.value_counts()
-        top_variants = variant_counts.head(n).index.tolist()
-
-        # Map the variant string back to the event DataFrame
-        df_selected['variant'] = df_selected['case_id'].map(
-            case_variants)
-
-        # Filter to only top n variants for a cleaner chart
-        df_selected = df_selected[df_selected['variant'].isin(
-            top_variants)].copy()
-
 
 if __name__ == '__main__':
     load_xes_log("data/Hospital_log.xes")

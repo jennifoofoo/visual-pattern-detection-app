@@ -91,10 +91,6 @@ class TemporalClusterPattern(Pattern):
             if self._detect_resource_time_patterns():
                 detected_patterns.append('resource_patterns')
 
-        if self._should_detect_variant_patterns():
-            if self._detect_variant_timing_patterns():
-                detected_patterns.append('variant_patterns')
-
         return len(detected_patterns) > 0
 
     # ==================== Pattern Applicability Logic ====================
@@ -122,12 +118,6 @@ class TemporalClusterPattern(Pattern):
         # When Y-axis is resource and X-axis is time-based
         return (self.y_axis == 'resource' and
                 self.x_axis in ['actual_time', 'relative_time'])
-
-    def _should_detect_variant_patterns(self) -> bool:
-        """Check if variant pattern detection is meaningful."""
-        # When Y-axis is variant and X-axis is relative time/ratio
-        return (self.y_axis == 'variant' and
-                self.x_axis in ['relative_time', 'relative_ratio'])
 
     # ==================== Temporal Burst Detection ====================
 
@@ -368,46 +358,6 @@ class TemporalClusterPattern(Pattern):
 
         return len(self.clusters['resource_time']) > 0
 
-    # ==================== Variant Timing Pattern Detection ====================
-
-    def _detect_variant_timing_patterns(self) -> bool:
-        """
-        Detect if different process variants have different timing patterns.
-
-        Meaningful for: {relative_time, relative_ratio} × variant
-
-        Example: Fast-track variant completes in 0.2 normalized time,
-        while complex variant takes full duration
-        """
-        if self.y_axis != 'variant':
-            return False
-
-        if 'variant' not in self.df.columns:
-            return False
-
-        df_work = self.df.copy()
-        df_work['time_numeric'] = df_work[self.x_axis]
-
-        # For each variant, calculate timing statistics
-        variant_stats = df_work.groupby('variant')['time_numeric'].agg([
-            'min', 'max', 'mean', 'std', 'count'
-        ])
-
-        # Only consider variants with enough events
-        variant_stats = variant_stats[variant_stats['count']
-                                      >= self.min_cluster_size]
-
-        if len(variant_stats) < 2:
-            return False
-
-        # Detect if variants have statistically different timing patterns
-        # Use coefficient of variation to identify distinct patterns
-        variant_stats['cv'] = variant_stats['std'] / variant_stats['mean']
-
-        self.clusters['variant_timing'] = variant_stats.to_dict('index')
-
-        return True
-
     # ==================== Visualization Support ====================
 
     def visualize(self, df: pd.DataFrame = None, fig=None):
@@ -626,11 +576,6 @@ class TemporalClusterPattern(Pattern):
         if 'resource_time' in self.clusters:
             summary.append(
                 f"\n👥 **Resource Time Patterns:** {len(self.clusters['resource_time'])} resources with shift-like behavior")
-
-        # Variant patterns
-        if 'variant_timing' in self.clusters:
-            summary.append(
-                f"\n🔄 **Variant Timing Differences:** {len(self.clusters['variant_timing'])} variants with distinct timing")
 
         return '\n'.join(summary)
     
