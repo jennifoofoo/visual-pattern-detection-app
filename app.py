@@ -37,14 +37,14 @@ def main():
         
         if st.button('Load Data', type="primary"):
             app_handler.load_data_button(xes_path, demo_mode=demo_mode)
-    
+
     # Show data status
     with col2:
         if st.session_state.data_loaded:
             app_handler.show_xes_summary()
-        else:
-            st.info("Please load your XES file first")
-            return
+                else:
+        st.info("Please load your XES file first")
+        return
     # endregion
 
     # region Chart Configuration and Plotting
@@ -60,14 +60,14 @@ def main():
     
     # Display chart persistently (survives reruns from pattern detection)
     app_handler.display_chart()
-    # endregion
+            # endregion
 
     # region Pattern Detection
     # Pattern Detection Section (only show if chart is plotted)
     if st.session_state.chart_plotted:
         st.divider()
         st.subheader("Pattern Detection")
-        
+
         app_handler.handle_pattern_detection()
     # endregion
     

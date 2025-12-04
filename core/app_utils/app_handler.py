@@ -117,7 +117,7 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
     # Performance optimization: work with view instead of copy when possible
     df_selected = df_base
     if y_axis == 'Variant':
-        compute_variants(df_base=df_base)
+        df_selected = compute_variants(df_base=df_base)
 
     # Check for missing values in the selected columns
     if df_selected[x_col].isnull().any() or df_selected[y_col].isnull().any():
@@ -539,7 +539,7 @@ def handle_pattern_detection():
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("Detect Temporal Clusters", type="primary", use_container_width=True, disabled=not temporal_meaningful):
                 handle_temporal_cluster_detection_logic(x_col, y_col, x_axis_label, y_axis_label, df_selected)
-    
+
     # === OUTLIER DETECTION ===
     with col2:
         with st.container(border=True):

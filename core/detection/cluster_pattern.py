@@ -332,7 +332,7 @@ class ClusterPattern(Pattern):
                 summary['silhouette_score'] = None
 
         return summary
-    
+
     def get_summary(self) -> Dict[str, Any]:
         """
         Get standardized pattern summary.

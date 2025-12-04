@@ -695,7 +695,7 @@ class OutlierDetectionPattern(Pattern):
             ]
 
         return summary
-    
+
     def get_summary(self) -> Dict[str, Any]:
         """
         Get standardized pattern summary.

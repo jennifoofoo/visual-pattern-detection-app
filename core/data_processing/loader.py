@@ -150,6 +150,8 @@ def compute_variants(df_base):
         df_selected = df_selected[df_selected['variant'].isin(
             top_variants)].copy()
 
+    return df_selected
+
 
 if __name__ == '__main__':
     load_xes_log("data/Hospital_log.xes")
