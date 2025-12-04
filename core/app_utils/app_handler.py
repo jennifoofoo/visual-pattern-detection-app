@@ -689,7 +689,7 @@ def handle_pattern_detection():
     with st.container(border=True):
         if sequence_meaningful:
             st.subheader("🔗 Sequence Patterns")
-            st.write("Detect frequent or anomalous activity sequences.")
+            st.write("Detect frequent sequences.")
             st.caption("Uses sequence mining algorithms to find common or rare activity patterns.")
         else:
             st.subheader("🔗 Sequence Patterns", help=sequence_info.get('interpretation', 'Not available for this view') if sequence_info else 'Not available')

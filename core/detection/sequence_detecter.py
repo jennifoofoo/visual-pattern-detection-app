@@ -47,7 +47,7 @@ class SequencePatternDetector:
 
         self.df_patterns_summary = pd.DataFrame()
         
-    def _extract_all_subsequences(self, series: pd.Series) -> List[List[Any]]:
+    def _extract_all_subsequences(self, series: pd.Series, toprint) -> List[List[Any]]:
         """
         Extracts all contiguous subsequences from a sequence of events (series) 
         within the min/max length constraints.
@@ -56,10 +56,18 @@ class SequencePatternDetector:
         subsequences = []
         n = len(sequence)
         
+        # if toprint:
+        #     print(f"Full Sequence: \n{sequence}")
+
         for i in range(n):
             # The inner loop determines the end of the subsequence
+            # if toprint:
+            #     print(f"\nfind sequences beginning at {i+1}-th position:")
             for j in range(i + self.min_length, min(i + self.max_length + 1, n + 1)):
                 subsequences.append(sequence[i:j])
+                # if toprint:
+                #     print(f"extracted subsequence from position {i+1} to {j}")
+                #     print(f"Extracted subsequence: {sequence[i:j]}")
         return subsequences
     
     def detect(self) -> pd.DataFrame:
@@ -103,8 +111,14 @@ class SequencePatternDetector:
         for group_id, row in sequences_by_group.iterrows():
             sequence = pd.Series(row['sequence'])
             
-            subsequences = self._extract_all_subsequences(sequence)
-            
+            # if group_id is "P":
+            #     print("-----------------------------------------------")
+            #     # print(f"\n\nTHE FULL SEQUENCE: \n{sequence}")
+            subsequences = self._extract_all_subsequences(sequence, toprint=(group_id=="P"))
+            # if group_id is "P":
+            #     print(f"finished extracting subsequences for group {group_id}:")
+            #     print(f"{subsequences}")
+            #     print("-----------------------------------------------")
             # Store the patterns and the group ID they came from
             for sub in subsequences:
                 all_subsequences_data.append({
@@ -119,6 +133,9 @@ class SequencePatternDetector:
         # 4. Count and Filter
         
         # Aggregate the data to get counts and unique groups
+
+        # If I try to access a key (which will be a subsequence tuple) that isn't in pattern_data yet, 
+        # automatically create it and give it a default value of a dictionary containing a count of 0 and an empty set for group_ids
         pattern_data = defaultdict(lambda: {'count': 0, 'group_ids': set()})
         
         for item in all_subsequences_data:
