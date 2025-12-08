@@ -35,6 +35,18 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "actual_time",
             "y_axis": "resource"
         },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored circles grouping similar event patterns on the chart",
+            "interpretation": "Clusters events based on their spatial distribution (time × resource position). When color dimension is set, performs hierarchical clustering within each color group.",
+            "algorithm": "OPTICS/DBSCAN clustering on (X,Y) coordinates with optional hierarchical grouping by color",
+            "use_case": "Finding patterns in event distribution, identifying resource groups with similar visual patterns",
+            "requirements": ["actual_time", "resource"],
+            "output": "Clusters with density-based groupings",
+            "x_axis": "actual_time",
+            "y_axis": "resource"
+        },
         "outlier": {
             "can_be_found": True,
             "makes_sense": True,
@@ -71,6 +83,18 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "use_case": "Finding peak workload periods, batch processing times, shift changes",
             "requirements": ["actual_time", "activity"],
             "output": "Temporal clusters with event density and time ranges",
+            "x_axis": "actual_time",
+            "y_axis": "activity"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored circles grouping similar event patterns on the chart",
+            "interpretation": "Clusters events based on their spatial distribution (time × activity position). When color dimension is set, performs hierarchical clustering within each color group.",
+            "algorithm": "OPTICS/DBSCAN clustering on (X,Y) coordinates with optional hierarchical grouping by color",
+            "use_case": "Finding spatial patterns in event distribution, identifying activity groups with similar timing patterns",
+            "requirements": ["actual_time", "activity"],
+            "output": "Clusters with density-based groupings",
             "x_axis": "actual_time",
             "y_axis": "activity"
         },
@@ -113,6 +137,18 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "actual_time",
             "y_axis": "case_id"
         },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Colored regions (limited meaning without color dimension)",
+            "interpretation": "Limited meaning: case_id on Y-axis lacks semantic ordering, so spatial clustering finds nonsense patterns. Even when color dimension is set (e.g., color by activity) for hierarchical clustering still adds no meaning for temporal clustering.",
+            "algorithm": "OPTICS/DBSCAN clustering on (X,Y) coordinates with optional hierarchical grouping by color",
+            "use_case": "Better to use activity or resource on Y-axis",
+            "requirements": ["actual_time", "case_id"],
+            "output": "Spatial clusters (only with color dimension set)",
+            "x_axis": "actual_time",
+            "y_axis": "case_id"
+        },
         "outlier": {
             "can_be_found": True,
             "makes_sense": True,
@@ -149,6 +185,18 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "use_case": "Finding peak workload periods at specific process stages",
             "requirements": ["relative_time", "resource"],
             "output": "Temporal clusters with event density and time ranges",
+            "x_axis": "relative_time",
+            "y_axis": "resource"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored regions grouping similar event patterns on the chart",
+            "interpretation": "Clusters events based on their spatial distribution (relative time × resource position). When color dimension is set, performs clustering within each color group.",
+            "algorithm": "OPTICS/DBSCAN clustering on (X,Y) coordinates with optional hierarchical grouping by color",
+            "use_case": "Finding spatial patterns at specific process stages, identifying resource timing patterns",
+            "requirements": ["relative_time", "resource"],
+            "output": "Spatial clusters with density-based groupings",
             "x_axis": "relative_time",
             "y_axis": "resource"
         },
@@ -191,6 +239,18 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "relative_time",
             "y_axis": "activity"
         },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored regions grouping similar event patterns on the chart",
+            "interpretation": "Clusters events based on their spatial distribution (relative time × activity position). When color dimension is set, performs clustering within each color group.",
+            "algorithm": "OPTICS/DBSCAN clustering on (X,Y) coordinates with optional hierarchical grouping by color",
+            "use_case": "Finding spatial patterns in activity execution stages, identifying activity phase groupings",
+            "requirements": ["relative_time", "activity"],
+            "output": "Spatial clusters with density-based groupings",
+            "x_axis": "relative_time",
+            "y_axis": "activity"
+        },
         "outlier": {
             "can_be_found": True,
             "makes_sense": True,
@@ -227,6 +287,18 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "use_case": "Finding events at similar process stages (e.g., '30 minutes after admission', '2 hours into production'), identifying common process milestones",
             "requirements": ["relative_time", "case_id"],
             "output": "Temporal clusters with event density at specific relative time points",
+            "x_axis": "relative_time",
+            "y_axis": "case_id"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: case_id on Y-axis is arbitrary ordering with no semantic value. Spatial clustering adds nothing beyond temporal clustering.",
+            "algorithm": "N/A",
+            "use_case": "Use activity or resource on Y-axis for meaningful spatial patterns. Use temporal_cluster_x for time-based clustering.",
+            "requirements": [],
+            "output": "N/A",
             "x_axis": "relative_time",
             "y_axis": "case_id"
         },
@@ -269,6 +341,18 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "relative_ratio",
             "y_axis": "resource"
         },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored regions grouping similar event patterns on the chart",
+            "interpretation": "Clusters events based on their spatial distribution (normalized ratio × resource position). When color dimension is set, performs hierarchical clustering within each color group.",
+            "algorithm": "OPTICS/DBSCAN clustering on (X,Y) coordinates with optional hierarchical grouping by color",
+            "use_case": "Finding spatial patterns in normalized process stages, identifying resource engagement patterns independent of duration",
+            "requirements": ["relative_ratio", "resource"],
+            "output": "Spatial clusters with density-based groupings",
+            "x_axis": "relative_ratio",
+            "y_axis": "resource"
+        },
         "outlier": {
             "can_be_found": True,
             "makes_sense": False,
@@ -308,6 +392,18 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "relative_ratio",
             "y_axis": "activity"
         },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored regions grouping similar event patterns on the chart",
+            "interpretation": "Clusters events based on their spatial distribution (normalized ratio × activity position). When color dimension is set, performs clustering within each color group.",
+            "algorithm": "OPTICS/DBSCAN clustering on (X,Y) coordinates with optional hierarchical grouping by color",
+            "use_case": "Finding spatial patterns in normalized process positions, identifying activity phase patterns independent of duration",
+            "requirements": ["relative_ratio", "activity"],
+            "output": "Spatial clusters with density-based groupings",
+            "x_axis": "relative_ratio",
+            "y_axis": "activity"
+        },
         "outlier": {
             "can_be_found": True,
             "makes_sense": False,
@@ -342,6 +438,18 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "interpretation": "Not meaningful: relative_ratio is not a time measurement.",
             "algorithm": "N/A",
             "use_case": "Use temporal axis for temporal analysis",
+            "requirements": [],
+            "output": "N/A",
+            "x_axis": "relative_ratio",
+            "y_axis": "case_id"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: case_id on Y-axis is arbitrary ordering with no semantic value. Spatial clustering provides no useful insights.",
+            "algorithm": "N/A",
+            "use_case": "Use activity or resource on Y-axis for meaningful spatial patterns",
             "requirements": [],
             "output": "N/A",
             "x_axis": "relative_ratio",
@@ -386,6 +494,18 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "logical_relative",
             "y_axis": "resource"
         },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored regions grouping similar event patterns on the chart",
+            "interpretation": "Clusters events based on their spatial distribution (sequential index × resource position). Can identify early stage and late stage resources.",
+            "algorithm": "OPTICS/DBSCAN clustering on (X,Y) coordinates with optional hierarchical grouping by color",
+            "use_case": "Finding spatial patterns in sequential execution, identifying resource participation patterns by step",
+            "requirements": ["logical_relative", "resource"],
+            "output": "Spatial clusters with density-based groupings. Can find resources handover patterns.",
+            "x_axis": "logical_relative",
+            "y_axis": "resource"
+        },
         "outlier": {
             "can_be_found": True,
             "makes_sense": False,
@@ -425,6 +545,18 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "logical_relative",
             "y_axis": "activity"
         },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored regions grouping similar event patterns on the chart",
+            "interpretation": "Clusters events based on their spatial distribution (sequential index × activity position). Similar to resource clustering, can identify early and late stage activities.",
+            "algorithm": "OPTICS/DBSCAN clustering on (X,Y) coordinates with optional hierarchical grouping by color",
+            "use_case": "Finding spatial patterns in sequential execution, identifying activity groupings by process step",
+            "requirements": ["logical_relative", "activity"],
+            "output": "Spatial clusters with density-based groupings",
+            "x_axis": "logical_relative",
+            "y_axis": "activity"
+        },
         "outlier": {
             "can_be_found": True,
             "makes_sense": False,
@@ -461,6 +593,18 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "use_case": "Use relative_time or relative_ratio for meaningful time-based clustering",
             "requirements": [],
             "output": "N/A",
+            "x_axis": "logical_relative",
+            "y_axis": "case_id"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored regions grouping similar event patterns on the chart",
+            "interpretation": "Can identify structural patterns (where in the sequence activity concentrates).",
+            "algorithm": "Optics/DBSCAN clustering on (X,Y) coordinates with optional hierarchical grouping by color",
+            "use_case": "Use activity or resource on Y-axis for meaningful spatial patterns",
+            "requirements": [],
+            "output": "patterns in sequential process stages across cases",
             "x_axis": "logical_relative",
             "y_axis": "case_id"
         },
@@ -505,6 +649,18 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "logical_time",
             "y_axis": "resource"
         },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored regions grouping similar event patterns (limited meaning)",
+            "interpretation": "Limited meaning: clusters events based on spatial distribution (global sequential order × resource position). Lacks temporal semantics.",
+            "algorithm": "OPTICS/DBSCAN clustering on (X,Y) coordinates with optional hierarchical grouping by color",
+            "use_case": "Better to use actual_time or relative_time views for meaningful clustering",
+            "requirements": ["logical_time", "resource"],
+            "output": "Spatial clusters with limited sequential meaning",
+            "x_axis": "logical_time",
+            "y_axis": "resource"
+        },
         "outlier": {
             "can_be_found": True,
             "makes_sense": False,
@@ -544,6 +700,18 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "logical_time",
             "y_axis": "activity"
         },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Colored regions grouping similar event patterns (limited meaning)",
+            "interpretation": "Limited meaning: clusters events based on spatial distribution (global sequential order × activity position). Lacks temporal semantics.",
+            "algorithm": "OPTICS/DBSCAN/KMeans clustering on (X,Y) coordinates with optional hierarchical grouping by color",
+            "use_case": "Better to use actual_time views for meaningful clustering",
+            "requirements": ["logical_time", "activity"],
+            "output": "Spatial clusters with limited sequential meaning",
+            "x_axis": "logical_time",
+            "y_axis": "activity"
+        },
         "outlier": {
             "can_be_found": True,
             "makes_sense": False,
@@ -578,6 +746,18 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "interpretation": "Not meaningful: logical_time has no temporal meaning, just sequential order.",
             "algorithm": "N/A",
             "use_case": "Use actual_time for temporal analysis",
+            "requirements": [],
+            "output": "N/A",
+            "x_axis": "logical_time",
+            "y_axis": "case_id"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: case_id on Y-axis is arbitrary ordering with no semantic value. Spatial clustering provides no useful insights.",
+            "algorithm": "N/A",
+            "use_case": "Use activity or resource on Y-axis for meaningful spatial patterns",
             "requirements": [],
             "output": "N/A",
             "x_axis": "logical_time",
@@ -624,6 +804,18 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "actual_time",
             "y_axis": "event_index"
         },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: event_index is a counter, not a semantic grouping. Clustering on event numbers provides no process insights that are better than other views.",
+            "algorithm": "N/A",
+            "use_case": "Actual time x activity or resource views are more meaningful for clustering",
+            "requirements": [],
+            "output": "N/A",
+            "x_axis": "actual_time",
+            "y_axis": "event_index"
+        },
         "outlier": {
             "can_be_found": True,
             "makes_sense": False,
@@ -663,6 +855,18 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "x_axis": "relative_time",
             "y_axis": "event_index"
         },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored circles grouping similar event patterns on the chart",
+            "interpretation": "Clusters events based on spatial distribution (relative time × event index). Reveals correlation between process complexity and timing - identifies process stages, diagonal patterns showing event index correlation with time, and horizontal clusters showing common process lengths.",
+            "algorithm": "OPTICS/DBSCAN clustering on (X,Y) coordinates with optional hierarchical grouping by color",
+            "use_case": "Finding process complexity vs timing patterns, identifying process stages by event count, detecting resource specialization by event index ranges",
+            "requirements": ["relative_time", "event_index"],
+            "output": "Spatial clusters revealing process stage timing patterns",
+            "x_axis": "relative_time",
+            "y_axis": "event_index"
+        },
         "outlier": {
             "can_be_found": True,
             "makes_sense": False,
@@ -699,6 +903,18 @@ EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
             "use_case": "Use temporal axis for temporal analysis",
             "requirements": [],
             "output": "N/A",
+            "x_axis": "relative_ratio",
+            "y_axis": "event_index"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored circles grouping similar event patterns on the chart",
+            "interpretation": "Clusters events based on spatial distribution (normalized ratio × event index). Similar to relative_time view, reveals correlation between process complexity and normalized timing - identifies process stages independent of case duration.",
+            "algorithm": "OPTICS/DBSCAN clustering on (X,Y) coordinates with optional hierarchical grouping by color",
+            "use_case": "Finding process complexity patterns normalized across cases of different durations, identifying structural process stages by event count",
+            "requirements": ["relative_ratio", "event_index"],
+            "output": "Spatial clusters revealing normalized process stage patterns",
             "x_axis": "relative_ratio",
             "y_axis": "event_index"
         },
