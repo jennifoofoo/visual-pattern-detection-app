@@ -20,7 +20,6 @@ Y_AXIS_COLUMN_MAP = {
     'Event Index': 'event_index',
     # Assuming 'resource' is in the log/DataFrame
     'Resource': 'resource',
-    'Variant': 'variant'                    # Will be calculated if selected
 }
 
 # Mapping for Dot Colors (Color/Dots Config)

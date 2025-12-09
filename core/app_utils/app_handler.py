@@ -1,9 +1,6 @@
 from core.detection.cluster_pattern import ClusterPattern
 import streamlit as st
-from core.data_processing import load_xes_log, DataPreprocessor
-
-from core.data_processing.loader import compute_variants
-
+from core.data_processing import load_xes_log
 from core.evaluation.summary_generator import summarize_event_log
 from core.app_utils.mappings import X_AXIS_COLUMN_MAP, Y_AXIS_COLUMN_MAP, DOTS_COLOR_MAP
 
@@ -122,8 +119,6 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
 
     # Performance optimization: work with view instead of copy when possible
     df_selected = df_base
-    if y_axis == 'Variant':
-        compute_variants(df_base=df_base)
 
     # Check for missing values in the selected columns
     if df_selected[x_col].isnull().any() or df_selected[y_col].isnull().any():

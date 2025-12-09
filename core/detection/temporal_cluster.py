@@ -462,11 +462,6 @@ class TemporalClusterPattern(Pattern):
             summary.append(
                 f"\n👥 **Resource Time Patterns:** {len(self.clusters['resource_time'])} resources with shift-like behavior")
 
-        # Variant patterns
-        if 'variant_timing' in self.clusters:
-            summary.append(
-                f"\n🔄 **Variant Timing Differences:** {len(self.clusters['variant_timing'])} variants with distinct timing")
-
         return '\n'.join(summary)
 
     def get_summary(self) -> Dict[str, Any]:
