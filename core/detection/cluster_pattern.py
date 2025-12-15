@@ -45,7 +45,6 @@ class ClusterPattern(Pattern):
         self.algorithm_params = kwargs
         self.preprocessor = DataPreprocessor()
 
-
         # Results storage
         self.detected = None
         self.original_indices = None
@@ -126,41 +125,42 @@ class ClusterPattern(Pattern):
         # Estimate eps based on data spread
         # Adjust based on dimensionality
         if n_features <= 2:
-            # Low dimensional (visual clustering) - balanced approach
-            # For dotted charts, we want meaningful groupings without over/under-clustering
-            # 80% of IQR (balanced: not too tight, not too loose)
-            eps = mean_range * 1.1
-            min_samples = max(3, int(np.sqrt(n_samples) / 10)
-                              )  # Adaptive min_samples
+            # Low dimensional (visual clustering) - looser for meaningful patterns
+            # For dotted charts, we want visible, actionable clusters
+            eps = mean_range * 1.8  # Increased from 1.1 for larger clusters
+            min_samples = max(5, int(np.sqrt(n_samples) / 8)
+                              )  # Adaptive min_samples, higher baseline
         else:
             # High dimensional (TF-IDF) - tighter
             eps = mean_range * 0.3
             min_samples = 2
 
-        # Ensure minimum values
+        # Ensure minimum values for visual clustering
         if eps < 0.1:
-            eps = 0.3
-        if min_samples < 3:
-            min_samples = 3        # Algorithm-specific parameter calculation
+            eps = 0.5  # Increased from 0.3
+        if min_samples < 5:
+            min_samples = 5  # Increased from 3        # Algorithm-specific parameter calculation
         dynamic_params = {}
 
         if self.algorithm == 'optics':
             # Adaptive min_cluster_size based on dataset size
-            # Small groups (< 20): use 50% of group size
-            # Medium groups (20-100): use min_samples + small buffer
-            # Large groups (> 100): use max(min_samples, 10)
-            if n_samples < 20:
-                adaptive_min_cluster_size = max(2, int(n_samples * 0.5))
+            # Aim for meaningful, visible clusters (15-25 points minimum)
+            if n_samples < 30:
+                # Very small groups - require at least 70% to form a cluster
+                adaptive_min_cluster_size = max(15, int(n_samples * 0.7))
             elif n_samples < 100:
-                adaptive_min_cluster_size = max(min_samples, 5)
+                # Small to medium groups - fixed minimum for visibility
+                adaptive_min_cluster_size = max(min_samples, 20)
             else:
-                adaptive_min_cluster_size = max(min_samples, 10)
+                # Large groups - scale with data but keep substantial
+                adaptive_min_cluster_size = max(
+                    min_samples, int(n_samples * 0.15))
 
             dynamic_params = {
                 'min_samples': min_samples,
-                # Allow larger clusters (reduced multiplier since eps is now bigger)
-                'max_eps': eps * 2,
-                'xi': 0.05,  # Moderate cluster extraction
+                # Larger max_eps for looser clustering
+                'max_eps': eps * 2.5,
+                'xi': 0.08,  # Slightly more selective extraction
                 'min_cluster_size': adaptive_min_cluster_size
             }
         elif self.algorithm == 'dbscan':
@@ -567,7 +567,10 @@ class ClusterPattern(Pattern):
         x_col = self.view_config['x']
         y_col = self.view_config['y']
 
-        # Add cluster points with different colors
+        # Get the coordinates used for clustering
+        coordinates = self.detected.get('coordinates')
+
+        # Add cluster boundaries with rectangles
         for i, label in enumerate(unique_labels):
             mask = labels == label
             if not np.any(mask):
@@ -576,28 +579,114 @@ class ClusterPattern(Pattern):
             # Get indices of points in this cluster
             cluster_indices = original_indices[mask]
 
-            # Get original data for these points
+            # Get original data for these points (for display)
             cluster_data = df.iloc[cluster_indices]
 
             color = colors[i % len(colors)]
 
-            # Add cluster points
+            # Use the clustering coordinates to calculate boundaries
+            if coordinates is not None:
+                # Get coordinates for this cluster
+                cluster_coords = coordinates[mask]
+
+                # Calculate boundaries in coordinate space
+                coord_x_min = cluster_coords[:, 0].min()
+                coord_x_max = cluster_coords[:, 0].max()
+
+                # Map back to original data space for visualization
+                # Get the actual min/max values from original data
+                x_min = cluster_data[x_col].min()
+                x_max = cluster_data[x_col].max()
+                y_min = cluster_data[y_col].min()
+                y_max = cluster_data[y_col].max()
+
+                # Add padding based on coordinate space
+                coord_x_range = coord_x_max - coord_x_min
+                padding_factor = 0.1  # 10% padding
+
+                # For x-axis
+                if pd.api.types.is_datetime64_any_dtype(cluster_data[x_col]):
+                    # For datetime, add proportional time padding
+                    time_range = pd.to_datetime(x_max) - pd.to_datetime(x_min)
+                    padding = time_range * \
+                        padding_factor if time_range.total_seconds() > 0 else pd.Timedelta(hours=1)
+                    x_min_padded = pd.to_datetime(x_min) - padding
+                    x_max_padded = pd.to_datetime(x_max) + padding
+                else:
+                    # For numeric axes
+                    x_range = x_max - x_min if x_max != x_min else 1
+                    padding = x_range * padding_factor
+                    x_min_padded = x_min - padding
+                    x_max_padded = x_max + padding
+
+                # For y-axis: use categorical indices from plotly
+                # Get unique y values in this cluster and find their range
+                y_unique = cluster_data[y_col].unique()
+                if len(y_unique) == 1:
+                    # Single value, use fixed padding
+                    y_min_padded = -0.4
+                    y_max_padded = 0.4
+                else:
+                    # Multiple values - padding in categorical space
+                    y_min_padded = -0.4
+                    y_max_padded = len(y_unique) - 0.6
+            else:
+                # Fallback for hierarchical clustering (no coordinates)
+                # For x-axis
+                if pd.api.types.is_datetime64_any_dtype(cluster_data[x_col]):
+                    time_range = pd.to_datetime(
+                        cluster_data[x_col].max()) - pd.to_datetime(cluster_data[x_col].min())
+                    padding = time_range * 0.1 if time_range.total_seconds() > 0 else pd.Timedelta(hours=1)
+                    x_min_padded = pd.to_datetime(
+                        cluster_data[x_col].min()) - padding
+                    x_max_padded = pd.to_datetime(
+                        cluster_data[x_col].max()) + padding
+                else:
+                    x_min_padded = cluster_data[x_col].min()
+                    x_max_padded = cluster_data[x_col].max()
+
+                # For y-axis: get actual categorical values
+                if pd.api.types.is_object_dtype(cluster_data[y_col]):
+                    y_unique = cluster_data[y_col].unique()
+                    # Use the actual category names for the rectangle
+                    y_min_padded = y_unique[0]
+                    y_max_padded = y_unique[-1] if len(
+                        y_unique) > 1 else y_unique[0]
+                else:
+                    y_min_padded = cluster_data[y_col].min() - 0.4
+                    y_max_padded = cluster_data[y_col].max() + 0.4
+
+            # Add rectangle shape for cluster boundary
+            fig.add_shape(
+                type="rect",
+                x0=x_min_padded, x1=x_max_padded,
+                y0=y_min_padded, y1=y_max_padded,
+                line=dict(color=color, width=3),
+                fillcolor=color,
+                opacity=0.15,
+                layer="below"
+            )
+
+            # Add transparent hover area for the cluster
+            # Create a rectangle perimeter using 4 points
+            center_x = cluster_data[x_col].mean()
+            center_y = cluster_data[y_col].iloc[len(
+                cluster_data)//2] if pd.api.types.is_object_dtype(cluster_data[y_col]) else cluster_data[y_col].mean()
+
             fig.add_trace(go.Scatter(
-                x=cluster_data[x_col],
-                y=cluster_data[y_col],
+                x=[center_x],
+                y=[center_y],
                 mode='markers',
-                marker=dict(
-                    size=8,
-                    color=color,
-                    symbol='circle',
-                    line=dict(color='black', width=1),
-                    opacity=0.8
-                ),
-                name=f"Cluster {label}",
+                marker=dict(size=20, color=color, symbol='square',
+                            opacity=0.01),  # Nearly invisible
+                name=f"Cluster {label} ({len(cluster_data)} pts)",
                 showlegend=True,
-                hovertemplate=f"<b>Cluster {label}</b><br>" +
-                f"{x_col}: %{{x}}<br>" +
-                f"{y_col}: %{{y}}<extra></extra>"
+                hovertemplate=(
+                    f"<b>Cluster {label}</b><br>" +
+                    f"Points: {len(cluster_data)}<br>" +
+                    f"Algorithm: {self.algorithm.upper()}<br>" +
+                    "<extra></extra>"
+                )
             ))
 
         # Add noise points if any
