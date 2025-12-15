@@ -24,3 +24,24 @@ resource for workload patterns
 case_id for complexity patterns
 
 should i extend????
+
+
+============================
+- clustering - How does it make sense? 
+- clustering visualisation - boxes maybe?
+- Output detection with algorithms 
+- caching for pattern detection functions, charts pro view
+- Tai's pr checken 
+- visualise anpassen fur neue struktur 
+
+- define what is an input and output form type data for detect() and visualise() 
+- 09.01 - feedback for report: 
+    - wie automatisiert man parttern recognition fur dotted charts auf event ogs in pm 
+    - methodic (systematisch, patterns, matrix)
+        patterns rausgesucht (aus dotted charts)
+        haben geschaut wie man diese patterns findet --> dbscan and co
+        wrapped into dotted chart
+    - evaluation (selber interpretieren mit code und ohne)
+
+- Matrix fertig kriegen 
+- matrix visualisieren
