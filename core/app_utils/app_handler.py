@@ -930,6 +930,10 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
         
         st.markdown("---")
         
+        # Check if we need to sync from sidebar BEFORE rendering checkboxes
+        pattern_type = key_prefix.split("_")[0]
+        should_sync_from_sidebar = st.session_state.get(f'{pattern_type}_last_change_source') == 'sidebar'
+        
         for index, item in enumerate(item_list):
             # Create a unique key for the checkbox
             unique_key = f"list_checkbox_{key_prefix}_{index}"
@@ -940,15 +944,20 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
             # Initialize on first render or sync when parent changed from sidebar
             if unique_key not in st.session_state:
                 st.session_state[unique_key] = parent_visible
-            elif f'{key_prefix.split("_")[0]}_last_change_source' in st.session_state:
-                if st.session_state.get(f'{key_prefix.split("_")[0]}_last_change_source') == 'sidebar':
-                    st.session_state[unique_key] = parent_visible
-                    # Clear the flag after syncing
-                    if index == len(item_list) - 1:  # Last item
-                        del st.session_state[f'{key_prefix.split("_")[0]}_last_change_source']
+            elif should_sync_from_sidebar:
+                # Force sync to parent state when sidebar changed
+                st.session_state[unique_key] = parent_visible
             
             # Render the checkbox
             checked = st.checkbox(str(item), key=unique_key)
+            
+            # If checked, add the original item to the results list
+            if checked:
+                selected_items.append(item)
+        
+        # Clear the sync flag after ALL checkboxes are rendered
+        if should_sync_from_sidebar:
+            del st.session_state[f'{pattern_type}_last_change_source']
             
             # If checked, add the original item to the results list
             if checked:
@@ -1002,6 +1011,10 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
         
         st.markdown("---")
         
+        # Check if we need to sync from sidebar BEFORE rendering checkboxes
+        pattern_type = key_prefix.split("_")[0]
+        should_sync_from_sidebar = st.session_state.get(f'{pattern_type}_last_change_source') == 'sidebar'
+        
         for key, value in data_dict.items():
             # Create a unique key for the checkbox
             unique_key = f"dict_checkbox_{key_prefix}_{key}"
@@ -1012,16 +1025,20 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
             # Initialize on first render or sync when parent changed from sidebar
             if unique_key not in st.session_state:
                 st.session_state[unique_key] = parent_visible
-            elif f'{key_prefix.split("_")[0]}_last_change_source' in st.session_state:
-                if st.session_state.get(f'{key_prefix.split("_")[0]}_last_change_source') == 'sidebar':
-                    st.session_state[unique_key] = parent_visible
-                    # Clear the flag after syncing (on last item)
-                    keys_list = list(data_dict.keys())
-                    if key == keys_list[-1]:
-                        del st.session_state[f'{key_prefix.split("_")[0]}_last_change_source']
+            elif should_sync_from_sidebar:
+                # Force sync to parent state when sidebar changed
+                st.session_state[unique_key] = parent_visible
             
             # Display the checkbox
             checked = st.checkbox(key, key=unique_key)
+            
+            # If checked, add the value to the results list
+            if checked:
+                selected_items.append(value)
+        
+        # Clear the sync flag after ALL checkboxes are rendered
+        if should_sync_from_sidebar:
+            del st.session_state[f'{pattern_type}_last_change_source']
             
             # If checked, add the value to the results list
             if checked:
