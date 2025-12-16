@@ -352,6 +352,8 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_temporal_cluster != prev_temporal:
+            # Set flag to prevent tab->sidebar sync during this change
+            st.session_state['sidebar_is_changing'] = True
             if st.session_state.visible_temporal_cluster:
                 select_all_subpatterns('temporal')
             else:
@@ -375,6 +377,8 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_outlier != prev_outlier:
+            # Set flag to prevent tab->sidebar sync during this change
+            st.session_state['sidebar_is_changing'] = True
             if st.session_state.visible_outlier:
                 select_all_subpatterns('outlier')
             else:
@@ -398,12 +402,18 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_gap != prev_gap:
+            # Set flag to prevent tab->sidebar sync during this change
+            st.session_state['sidebar_is_changing'] = True
             if st.session_state.visible_gap:
                 select_all_subpatterns('gap')
             else:
                 deselect_all_subpatterns('gap')
             # Force rerun to update tab checkboxes
             st.rerun()
+    
+    # Clear the sidebar_is_changing flag after all sidebar controls are rendered
+    if 'sidebar_is_changing' in st.session_state:
+        del st.session_state['sidebar_is_changing']
     
 
 
@@ -811,6 +821,10 @@ def check_and_sync_sidebar_state(key_prefix: str, total_items: int, selected_cou
         total_items: Total number of sub-patterns
         selected_count: Number of currently selected sub-patterns
     """
+    # Check if sidebar is currently triggering changes (to avoid race condition)
+    if st.session_state.get('sidebar_is_changing', False):
+        return  # Don't sync back to sidebar if sidebar initiated the change
+    
     if selected_count == 0:
         # All deselected → Sidebar should be unchecked
         sync_sidebar_checkbox(key_prefix, False)
