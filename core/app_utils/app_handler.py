@@ -348,31 +348,6 @@ def sidebar_pattern_layer_controls():
     st.subheader("🎨 Pattern Layers")
     st.caption("Toggle pattern visualizations on the chart")
     
-    # Show/Hide All buttons FIRST (before checkboxes)
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Show All", use_container_width=True, key='sidebar_show_all', type="secondary"):
-            # Set all to True and delete widget keys to force rerender
-            if st.session_state.get('temporal_detected', False):
-                st.session_state.visible_temporal_cluster = True
-            if st.session_state.get('outlier_detected', False):
-                st.session_state.visible_outlier = True
-            if 'gap_detector' in st.session_state:
-                st.session_state.visible_gap = True
-            st.rerun()
-    with col2:
-        if st.button("Hide All", use_container_width=True, key='sidebar_hide_all', type="secondary"):
-            # Set all to False and delete widget keys to force rerender
-            if st.session_state.get('temporal_detected', False):
-                st.session_state.visible_temporal_cluster = False
-            if st.session_state.get('outlier_detected', False):
-                st.session_state.visible_outlier = False
-            if 'gap_detector' in st.session_state:
-                st.session_state.visible_gap = False
-            st.rerun()
-    
-    st.markdown("---")
-    
     # Initialize visibility flags in session state with separate keys
     # Temporal Clusters
     if st.session_state.get('temporal_detected', False):
