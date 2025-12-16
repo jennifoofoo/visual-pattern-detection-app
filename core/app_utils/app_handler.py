@@ -738,15 +738,43 @@ def handle_pattern_detection():
                 details = summary['details']
                 
                 with st.container(border=True):
-                    header_col1, header_col2 = st.columns([0.8, 0.2])
+                    header_col1, header_col2 = st.columns([0.85, 0.15])
                     with header_col1:
                         st.markdown("### 🔬 Gap Detection")
+                        st.caption("Learns normal transition durations (A → B) and detects unusually long gaps.")
                     with header_col2:
-                        # Layer visibility is now controlled by sidebar
-                        layer_visible = st.session_state.get('visible_gap', True)
+                        # Settings popover for gap detection parameters
+                        with st.popover("⚙️"):
+                            st.write("**Settings**")
+                            current_min_samples = st.session_state.get('gap_min_samples', 5)
+                            min_samples = st.number_input(
+                                "Min samples per transition",
+                                min_value=3,
+                                max_value=20,
+                                value=current_min_samples,
+                                step=1,
+                                key="gap_min_samples_input",
+                                help="Transitions with fewer samples are skipped"
+                            )
+                            if min_samples != current_min_samples:
+                                if st.button("Apply & Re-detect", use_container_width=True, type="primary"):
+                                    st.session_state['gap_min_samples'] = min_samples
+                                    # Trigger re-detection
+                                    plot_config = st.session_state.get('current_plot_config', {})
+                                    if plot_config:
+                                        df_selected = plot_config['df_selected']
+                                        x_col = plot_config['x_col']
+                                        y_col = plot_config['y_col']
+                                        handle_gap_detection_logic(df_selected, x_col, y_col, min_samples)
+                                        st.rerun()
                     
-                    if layer_visible:
-                        st.success(f"✅ {summary['count']} abnormal gaps detected")
+                    # Layer visibility is now controlled by sidebar
+                    layer_visible = st.session_state.get('visible_gap', True)
+                    
+                    if not layer_visible:
+                        st.info("👁️‍🗨️ Layer hidden - toggle in sidebar to show on chart")
+                    
+                    st.success(f"✅ {summary['count']} abnormal gaps detected")
                         
                         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
                         with col_m1:
@@ -765,20 +793,18 @@ def handle_pattern_detection():
                                 duration_str = f"{total_duration:.0f}s"
                             st.metric("Duration", duration_str)
                         
-                        with st.expander("📊 Details", expanded=False):
-                            st.write("**Top Transitions with Anomalies:**")
-                            trans_stats = details.get('transition_stats', {})
-                            for trans, stats in list(trans_stats.items())[:5]:
-                                st.write(f"- **{trans}**: {stats['count']} occurrences, threshold: {stats['threshold']/86400:.1f} days")
-                            
-                            st.write("\n**Top 10 Abnormal Gaps by Severity:**")
-                            abnormal_gaps = sorted(details['abnormal_gaps'], key=lambda x: x.get('severity', 0), reverse=True)[:10]
-                            for i, gap in enumerate(abnormal_gaps, 1):
-                                duration_days = gap['duration'] / 86400
-                                threshold_days = gap['threshold'] / 86400
-                                st.write(f"{i}. {gap['transition']} - Duration: {duration_days:.1f}d, Threshold: {threshold_days:.1f}d, Severity: {gap['severity']:.2f}x")
-                    else:
-                        st.caption("👁️‍🗨️ Layer hidden")
+                    with st.expander("📊 Details", expanded=False):
+                        st.write("**Top Transitions with Anomalies:**")
+                        trans_stats = details.get('transition_stats', {})
+                        for trans, stats in list(trans_stats.items())[:5]:
+                            st.write(f"- **{trans}**: {stats['count']} occurrences, threshold: {stats['threshold']/86400:.1f} days")
+                        
+                        st.write("\n**Top 10 Abnormal Gaps by Severity:**")
+                        abnormal_gaps = sorted(details['abnormal_gaps'], key=lambda x: x.get('severity', 0), reverse=True)[:10]
+                        for i, gap in enumerate(abnormal_gaps, 1):
+                            duration_days = gap['duration'] / 86400
+                            threshold_days = gap['threshold'] / 86400
+                            st.write(f"{i}. {gap['transition']} - Duration: {duration_days:.1f}d, Threshold: {threshold_days:.1f}d, Severity: {gap['severity']:.2f}x")
                         
 def ollama_description_button():
     with st.spinner("Generating description..."):
