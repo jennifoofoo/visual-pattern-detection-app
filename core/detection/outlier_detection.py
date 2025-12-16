@@ -627,8 +627,8 @@ class OutlierDetectionPattern(Pattern):
 
         # Add maximum score outlier points as a separate trace with enhanced highlighting
         fig.add_trace(go.Scatter(
-            x=outlier_data[self.view_config['x_axis']],
-            y=outlier_data[self.view_config['y_axis']],
+            x=outlier_data[self.view_config['x']],
+            y=outlier_data[self.view_config['y']],
             mode='markers',
             marker=dict(
                 size=10,
