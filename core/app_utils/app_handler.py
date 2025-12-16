@@ -355,65 +355,69 @@ def sidebar_pattern_layer_controls():
     st.subheader("🎨 Pattern Layers")
     st.caption("Toggle pattern visualizations on the chart")
     
+    # Initialize checkbox keys in session state if not present
+    if 'layer_visibility' not in st.session_state:
+        st.session_state.layer_visibility = {}
+    
     # Temporal Clusters
     if st.session_state.get('temporal_detected', False):
-        current_value = st.session_state.layer_visibility.get('temporal_cluster', True)
-        new_value = st.checkbox(
+        # Initialize if not present
+        if 'temporal_cluster' not in st.session_state.layer_visibility:
+            st.session_state.layer_visibility['temporal_cluster'] = True
+        
+        temporal_visible = st.checkbox(
             "⏱️ Temporal Clusters",
-            value=current_value,
-            key='checkbox_temporal_cluster',
+            value=st.session_state.layer_visibility['temporal_cluster'],
+            key='layer_toggle_temporal',
             help="Show/hide temporal cluster visualization"
         )
-        if new_value != current_value:
-            st.session_state.layer_visibility['temporal_cluster'] = new_value
-            st.rerun()
+        # Update layer_visibility based on checkbox
+        st.session_state.layer_visibility['temporal_cluster'] = temporal_visible
     
     # Outlier Detection
     if st.session_state.get('outlier_detected', False):
-        current_value = st.session_state.layer_visibility.get('outlier', True)
-        new_value = st.checkbox(
+        # Initialize if not present
+        if 'outlier' not in st.session_state.layer_visibility:
+            st.session_state.layer_visibility['outlier'] = True
+        
+        outlier_visible = st.checkbox(
             "🎯 Outlier Detection",
-            value=current_value,
-            key='checkbox_outlier',
+            value=st.session_state.layer_visibility['outlier'],
+            key='layer_toggle_outlier',
             help="Show/hide outlier detection visualization"
         )
-        if new_value != current_value:
-            st.session_state.layer_visibility['outlier'] = new_value
-            st.rerun()
+        # Update layer_visibility based on checkbox
+        st.session_state.layer_visibility['outlier'] = outlier_visible
     
     # Gap Detection
     if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
-        current_value = st.session_state.layer_visibility.get('gap', True)
-        new_value = st.checkbox(
+        # Initialize if not present
+        if 'gap' not in st.session_state.layer_visibility:
+            st.session_state.layer_visibility['gap'] = True
+        
+        gap_visible = st.checkbox(
             "🔬 Gap Detection",
-            value=current_value,
-            key='checkbox_gap',
+            value=st.session_state.layer_visibility['gap'],
+            key='layer_toggle_gap',
             help="Show/hide gap detection visualization"
         )
-        if new_value != current_value:
-            st.session_state.layer_visibility['gap'] = new_value
-            st.rerun()
+        # Update layer_visibility based on checkbox
+        st.session_state.layer_visibility['gap'] = gap_visible
     
     # Show/Hide All buttons
     st.markdown("---")
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Show All", use_container_width=True, key='sidebar_show_all', type="secondary"):
-            st.session_state.layer_visibility = {
-                'gap': True,
-                'outlier': True,
-                'temporal_cluster': True
-            }
-            st.session_state['chart_needs_display'] = True
+            st.session_state.layer_visibility['gap'] = True
+            st.session_state.layer_visibility['outlier'] = True
+            st.session_state.layer_visibility['temporal_cluster'] = True
             st.rerun()
     with col2:
         if st.button("Hide All", use_container_width=True, key='sidebar_hide_all', type="secondary"):
-            st.session_state.layer_visibility = {
-                'gap': False,
-                'outlier': False,
-                'temporal_cluster': False
-            }
-            st.session_state['chart_needs_display'] = True
+            st.session_state.layer_visibility['gap'] = False
+            st.session_state.layer_visibility['outlier'] = False
+            st.session_state.layer_visibility['temporal_cluster'] = False
             st.rerun()
 
 
