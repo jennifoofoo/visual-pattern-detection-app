@@ -350,13 +350,13 @@ def sidebar_pattern_layer_controls():
     if not any_detected:
         return
     
-    st.subheader("🎨 Pattern Layers")
+    st.subheader("Pattern Layers")
     st.caption("Toggle pattern visualizations on the chart")
     
     # ALWAYS show debug log (even if empty)
-    with st.expander("🐛 Debug Log", expanded=True):
+    with st.expander("Debug Log", expanded=True):
         if st.session_state.debug_log:
-            st.caption(f"📝 {len(st.session_state.debug_log)} events recorded")
+            st.caption(f"{len(st.session_state.debug_log)} events recorded")
             # Show in reverse order (newest first)
             for log in reversed(st.session_state.debug_log[-30:]):
                 st.code(log, language=None)
@@ -378,7 +378,7 @@ def sidebar_pattern_layer_controls():
         prev_temporal = st.session_state.visible_temporal_cluster
         
         st.checkbox(
-            "⏱️ Temporal Clusters",
+            "Temporal Clusters",
             key='visible_temporal_cluster',
             help="Show/hide temporal cluster visualization. Also toggles all sub-patterns."
         )
@@ -408,7 +408,7 @@ def sidebar_pattern_layer_controls():
         prev_outlier = st.session_state.visible_outlier
         
         st.checkbox(
-            "🎯 Outlier Detection",
+            "Outlier Detection",
             key='visible_outlier',
             help="Show/hide outlier detection visualization. Also toggles all sub-patterns."
         )
@@ -438,7 +438,7 @@ def sidebar_pattern_layer_controls():
         prev_gap = st.session_state.visible_gap
         
         st.checkbox(
-            "🔬 Gap Detection",
+            "Gap Detection",
             key='visible_gap',
             help="Show/hide gap detection visualization. Also toggles all sub-patterns."
         )
@@ -484,23 +484,23 @@ def handle_temporal_cluster_detection_logic(x_col, y_col, x_axis_label, y_axis_l
 
 def handle_outlier_detection_logic():
     """Execute outlier detection logic."""
-    with st.spinner("Analyzing outliers..."):
-        try:
-            # Use original data for outlier detection (not sampled data)
-            outlier_pattern = OutlierDetectionPattern(
-                df=st.session_state.df,  # Use full dataset
-                view_config=st.session_state.view_config
-            )
-            if outlier_pattern.detect():
-                # Store outlier results in session state
-                st.session_state.outlier_pattern = outlier_pattern
-                st.session_state.outlier_detected = True
-            else:
+        with st.spinner("Analyzing outliers..."):
+            try:
+                # Use original data for outlier detection (not sampled data)
+                outlier_pattern = OutlierDetectionPattern(
+                    df=st.session_state.df,  # Use full dataset
+                    view_config=st.session_state.view_config
+                )
+                if outlier_pattern.detect():
+                    # Store outlier results in session state
+                    st.session_state.outlier_pattern = outlier_pattern
+                    st.session_state.outlier_detected = True
+                else:
+                    st.session_state.outlier_detected = False
+                    st.info("No significant outliers detected!")
+            except Exception as e:
                 st.session_state.outlier_detected = False
-                st.info("No significant outliers detected!")
-        except Exception as e:
-            st.session_state.outlier_detected = False
-            st.error(f"Error during outlier detection: {str(e)}")
+                st.error(f"Error during outlier detection: {str(e)}")
 
 def handle_gap_detection_logic(df_selected, x_col, y_col, min_samples=5):
     """Execute gap detection logic."""
@@ -508,42 +508,42 @@ def handle_gap_detection_logic(df_selected, x_col, y_col, min_samples=5):
         # Determine if Y is categorical
         y_is_categorical = df_selected[y_col].nunique() <= 60
 
-        # Create view configuration for gap detection
-        view_config = {
+            # Create view configuration for gap detection
+            view_config = {
             'x': x_col,
             'y': y_col
-        }
+            }
 
-        # Create gap detector
+            # Create gap detector
         with st.spinner("Analyzing process transitions and detecting abnormal gaps..."):
-            gap_detector = GapPattern(
-                view_config=view_config,
+                gap_detector = GapPattern(
+                    view_config=view_config,
                 y_is_categorical=y_is_categorical
-            )
+                )
             
             # Apply min_samples setting
             gap_detector.MIN_SAMPLES_FOR_NORMALITY = min_samples
 
-            # Detect gaps
-            gap_detector.detect(df_selected)
+                # Detect gaps
+                gap_detector.detect(df_selected)
 
-            if gap_detector.detected is None:
-                # Clear gap detector if no gaps found
-                if 'gap_detector' in st.session_state:
-                    del st.session_state['gap_detector']
-                st.warning(
+                if gap_detector.detected is None:
+                    # Clear gap detector if no gaps found
+                    if 'gap_detector' in st.session_state:
+                        del st.session_state['gap_detector']
+                    st.warning(
                     "No abnormal gaps detected. This could mean:\n"
                     "- All gaps are within normal thresholds for their transitions\n"
                     "- Not enough transitions have sufficient samples (≥5)\n"
                     "- The log doesn't contain 'case_id' or 'activity' columns"
                 )
-            else:
-                # Store gap detection results
-                st.session_state['gap_detector'] = gap_detector
+                else:
+                    # Store gap detection results
+                    st.session_state['gap_detector'] = gap_detector
 
-    except Exception as e:
-        st.error(f"Error during gap detection: {str(e)}")
-        st.exception(e)
+        except Exception as e:
+            st.error(f"Error during gap detection: {str(e)}")
+            st.exception(e)
 
 def handle_pattern_detection():
     # Get current plot configuration from session state
@@ -585,13 +585,13 @@ def handle_pattern_detection():
     tabs_names = []
     
     if st.session_state.get('temporal_detected', False):
-        tabs_names.append("⏱️ Temporal Clusters")
+        tabs_names.append("Temporal Clusters")
         tabs_list.append('temporal')
     if st.session_state.get('outlier_detected', False):
-        tabs_names.append("🎯 Outlier Detection")
+        tabs_names.append("Outlier Detection")
         tabs_list.append('outlier')
     if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
-        tabs_names.append("🔬 Gap Detection")
+        tabs_names.append("Gap Detection")
         tabs_list.append('gap')
     
     # Create tabs dynamically
@@ -633,7 +633,7 @@ def display_temporal_cluster_tab():
         
         # === INDIVIDUAL CLUSTER SELECTION ===
         st.markdown("---")
-        st.subheader("🎯 Individual Cluster Control")
+        st.subheader("Individual Cluster Control")
         
         # Get cluster data (assuming temporal_bursts exists in detector.clusters)
         if hasattr(detector, 'clusters') and 'temporal_bursts' in detector.clusters:
@@ -685,7 +685,7 @@ def display_outlier_tab():
         
         # === INDIVIDUAL OUTLIER TYPE SELECTION ===
         st.markdown("---")
-        st.subheader("🎯 Individual Outlier Type Control")
+        st.subheader("Individual Outlier Type Control")
         
         # Get outlier types
         outlier_details = summary['details'].get('outlier_details', {})
@@ -777,7 +777,7 @@ def display_gap_tab():
             st.metric("Duration", duration_str)
         
         # === NESTED TABS FOR OVERVIEW AND TRANSITION CONTROL ===
-        subtab1, subtab2 = st.tabs(["📊 Overview", "🎯 Transition Control"])
+        subtab1, subtab2 = st.tabs(["Overview", "Transition Control"])
         
         with subtab1:
             # Details expander
