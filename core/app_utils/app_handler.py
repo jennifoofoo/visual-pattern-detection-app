@@ -1,4 +1,5 @@
 import streamlit as st
+from datetime import datetime
 from core.data_processing import load_xes_log
 from core.evaluation.summary_generator import summarize_event_log
 from core.app_utils.mappings import X_AXIS_COLUMN_MAP, Y_AXIS_COLUMN_MAP, DOTS_COLOR_MAP
@@ -8,6 +9,17 @@ from core.detection.gap_pattern import GapPattern
 from core.evaluation.ollama import OllamaEvaluator
 from core.utils.demo_sampling import sample_small_eventlog
 from config.extended_pattern_matrix import is_pattern_meaningful, get_pattern_info
+
+# Debug log file
+DEBUG_LOG_FILE = "debug_sidebar_sync.log"
+
+def log_debug(message: str):
+    """Write debug message to log file with timestamp."""
+    timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+    with open(DEBUG_LOG_FILE, "a") as f:
+        f.write(f"[{timestamp}] {message}\n")
+    # Also print to console
+    print(f"[{timestamp}] {message}")
 
 
 # Streamlit caching for performance
@@ -322,6 +334,10 @@ def display_chart():
 
 def sidebar_pattern_layer_controls():
     """Display pattern layer visibility controls in sidebar."""
+    # Initialize debug log if not exists
+    if 'debug_log' not in st.session_state:
+        st.session_state.debug_log = []
+    
     # Check if any pattern was detected
     any_detected = (
         st.session_state.get('temporal_detected', False) or 
@@ -334,6 +350,15 @@ def sidebar_pattern_layer_controls():
     
     st.subheader("🎨 Pattern Layers")
     st.caption("Toggle pattern visualizations on the chart")
+    
+    # Show debug log
+    if st.session_state.debug_log:
+        with st.expander("🐛 Debug Log", expanded=False):
+            for log in st.session_state.debug_log[-20:]:  # Show last 20 entries
+                st.text(log)
+            if st.button("Clear Debug Log"):
+                st.session_state.debug_log = []
+                st.rerun()
     
     # Initialize visibility flags in session state with separate keys
     # Temporal Clusters
