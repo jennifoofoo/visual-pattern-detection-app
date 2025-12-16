@@ -387,15 +387,23 @@ def sidebar_pattern_layer_controls():
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Show All", use_container_width=True, key='sidebar_show_all', type="secondary"):
-            st.session_state.visible_gap = True
-            st.session_state.visible_outlier = True
-            st.session_state.visible_temporal_cluster = True
+            # Set all to True
+            if st.session_state.get('temporal_detected', False):
+                st.session_state.visible_temporal_cluster = True
+            if st.session_state.get('outlier_detected', False):
+                st.session_state.visible_outlier = True
+            if 'gap_detector' in st.session_state:
+                st.session_state.visible_gap = True
             st.rerun()
     with col2:
         if st.button("Hide All", use_container_width=True, key='sidebar_hide_all', type="secondary"):
-            st.session_state.visible_gap = False
-            st.session_state.visible_outlier = False
-            st.session_state.visible_temporal_cluster = False
+            # Set all to False
+            if st.session_state.get('temporal_detected', False):
+                st.session_state.visible_temporal_cluster = False
+            if st.session_state.get('outlier_detected', False):
+                st.session_state.visible_outlier = False
+            if 'gap_detector' in st.session_state:
+                st.session_state.visible_gap = False
             st.rerun()
 
 
