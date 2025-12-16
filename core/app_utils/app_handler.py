@@ -208,7 +208,7 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
     st.session_state['chart_needs_display'] = True
 
     st.success("Chart created successfully!")
-    
+
     # Auto-detect all meaningful patterns after plotting
     auto_detect_patterns(x_col, y_col, dots_config_col, x_axis, y_axis, df_plot)
 
@@ -402,7 +402,7 @@ def sidebar_pattern_layer_controls():
             # Force rerun to update tab checkboxes
             print(f"🔵 SIDEBAR: Calling st.rerun()")
             st.rerun()
-    
+
     # Outlier Detection
     if st.session_state.get('outlier_detected', False):
         if 'visible_outlier' not in st.session_state:
@@ -490,71 +490,71 @@ def handle_temporal_cluster_detection_logic(x_col, y_col, x_axis_label, y_axis_l
 
 def handle_outlier_detection_logic():
     """Execute outlier detection logic."""
-    with st.spinner("Analyzing outliers..."):
-        try:
-            # Use original data for outlier detection (not sampled data)
-            outlier_pattern = OutlierDetectionPattern(
-                df=st.session_state.df,  # Use full dataset
-                view_config=st.session_state.view_config
-            )
-            if outlier_pattern.detect():
-                # Store outlier results in session state
-                st.session_state.outlier_pattern = outlier_pattern
-                st.session_state.outlier_detected = True
+        with st.spinner("Analyzing outliers..."):
+            try:
+                # Use original data for outlier detection (not sampled data)
+                outlier_pattern = OutlierDetectionPattern(
+                    df=st.session_state.df,  # Use full dataset
+                    view_config=st.session_state.view_config
+                )
+                if outlier_pattern.detect():
+                    # Store outlier results in session state
+                    st.session_state.outlier_pattern = outlier_pattern
+                    st.session_state.outlier_detected = True
                 st.session_state['chart_needs_display'] = True
                 st.rerun()
-            else:
-                st.session_state.outlier_detected = False
-                st.info("No significant outliers detected!")
+                else:
+                    st.session_state.outlier_detected = False
+                    st.info("No significant outliers detected!")
 
-        except Exception as e:
-            st.session_state.outlier_detected = False
-            st.error(f"Error during outlier detection: {str(e)}")
+            except Exception as e:
+                st.session_state.outlier_detected = False
+                st.error(f"Error during outlier detection: {str(e)}")
 
 def handle_gap_detection_logic(df_selected, x_col, y_col, min_samples=5):
     """Execute gap detection logic."""
     try:
         # Determine if Y is categorical
         y_is_categorical = df_selected[y_col].nunique() <= 60
-        
-        # Create view configuration for gap detection
-        view_config = {
+
+            # Create view configuration for gap detection
+            view_config = {
             'x': x_col,
             'y': y_col
-        }
+            }
 
-        # Create gap detector
+            # Create gap detector
         with st.spinner("Analyzing process transitions and detecting abnormal gaps..."):
-            gap_detector = GapPattern(
-                view_config=view_config,
+                gap_detector = GapPattern(
+                    view_config=view_config,
                 y_is_categorical=y_is_categorical
-            )
+                )
             
             # Apply min_samples setting
             gap_detector.MIN_SAMPLES_FOR_NORMALITY = min_samples
 
-            # Detect gaps
-            gap_detector.detect(df_selected)
+                # Detect gaps
+                gap_detector.detect(df_selected)
 
-            if gap_detector.detected is None:
-                # Clear gap detector if no gaps found
-                if 'gap_detector' in st.session_state:
-                    del st.session_state['gap_detector']
-                st.warning(
+                if gap_detector.detected is None:
+                    # Clear gap detector if no gaps found
+                    if 'gap_detector' in st.session_state:
+                        del st.session_state['gap_detector']
+                    st.warning(
                     "No abnormal gaps detected. This could mean:\n"
                     "- All gaps are within normal thresholds for their transitions\n"
                     "- Not enough transitions have sufficient samples (≥5)\n"
                     "- The log doesn't contain 'case_id' or 'activity' columns"
                 )
-            else:
-                # Store gap detection results
-                st.session_state['gap_detector'] = gap_detector
+                else:
+                    # Store gap detection results
+                    st.session_state['gap_detector'] = gap_detector
                 st.session_state['chart_needs_display'] = True
-                st.rerun()
+                    st.rerun()
 
-    except Exception as e:
-        st.error(f"Error during gap detection: {str(e)}")
-        st.exception(e)
+        except Exception as e:
+            st.error(f"Error during gap detection: {str(e)}")
+            st.exception(e)
 
 def handle_pattern_detection():
     # Get current plot configuration from session state
@@ -835,6 +835,28 @@ def display_gap_tab():
 
 # ========== HELPER FUNCTIONS FOR SUB-PATTERN SELECTION ==========
 
+def get_parent_visibility(key_prefix: str) -> bool:
+    """
+    Get the visibility state of the parent pattern from sidebar.
+    
+    Args:
+        key_prefix: Pattern key prefix (e.g. 'temporal_cluster', 'outlier_type', 'gap_transition')
+    
+    Returns:
+        True if parent pattern is visible, False otherwise
+    """
+    prefix_to_sidebar = {
+        'temporal_cluster': 'visible_temporal_cluster',
+        'outlier_type': 'visible_outlier',
+        'gap_transition': 'visible_gap'
+    }
+    
+    sidebar_key = prefix_to_sidebar.get(key_prefix)
+    if sidebar_key:
+        return st.session_state.get(sidebar_key, True)
+    return True
+
+
 def sync_sidebar_checkbox(key_prefix: str, value: bool):
     """
     Synchronize sidebar checkbox with tab selection.
@@ -999,9 +1021,12 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
             # Create a unique key for the checkbox
             unique_key = f"list_checkbox_{key_prefix}_{index}"
             
-            # Initialize to True (selected) if not in session state
+            # Check if parent pattern is disabled in sidebar
+            parent_visible = get_parent_visibility(key_prefix)
+            
+            # Initialize based on parent visibility
             if unique_key not in st.session_state:
-                st.session_state[unique_key] = True
+                st.session_state[unique_key] = parent_visible
             
             # Render the checkbox
             checked = st.checkbox(str(item), key=unique_key)
@@ -1065,9 +1090,12 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
             # Create a unique key for the checkbox
             unique_key = f"dict_checkbox_{key_prefix}_{key}"
             
-            # Initialize to True (selected) if not in session state
+            # Check if parent pattern is disabled in sidebar
+            parent_visible = get_parent_visibility(key_prefix)
+            
+            # Initialize based on parent visibility
             if unique_key not in st.session_state:
-                st.session_state[unique_key] = True
+                st.session_state[unique_key] = parent_visible
             
             # Display the checkbox
             checked = st.checkbox(key, key=unique_key)
