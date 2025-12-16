@@ -806,6 +806,30 @@ def sync_sidebar_checkbox(key_prefix: str, value: bool):
         st.session_state[sidebar_key] = value
 
 
+def check_and_sync_sidebar_state(key_prefix: str, total_items: int, selected_count: int):
+    """
+    Intelligent sidebar sync based on sub-pattern selection state.
+    
+    Rules:
+    - All sub-patterns selected → Sidebar checked
+    - All sub-patterns deselected → Sidebar unchecked
+    - Some selected, some not → Sidebar stays checked (partial visibility)
+    
+    Args:
+        key_prefix: Pattern key prefix
+        total_items: Total number of sub-patterns
+        selected_count: Number of currently selected sub-patterns
+    """
+    if selected_count == 0:
+        # All deselected → Sidebar should be unchecked
+        sync_sidebar_checkbox(key_prefix, False)
+    elif selected_count == total_items:
+        # All selected → Sidebar should be checked
+        sync_sidebar_checkbox(key_prefix, True)
+    # If some are selected (0 < selected_count < total_items):
+    # → Sidebar stays checked (pattern is partially visible)
+
+
 def deselect_all_subpatterns(pattern_type: str):
     """
     Deselect all sub-patterns when sidebar checkbox is unchecked.
@@ -914,6 +938,9 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
             # If checked, add the original item to the results list
             if checked:
                 selected_items.append(item)
+        
+        # Check if selection changed and sync with sidebar
+        check_and_sync_sidebar_state(key_prefix, len(item_list), len(selected_items))
 
     return selected_items
 
@@ -977,6 +1004,9 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
             # If checked, add the value to the results list
             if checked:
                 selected_items.append(value)
+        
+        # Check if selection changed and sync with sidebar
+        check_and_sync_sidebar_state(key_prefix, len(data_dict), len(selected_items))
 
     return selected_items
 
