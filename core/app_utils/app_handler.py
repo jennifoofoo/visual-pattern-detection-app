@@ -796,8 +796,6 @@ def display_gap_tab():
         
         with subtab2:
             # Individual transition selection
-            st.caption("⚠️ Changes will update the chart automatically")
-            
             # Get transitions with anomalies
             trans_stats = details.get('transition_stats', {})
             if trans_stats:
