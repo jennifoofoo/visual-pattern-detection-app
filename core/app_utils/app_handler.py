@@ -371,10 +371,10 @@ def sidebar_pattern_layer_controls():
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_temporal_cluster != prev_temporal:
             # Increment version to force widget recreation with new keys
-            st.session_state['temporal_clusters_version'] = st.session_state.get('temporal_clusters_version', 0) + 1
+            st.session_state['temporal_cluster_version'] = st.session_state.get('temporal_cluster_version', 0) + 1
             # Delete all state keys so they reinitialize with parent_visible
             keys_to_delete = [k for k in list(st.session_state.keys()) 
-                             if k.startswith('list_checkbox_temporal_clusters_') and not k.endswith('_version')]
+                             if 'checkbox_temporal_cluster_' in k]
             for key in keys_to_delete:
                 del st.session_state[key]
             st.rerun()
@@ -396,10 +396,10 @@ def sidebar_pattern_layer_controls():
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_outlier != prev_outlier:
             # Increment version to force widget recreation with new keys
-            st.session_state['outlier_types_version'] = st.session_state.get('outlier_types_version', 0) + 1
+            st.session_state['outlier_type_version'] = st.session_state.get('outlier_type_version', 0) + 1
             # Delete all state keys so they reinitialize with parent_visible
             keys_to_delete = [k for k in list(st.session_state.keys()) 
-                             if k.startswith('dict_checkbox_outlier_types_') and not k.endswith('_version')]
+                             if 'checkbox_outlier_type_' in k]
             for key in keys_to_delete:
                 del st.session_state[key]
             st.rerun()
@@ -421,10 +421,10 @@ def sidebar_pattern_layer_controls():
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_gap != prev_gap:
             # Increment version to force widget recreation with new keys
-            st.session_state['gap_transitions_version'] = st.session_state.get('gap_transitions_version', 0) + 1
+            st.session_state['gap_transition_version'] = st.session_state.get('gap_transition_version', 0) + 1
             # Delete all state keys so they reinitialize with parent_visible
             keys_to_delete = [k for k in list(st.session_state.keys()) 
-                             if k.startswith('dict_checkbox_gap_transitions_') and not k.endswith('_version')]
+                             if 'checkbox_gap_transition_' in k]
             for key in keys_to_delete:
                 del st.session_state[key]
             st.rerun()
