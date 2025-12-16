@@ -261,7 +261,7 @@ def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df
         'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None
     ])
     if detected_count > 0:
-        st.success(f"✅ {detected_count} pattern(s) detected and visualized! Use sidebar to toggle layers.")
+        st.success(f"✅ {detected_count} pattern(s) detected and visualized! Open sidebar (←) to toggle layers.")
 
 
 def display_chart():

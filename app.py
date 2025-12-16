@@ -6,7 +6,7 @@ st.set_page_config(
     page_title="Event Log Dotted Chart",
     page_icon=None,
     layout="wide",
-    initial_sidebar_state="expanded"  # Sidebar open by default for pattern layer controls
+    initial_sidebar_state="collapsed"  # Sidebar opens after plotting chart
 )
 
 
