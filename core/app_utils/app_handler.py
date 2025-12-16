@@ -617,23 +617,14 @@ def display_temporal_cluster_tab():
         layer_visible = st.session_state.get('visible_temporal_cluster', True)
         
         if not layer_visible:
-            st.info("👁️‍🗨️ Layer hidden - toggle in sidebar to show on chart")
+            st.info("Layer hidden - toggle in sidebar to show on chart")
         
-        st.caption("Finds time periods with unusually high or low event activity.")
-        st.success(f"✅ {summary['count']} clusters detected")
-        
-        col_m1, col_m2 = st.columns(2)
-        with col_m1:
-            st.metric("Clusters", summary['count'])
-        with col_m2:
-            st.metric("Type", summary['pattern_type'].replace('_', ' ').title())
+        st.success(f"{summary['count']} clusters detected")
         
         # === NESTED TABS FOR OVERVIEW AND CLUSTER CONTROL ===
         subtab1, subtab2 = st.tabs(["Overview", "Cluster Control"])
         
         with subtab1:
-            # Details (always visible)
-            st.write("**Details**")
             st.text(summary['details']['summary_text'])
         
         with subtab2:
