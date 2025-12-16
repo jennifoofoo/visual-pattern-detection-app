@@ -949,8 +949,8 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
                 if st.session_state.get(f'{key_prefix.split("_")[0]}_last_change_source') == 'sidebar':
                     st.session_state[unique_key] = parent_visible
             
-            # Render the checkbox
-            checked = st.checkbox(str(item), key=unique_key)
+            # Render the checkbox with explicit value from session_state
+            checked = st.checkbox(str(item), value=st.session_state.get(unique_key, parent_visible), key=unique_key)
             
             # If checked, add the original item to the results list
             if checked:
@@ -1019,8 +1019,8 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
                 if st.session_state.get(f'{key_prefix.split("_")[0]}_last_change_source') == 'sidebar':
                     st.session_state[unique_key] = parent_visible
             
-            # Display the checkbox
-            checked = st.checkbox(key, key=unique_key)
+            # Display the checkbox with explicit value from session_state
+            checked = st.checkbox(key, value=st.session_state.get(unique_key, parent_visible), key=unique_key)
             
             # If checked, add the value to the results list
             if checked:
