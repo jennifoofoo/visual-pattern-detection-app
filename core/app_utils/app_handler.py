@@ -352,13 +352,18 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_temporal_cluster != prev_temporal:
+            print(f"🔵 SIDEBAR: Temporal changed from {prev_temporal} to {st.session_state.visible_temporal_cluster}")
             # Mark that sidebar initiated this change
             st.session_state['visible_temporal_cluster_last_change_source'] = 'sidebar'
+            print(f"🔵 SIDEBAR: Set change source to 'sidebar' for temporal")
             if st.session_state.visible_temporal_cluster:
+                print(f"🔵 SIDEBAR: Calling select_all_subpatterns('temporal')")
                 select_all_subpatterns('temporal')
             else:
+                print(f"🔵 SIDEBAR: Calling deselect_all_subpatterns('temporal')")
                 deselect_all_subpatterns('temporal')
             # Force rerun to update tab checkboxes
+            print(f"🔵 SIDEBAR: Calling st.rerun()")
             st.rerun()
     
     # Outlier Detection
@@ -377,13 +382,18 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_outlier != prev_outlier:
+            print(f"🟠 SIDEBAR: Outlier changed from {prev_outlier} to {st.session_state.visible_outlier}")
             # Mark that sidebar initiated this change
             st.session_state['visible_outlier_last_change_source'] = 'sidebar'
+            print(f"🟠 SIDEBAR: Set change source to 'sidebar' for outlier")
             if st.session_state.visible_outlier:
+                print(f"🟠 SIDEBAR: Calling select_all_subpatterns('outlier')")
                 select_all_subpatterns('outlier')
             else:
+                print(f"🟠 SIDEBAR: Calling deselect_all_subpatterns('outlier')")
                 deselect_all_subpatterns('outlier')
             # Force rerun to update tab checkboxes
+            print(f"🟠 SIDEBAR: Calling st.rerun()")
             st.rerun()
     
     # Gap Detection
@@ -402,13 +412,18 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_gap != prev_gap:
+            print(f"🔴 SIDEBAR: Gap changed from {prev_gap} to {st.session_state.visible_gap}")
             # Mark that sidebar initiated this change
             st.session_state['visible_gap_last_change_source'] = 'sidebar'
+            print(f"🔴 SIDEBAR: Set change source to 'sidebar' for gap")
             if st.session_state.visible_gap:
+                print(f"🔴 SIDEBAR: Calling select_all_subpatterns('gap')")
                 select_all_subpatterns('gap')
             else:
+                print(f"🔴 SIDEBAR: Calling deselect_all_subpatterns('gap')")
                 deselect_all_subpatterns('gap')
             # Force rerun to update tab checkboxes
+            print(f"🔴 SIDEBAR: Calling st.rerun()")
             st.rerun()
     
 
@@ -791,6 +806,8 @@ def sync_sidebar_checkbox(key_prefix: str, value: bool):
         key_prefix: Pattern key prefix (e.g. 'temporal_cluster', 'outlier_type', 'gap_transition')
         value: True to enable, False to disable
     """
+    print(f"🟡 SYNC: sync_sidebar_checkbox('{key_prefix}', {value})")
+    
     # Map key_prefix to sidebar session state key
     prefix_to_sidebar = {
         'temporal_cluster': 'visible_temporal_cluster',
@@ -800,7 +817,9 @@ def sync_sidebar_checkbox(key_prefix: str, value: bool):
     
     sidebar_key = prefix_to_sidebar.get(key_prefix)
     if sidebar_key:
+        old_value = st.session_state.get(sidebar_key)
         st.session_state[sidebar_key] = value
+        print(f"🟡 SYNC: Changed {sidebar_key} from {old_value} to {value}")
 
 
 def check_and_sync_sidebar_state(key_prefix: str, total_items: int, selected_count: int):
@@ -817,6 +836,8 @@ def check_and_sync_sidebar_state(key_prefix: str, total_items: int, selected_cou
         total_items: Total number of sub-patterns
         selected_count: Number of currently selected sub-patterns
     """
+    print(f"🟢 TAB: check_and_sync_sidebar_state('{key_prefix}', total={total_items}, selected={selected_count})")
+    
     # Map key_prefix to sidebar key
     prefix_to_sidebar = {
         'temporal_cluster': 'visible_temporal_cluster',
@@ -826,26 +847,37 @@ def check_and_sync_sidebar_state(key_prefix: str, total_items: int, selected_cou
     
     sidebar_key = prefix_to_sidebar.get(key_prefix)
     if not sidebar_key:
+        print(f"🟢 TAB: Unknown key_prefix '{key_prefix}', skipping")
         return
     
     # Get last change source
     last_change_key = f'{sidebar_key}_last_change_source'
     last_change_source = st.session_state.get(last_change_key, 'tab')
     
+    print(f"🟢 TAB: Last change source for {sidebar_key} = '{last_change_source}'")
+    
     # Only sync if last change was from tab (not from sidebar)
     if last_change_source == 'sidebar':
         # Sidebar changed it, don't sync back
+        print(f"🟢 TAB: Skipping sync (sidebar initiated change)")
         # Reset the flag for next time
         st.session_state[last_change_key] = 'tab'
+        print(f"🟢 TAB: Reset change source to 'tab' for next time")
         return
+    
+    print(f"🟢 TAB: Proceeding with sync logic")
     
     # Normal sync logic
     if selected_count == 0:
         # All deselected → Sidebar should be unchecked
+        print(f"🟢 TAB: All deselected → unchecking sidebar")
         sync_sidebar_checkbox(key_prefix, False)
     elif selected_count == total_items:
         # All selected → Sidebar should be checked
+        print(f"🟢 TAB: All selected → checking sidebar")
         sync_sidebar_checkbox(key_prefix, True)
+    else:
+        print(f"🟢 TAB: Partial selection ({selected_count}/{total_items}) → keeping sidebar checked")
     # If some are selected (0 < selected_count < total_items):
     # → Sidebar stays checked (pattern is partially visible)
 
