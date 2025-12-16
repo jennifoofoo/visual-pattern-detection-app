@@ -545,8 +545,21 @@ class OutlierDetectionPattern(Pattern):
             'available_features': list(self.available_columns)
         }
 
-    def visualize(self, fig: go.Figure) -> go.Figure:
-        """Add outlier visualization to the existing figure."""
+    def visualize(self, df: pd.DataFrame, fig: go.Figure) -> go.Figure:
+        """Add outlier visualization to the existing figure.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Event log dataframe (for consistency with Pattern API, not used here)
+        fig : go.Figure
+            Plotly figure to annotate
+            
+        Returns
+        -------
+        go.Figure
+            Figure with outlier overlays
+        """
         if not self.detected:
             return fig
 
