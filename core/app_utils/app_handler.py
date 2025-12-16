@@ -370,10 +370,9 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_temporal_cluster != prev_temporal:
-            new_state = st.session_state.visible_temporal_cluster
-            # Delete ALL widget keys to force Streamlit to recreate them
-            keys_to_delete = [k for k in st.session_state.keys() 
-                             if k.startswith('list_checkbox_temporal_') or k.startswith('dict_checkbox_temporal_')]
+            # Delete ALL keys (both state AND widget keys) to force recreation
+            keys_to_delete = [k for k in list(st.session_state.keys()) 
+                             if 'checkbox_temporal_' in k]
             for key in keys_to_delete:
                 del st.session_state[key]
             # Force rerun - widgets will be recreated with parent_visible value
@@ -395,9 +394,9 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_outlier != prev_outlier:
-            # Delete ALL widget keys to force Streamlit to recreate them
-            keys_to_delete = [k for k in st.session_state.keys() 
-                             if k.startswith('list_checkbox_outlier_') or k.startswith('dict_checkbox_outlier_')]
+            # Delete ALL keys (both state AND widget keys) to force recreation
+            keys_to_delete = [k for k in list(st.session_state.keys()) 
+                             if 'checkbox_outlier_' in k]
             for key in keys_to_delete:
                 del st.session_state[key]
             # Force rerun - widgets will be recreated with parent_visible value
@@ -419,9 +418,9 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_gap != prev_gap:
-            # Delete ALL widget keys to force Streamlit to recreate them
-            keys_to_delete = [k for k in st.session_state.keys() 
-                             if k.startswith('list_checkbox_gap_') or k.startswith('dict_checkbox_gap_')]
+            # Delete ALL keys (both state AND widget keys) to force recreation
+            keys_to_delete = [k for k in list(st.session_state.keys()) 
+                             if 'checkbox_gap_' in k]
             for key in keys_to_delete:
                 del st.session_state[key]
             # Force rerun - widgets will be recreated with parent_visible value
