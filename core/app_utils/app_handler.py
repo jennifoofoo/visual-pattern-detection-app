@@ -370,13 +370,13 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_temporal_cluster != prev_temporal:
-            # Directly update all child checkbox states
             new_state = st.session_state.visible_temporal_cluster
-            for key in list(st.session_state.keys()):
-                if key.startswith('list_checkbox_temporal_') or key.startswith('dict_checkbox_temporal_'):
-                    if not key.endswith('_widget'):
-                        st.session_state[key] = new_state
-            # Force rerun to update tab checkboxes
+            # Delete ALL widget keys to force Streamlit to recreate them
+            keys_to_delete = [k for k in st.session_state.keys() 
+                             if k.startswith('list_checkbox_temporal_') or k.startswith('dict_checkbox_temporal_')]
+            for key in keys_to_delete:
+                del st.session_state[key]
+            # Force rerun - widgets will be recreated with parent_visible value
             st.rerun()
 
     # Outlier Detection
@@ -395,13 +395,12 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_outlier != prev_outlier:
-            # Directly update all child checkbox states
-            new_state = st.session_state.visible_outlier
-            for key in list(st.session_state.keys()):
-                if key.startswith('list_checkbox_outlier_') or key.startswith('dict_checkbox_outlier_'):
-                    if not key.endswith('_widget'):
-                        st.session_state[key] = new_state
-            # Force rerun to update tab checkboxes
+            # Delete ALL widget keys to force Streamlit to recreate them
+            keys_to_delete = [k for k in st.session_state.keys() 
+                             if k.startswith('list_checkbox_outlier_') or k.startswith('dict_checkbox_outlier_')]
+            for key in keys_to_delete:
+                del st.session_state[key]
+            # Force rerun - widgets will be recreated with parent_visible value
             st.rerun()
     
     # Gap Detection
@@ -420,13 +419,12 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_gap != prev_gap:
-            # Directly update all child checkbox states
-            new_state = st.session_state.visible_gap
-            for key in list(st.session_state.keys()):
-                if key.startswith('list_checkbox_gap_') or key.startswith('dict_checkbox_gap_'):
-                    if not key.endswith('_widget'):
-                        st.session_state[key] = new_state
-            # Force rerun to update tab checkboxes
+            # Delete ALL widget keys to force Streamlit to recreate them
+            keys_to_delete = [k for k in st.session_state.keys() 
+                             if k.startswith('list_checkbox_gap_') or k.startswith('dict_checkbox_gap_')]
+            for key in keys_to_delete:
+                del st.session_state[key]
+            # Force rerun - widgets will be recreated with parent_visible value
             st.rerun()
     
 
