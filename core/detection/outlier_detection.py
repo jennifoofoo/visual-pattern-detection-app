@@ -42,8 +42,9 @@ class OutlierDetectionPattern(Pattern):
         # Check if outlier detection is meaningful for this view
         x_axis = self.view_config.get('x', '')
         y_axis = self.view_config.get('y', '')
+        color = self.view_config.get('color', 'case_id')  # Default to case_id if not set
         
-        if not is_pattern_meaningful(x_axis, y_axis, 'outlier'):
+        if not is_pattern_meaningful(x_axis, y_axis, color, 'outlier'):
             return False
         
         try:

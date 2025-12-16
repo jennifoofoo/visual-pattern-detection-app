@@ -179,8 +179,9 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
     # Store the figure and view config for pattern detection
     st.session_state['fig'] = fig
     st.session_state['view_config'] = {
-        'x_axis': x_col,
-        'y_axis': y_col
+        'x': x_col,
+        'y': y_col,
+        'color': dots_config_col
     }
     st.session_state['chart_plotted'] = True
     st.session_state['chart_needs_display'] = True
@@ -504,19 +505,20 @@ def handle_pattern_detection():
     plot_config = st.session_state.get('current_plot_config', {})
     x_col = plot_config.get('x_col')
     y_col = plot_config.get('y_col')
+    color_col = plot_config.get('dots_config_col', 'case_id')  # Default to case_id if not set
     x_axis_label = plot_config.get('x_axis_label')
     y_axis_label = plot_config.get('y_axis_label')
     df_selected = plot_config.get('df_selected')
 
-    # Check which patterns are meaningful for this view
-    temporal_meaningful = is_pattern_meaningful(x_col, y_col, 'temporal_cluster_x')
-    outlier_meaningful = is_pattern_meaningful(x_col, y_col, 'outlier')
-    gap_meaningful = is_pattern_meaningful(x_col, y_col, 'gap')
+    # Check which patterns are meaningful for this view (now includes color dimension)
+    temporal_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'temporal_cluster_x')
+    outlier_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'outlier')
+    gap_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'gap')
     
-    # Get pattern info for tooltips
-    temporal_info = get_pattern_info(x_col, y_col, 'temporal_cluster_x')
-    outlier_info = get_pattern_info(x_col, y_col, 'outlier')
-    gap_info = get_pattern_info(x_col, y_col, 'gap')
+    # Get pattern info for tooltips (now includes color dimension)
+    temporal_info = get_pattern_info(x_col, y_col, color_col, 'temporal_cluster_x')
+    outlier_info = get_pattern_info(x_col, y_col, color_col, 'outlier')
+    gap_info = get_pattern_info(x_col, y_col, color_col, 'gap')
     
     # Create three equal columns (always show all patterns)
     col1, col2, col3 = st.columns(3)
