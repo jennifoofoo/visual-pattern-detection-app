@@ -917,27 +917,22 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
         
         # Check if parent pattern is visible in sidebar
         parent_visible = get_parent_visibility(key_prefix)
-        version = st.session_state.get(f'{key_prefix}_version', 0)
+        
+        # If parent is NOT visible, show message and don't render checkboxes
+        if not parent_visible:
+            st.info("Enable this pattern in the sidebar to select individual items.")
+            return []
         
         for index, item in enumerate(item_list):
-            # Create unique keys
+            # Simple key without version - parent visible means all are active
             state_key = f"list_checkbox_{key_prefix}_{index}"
-            widget_key = f"{state_key}_w_{version}"
             
-            # ALWAYS sync widget key with parent_visible when version changes
-            # This forces the checkbox to display the correct value
-            if widget_key not in st.session_state:
-                st.session_state[widget_key] = parent_visible
-            
-            # Initialize state key if needed
+            # Initialize if needed
             if state_key not in st.session_state:
-                st.session_state[state_key] = parent_visible
+                st.session_state[state_key] = True  # Default to checked when parent is visible
             
-            # Render checkbox - uses widget_key for state
-            checked = st.checkbox(str(item), key=widget_key)
-            
-            # Sync state key with widget
-            st.session_state[state_key] = checked
+            # Render checkbox
+            checked = st.checkbox(str(item), key=state_key)
             
             if checked:
                 selected_items.append(item)
@@ -992,27 +987,22 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
         
         # Check if parent pattern is visible in sidebar
         parent_visible = get_parent_visibility(key_prefix)
-        version = st.session_state.get(f'{key_prefix}_version', 0)
+        
+        # If parent is NOT visible, show message and don't render checkboxes
+        if not parent_visible:
+            st.info("Enable this pattern in the sidebar to select individual items.")
+            return []
         
         for key, value in data_dict.items():
-            # Create unique keys
+            # Simple key without version - parent visible means all are active
             state_key = f"dict_checkbox_{key_prefix}_{key}"
-            widget_key = f"{state_key}_w_{version}"
             
-            # ALWAYS sync widget key with parent_visible when version changes
-            # This forces the checkbox to display the correct value
-            if widget_key not in st.session_state:
-                st.session_state[widget_key] = parent_visible
-            
-            # Initialize state key if needed
+            # Initialize if needed
             if state_key not in st.session_state:
-                st.session_state[state_key] = parent_visible
+                st.session_state[state_key] = True  # Default to checked when parent is visible
             
-            # Render checkbox - uses widget_key for state
-            checked = st.checkbox(key, key=widget_key)
-            
-            # Sync state key with widget
-            st.session_state[state_key] = checked
+            # Render checkbox
+            checked = st.checkbox(key, key=state_key)
             
             if checked:
                 selected_items.append(value)
