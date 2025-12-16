@@ -666,12 +666,170 @@ def handle_pattern_detection():
     
     if not any_detected:
         st.info("💡 Patterns will appear here after chart is plotted.")
-    else:
-        # Create three columns for summary boxes
-        sum_col1, sum_col2, sum_col3 = st.columns(3)
+        return
+    
+    # Create tabs for each detected pattern
+    tabs_list = []
+    tabs_names = []
+    
+    if st.session_state.get('temporal_detected', False):
+        tabs_names.append("⏱️ Temporal Clusters")
+        tabs_list.append('temporal')
+    if st.session_state.get('outlier_detected', False):
+        tabs_names.append("🎯 Outlier Detection")
+        tabs_list.append('outlier')
+    if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
+        tabs_names.append("🔬 Gap Detection")
+        tabs_list.append('gap')
+    
+    # Create tabs dynamically
+    tabs = st.tabs(tabs_names)
+    
+    for i, (tab, pattern_type) in enumerate(zip(tabs, tabs_list)):
+        with tab:
+            if pattern_type == 'temporal':
+                display_temporal_cluster_tab()
+            elif pattern_type == 'outlier':
+                display_outlier_tab()
+            elif pattern_type == 'gap':
+                display_gap_tab()
+
+
+def display_temporal_cluster_tab():
+    """Display Temporal Cluster pattern details in tab."""
+    if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
+        detector = st.session_state.temporal_clusters
+        summary = detector.get_summary()
         
-        # === TEMPORAL CLUSTERS SUMMARY ===
-        with sum_col1:
+        # Layer visibility is now controlled by sidebar
+        layer_visible = st.session_state.get('visible_temporal_cluster', True)
+        
+        if not layer_visible:
+            st.info("👁️‍🗨️ Layer hidden - toggle in sidebar to show on chart")
+        
+        st.caption("Finds time periods with unusually high or low event activity.")
+        st.success(f"✅ {summary['count']} clusters detected")
+        
+        col_m1, col_m2 = st.columns(2)
+        with col_m1:
+            st.metric("Clusters", summary['count'])
+        with col_m2:
+            st.metric("Type", summary['pattern_type'].replace('_', ' ').title())
+        
+        with st.expander("📊 Details", expanded=False):
+            st.text(summary['details']['summary_text'])
+
+
+def display_outlier_tab():
+    """Display Outlier Detection pattern details in tab."""
+    if st.session_state.get('outlier_detected', False) and 'outlier_pattern' in st.session_state:
+        outlier_pattern = st.session_state.outlier_pattern
+        summary = outlier_pattern.get_summary()
+        
+        # Layer visibility is now controlled by sidebar
+        layer_visible = st.session_state.get('visible_outlier', True)
+        
+        if not layer_visible:
+            st.info("👁️‍🗨️ Layer hidden - toggle in sidebar to show on chart")
+        
+        st.caption("Identifies unusual events or cases based on temporal deviations.")
+        st.success(f"✅ {summary['count']} outliers detected")
+        
+        col_m1, col_m2, col_m3 = st.columns(3)
+        with col_m1:
+            st.metric("Outliers", summary['count'])
+        with col_m2:
+            stats = summary['details'].get('statistics', {})
+            st.metric("Outlier %", f"{stats.get('outlier_percentage', 0):.1f}%")
+        with col_m3:
+            st.metric("Methods", f"{stats.get('detection_methods_used', 0)}/6")
+        
+        with st.expander("📊 Details", expanded=False):
+            if summary['details'].get('outlier_details'):
+                st.write("**Outlier Types:**")
+                for outlier_type, details in summary['details']['outlier_details'].items():
+                    st.write(f"- {outlier_type.replace('_', ' ').title()}: {details['count']} ({details['percentage']:.1f}%)")
+
+
+def display_gap_tab():
+    """Display Gap Detection pattern details in tab."""
+    if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
+        gap_detector = st.session_state['gap_detector']
+        summary = gap_detector.get_summary()
+        details = summary['details']
+        
+        # Settings popover in header
+        header_col1, header_col2 = st.columns([0.85, 0.15])
+        with header_col1:
+            st.caption("Learns normal transition durations (A → B) and detects unusually long gaps.")
+        with header_col2:
+            # Settings popover for gap detection parameters
+            with st.popover("⚙️"):
+                st.write("**Settings**")
+                current_min_samples = st.session_state.get('gap_min_samples', 5)
+                min_samples = st.number_input(
+                    "Min samples per transition",
+                    min_value=3,
+                    max_value=20,
+                    value=current_min_samples,
+                    step=1,
+                    key="gap_min_samples_tab_input",
+                    help="Transitions with fewer samples are skipped"
+                )
+                if min_samples != current_min_samples:
+                    if st.button("Apply & Re-detect", use_container_width=True, type="primary", key="gap_redetect_tab"):
+                        st.session_state['gap_min_samples'] = min_samples
+                        # Trigger re-detection
+                        plot_config = st.session_state.get('current_plot_config', {})
+                        if plot_config:
+                            df_selected = plot_config['df_selected']
+                            x_col = plot_config['x_col']
+                            y_col = plot_config['y_col']
+                            handle_gap_detection_logic(df_selected, x_col, y_col, min_samples)
+                            st.rerun()
+        
+        # Layer visibility is now controlled by sidebar
+        layer_visible = st.session_state.get('visible_gap', True)
+        
+        if not layer_visible:
+            st.info("👁️‍🗨️ Layer hidden - toggle in sidebar to show on chart")
+        
+        st.success(f"✅ {summary['count']} abnormal gaps detected")
+        
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        with col_m1:
+            st.metric("Gaps", summary['count'])
+        with col_m2:
+            st.metric("Transitions", details['total_transitions'])
+        with col_m3:
+            st.metric("Anomalies", details['transitions_with_anomalies'])
+        with col_m4:
+            total_duration = details['total_magnitude']
+            if total_duration > 86400:
+                duration_str = f"{total_duration/86400:.1f}d"
+            elif total_duration > 3600:
+                duration_str = f"{total_duration/3600:.1f}h"
+            else:
+                duration_str = f"{total_duration:.0f}s"
+            st.metric("Duration", duration_str)
+        
+        with st.expander("📊 Details", expanded=False):
+            st.write("**Top Transitions with Anomalies:**")
+            trans_stats = details.get('transition_stats', {})
+            for trans, stats in list(trans_stats.items())[:5]:
+                st.write(f"- **{trans}**: {stats['count']} occurrences, threshold: {stats['threshold']/86400:.1f} days")
+            
+            st.write("\n**Top 10 Abnormal Gaps by Severity:**")
+            abnormal_gaps = sorted(details['abnormal_gaps'], key=lambda x: x.get('severity', 0), reverse=True)[:10]
+            for i, gap in enumerate(abnormal_gaps, 1):
+                duration_days = gap['duration'] / 86400
+                threshold_days = gap['threshold'] / 86400
+                st.write(f"{i}. {gap['transition']} - Duration: {duration_days:.1f}d, Threshold: {threshold_days:.1f}d, Severity: {gap['severity']:.2f}x")
+
+
+
+                        
+def ollama_description_button():
             if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
                 detector = st.session_state.temporal_clusters
                 summary = detector.get_summary()
