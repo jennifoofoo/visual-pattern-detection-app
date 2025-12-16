@@ -360,10 +360,22 @@ class TemporalClusterPattern(Pattern):
 
     # ==================== Visualization Support ====================
 
-    def visualize(self, df: pd.DataFrame = None, fig=None):
+    def visualize(self, df: pd.DataFrame, fig: go.Figure) -> go.Figure:
         #### FOR NOW ONLY ACTIVITY BURSTS IS VISUALISED
         """
         Add cluster visualizations to the figure.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Event log dataframe
+        fig : go.Figure
+            Plotly figure to annotate
+            
+        Returns
+        -------
+        go.Figure
+            Figure with cluster overlays
 
         Args:
             df: DataFrame (uses self.df if not provided)

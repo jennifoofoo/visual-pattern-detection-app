@@ -264,41 +264,85 @@ def display_chart():
     
     st.plotly_chart(fig, use_container_width=True)
     
-    # Pattern Layer Toggle Controls (only show if patterns detected)
+    # Update stored figure
+    st.session_state['fig'] = fig
+
+
+def sidebar_pattern_layer_controls():
+    """Display pattern layer visibility controls in sidebar."""
+    # Check if any pattern was detected
     any_detected = (
         st.session_state.get('temporal_detected', False) or 
         st.session_state.get('outlier_detected', False) or 
         ('gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None)
     )
     
-    if any_detected:
-        st.markdown("---")
-        toggle_col1, toggle_col2 = st.columns([0.7, 0.3])
-        with toggle_col1:
-            st.caption("**Pattern Layers:**")
-        with toggle_col2:
-            button_col1, button_col2 = st.columns(2)
-            with button_col1:
-                if st.button("👁️ Show", key='show_all_layers_chart', use_container_width=True, help="Show all pattern visualizations"):
-                    st.session_state.layer_visibility = {
-                        'gap': True,
-                        'outlier': True,
-                        'temporal_cluster': True
-                    }
-                    st.session_state['chart_needs_display'] = True
-                    st.rerun()
-            with button_col2:
-                if st.button("👁️‍🗨️ Hide", key='hide_all_layers_chart', use_container_width=True, help="Hide all pattern visualizations"):
-                    st.session_state.layer_visibility = {
-                        'gap': False,
-                        'outlier': False,
-                        'temporal_cluster': False
-                    }
-                    st.session_state['chart_needs_display'] = True
-                    st.rerun()
+    if not any_detected:
+        return
     
-    # Update stored figure
-    st.session_state['fig'] = fig
+    st.subheader("🎨 Pattern Layers")
+    st.caption("Toggle pattern visualizations on the chart")
+    
+    # Temporal Clusters
+    if st.session_state.get('temporal_detected', False):
+        temporal_visible = st.checkbox(
+            "⏱️ Temporal Clusters",
+            value=st.session_state.layer_visibility.get('temporal_cluster', True),
+            key='sidebar_temporal_toggle',
+            help="Show/hide temporal cluster visualization"
+        )
+        if temporal_visible != st.session_state.layer_visibility.get('temporal_cluster', True):
+            st.session_state.layer_visibility['temporal_cluster'] = temporal_visible
+            st.session_state['chart_needs_display'] = True
+            st.rerun()
+    
+    # Outlier Detection
+    if st.session_state.get('outlier_detected', False):
+        outlier_visible = st.checkbox(
+            "🎯 Outlier Detection",
+            value=st.session_state.layer_visibility.get('outlier', True),
+            key='sidebar_outlier_toggle',
+            help="Show/hide outlier detection visualization"
+        )
+        if outlier_visible != st.session_state.layer_visibility.get('outlier', True):
+            st.session_state.layer_visibility['outlier'] = outlier_visible
+            st.session_state['chart_needs_display'] = True
+            st.rerun()
+    
+    # Gap Detection
+    if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
+        gap_visible = st.checkbox(
+            "🔬 Gap Detection",
+            value=st.session_state.layer_visibility.get('gap', True),
+            key='sidebar_gap_toggle',
+            help="Show/hide gap detection visualization"
+        )
+        if gap_visible != st.session_state.layer_visibility.get('gap', True):
+            st.session_state.layer_visibility['gap'] = gap_visible
+            st.session_state['chart_needs_display'] = True
+            st.rerun()
+    
+    # Show/Hide All buttons
+    st.markdown("---")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("👁️ Show All", use_container_width=True, key='sidebar_show_all'):
+            st.session_state.layer_visibility = {
+                'gap': True,
+                'outlier': True,
+                'temporal_cluster': True
+            }
+            st.session_state['chart_needs_display'] = True
+            st.rerun()
+    with col2:
+        if st.button("👁️‍🗨️ Hide All", use_container_width=True, key='sidebar_hide_all'):
+            st.session_state.layer_visibility = {
+                'gap': False,
+                'outlier': False,
+                'temporal_cluster': False
+            }
+            st.session_state['chart_needs_display'] = True
+            st.rerun()
 
 
 # region Pattern Detection

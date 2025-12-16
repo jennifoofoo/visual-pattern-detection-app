@@ -6,7 +6,7 @@ st.set_page_config(
     page_title="Event Log Dotted Chart",
     page_icon=None,
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"  # Sidebar open by default for pattern layer controls
 )
 
 
@@ -71,9 +71,15 @@ def main():
         app_handler.handle_pattern_detection()
     # endregion
     
-    # region Ollama
-    # Ollama Description (moved to sidebar for better performance)
+    # region Sidebar
     with st.sidebar:
+        # Pattern Layer Controls
+        if st.session_state.chart_plotted:
+            app_handler.sidebar_pattern_layer_controls()
+        
+        st.divider()
+        
+        # Ollama Description
         st.subheader(" AI Description")
         if st.button("Describe Chart", disabled=not st.session_state.data_loaded):
             app_handler.ollama_description_button()
