@@ -255,15 +255,6 @@ def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df
     
     # Trigger chart redisplay with patterns
     st.session_state['chart_needs_display'] = True
-    
-    # Show success message with detected patterns count
-    detected_count = sum([
-        st.session_state.get('temporal_detected', False),
-        st.session_state.get('outlier_detected', False),
-        'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None
-    ])
-    if detected_count > 0:
-        st.success(f"✅ {detected_count} pattern(s) detected and visualized! Open sidebar (←) to toggle layers.")
 
 
 def display_chart():
