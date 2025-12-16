@@ -613,8 +613,6 @@ def display_temporal_cluster_tab():
                 
                 if selected_clusters:
                     st.success(f"✅ {len(selected_clusters)} of {len(cluster_list)} clusters selected")
-                else:
-                    st.info("No clusters selected - showing all by default")
 
 
 def display_outlier_tab():
@@ -663,8 +661,6 @@ def display_outlier_tab():
                 
                 if selected_types:
                     st.success(f"✅ {len(selected_types)} of {len(outlier_types_dict)} outlier types selected")
-                else:
-                    st.info("No outlier types selected - showing all by default")
             else:
                 st.info("No outlier type details available")
 
@@ -746,8 +742,6 @@ def display_gap_tab():
                 
                 if selected_transitions:
                     st.success(f"✅ {len(selected_transitions)} of {len(transition_dict)} transitions selected")
-                else:
-                    st.info("No transitions selected - showing all by default")
             else:
                 st.info("No transition stats available")
 
