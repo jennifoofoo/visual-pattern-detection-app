@@ -948,8 +948,12 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
                 # Force sync to parent state when sidebar changed
                 st.session_state[unique_key] = parent_visible
             
-            # Render the checkbox
-            checked = st.checkbox(str(item), key=unique_key)
+            # Render the checkbox with explicit value to force visual update
+            checked = st.checkbox(
+                str(item), 
+                value=st.session_state.get(unique_key, parent_visible),
+                key=unique_key
+            )
             
             # If checked, add the original item to the results list
             if checked:
@@ -958,10 +962,6 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
         # Clear the sync flag after ALL checkboxes are rendered
         if should_sync_from_sidebar:
             del st.session_state[f'{pattern_type}_last_change_source']
-            
-            # If checked, add the original item to the results list
-            if checked:
-                selected_items.append(item)
 
     return selected_items
 
@@ -1029,8 +1029,12 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
                 # Force sync to parent state when sidebar changed
                 st.session_state[unique_key] = parent_visible
             
-            # Display the checkbox
-            checked = st.checkbox(key, key=unique_key)
+            # Display the checkbox with explicit value to force visual update
+            checked = st.checkbox(
+                key, 
+                value=st.session_state.get(unique_key, parent_visible),
+                key=unique_key
+            )
             
             # If checked, add the value to the results list
             if checked:
