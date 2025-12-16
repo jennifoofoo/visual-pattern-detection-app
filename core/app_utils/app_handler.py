@@ -218,6 +218,8 @@ def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df
                 if detector.detect():
                     st.session_state.temporal_clusters = detector
                     st.session_state.temporal_detected = True
+                    # Initialize visibility to True when pattern is detected
+                    st.session_state.visible_temporal_cluster = True
             except Exception as e:
                 st.warning(f"Temporal cluster detection skipped: {str(e)}")
         
@@ -231,6 +233,8 @@ def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df
                 if outlier_pattern.detect():
                     st.session_state.outlier_pattern = outlier_pattern
                     st.session_state.outlier_detected = True
+                    # Initialize visibility to True when pattern is detected
+                    st.session_state.visible_outlier = True
             except Exception as e:
                 st.warning(f"Outlier detection skipped: {str(e)}")
         
@@ -248,6 +252,8 @@ def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df
                 
                 if gap_detector.detected is not None and len(gap_detector.detected) > 0:
                     st.session_state['gap_detector'] = gap_detector
+                    # Initialize visibility to True when pattern is detected
+                    st.session_state.visible_gap = True
             except Exception as e:
                 st.warning(f"Gap detection skipped: {str(e)}")
     
