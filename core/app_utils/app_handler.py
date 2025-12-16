@@ -508,42 +508,42 @@ def handle_gap_detection_logic(df_selected, x_col, y_col, min_samples=5):
         # Determine if Y is categorical
         y_is_categorical = df_selected[y_col].nunique() <= 60
 
-            # Create view configuration for gap detection
-            view_config = {
+        # Create view configuration for gap detection
+        view_config = {
             'x': x_col,
             'y': y_col
-            }
+        }
 
-            # Create gap detector
+        # Create gap detector
         with st.spinner("Analyzing process transitions and detecting abnormal gaps..."):
-                gap_detector = GapPattern(
-                    view_config=view_config,
+            gap_detector = GapPattern(
+                view_config=view_config,
                 y_is_categorical=y_is_categorical
-                )
+            )
             
             # Apply min_samples setting
             gap_detector.MIN_SAMPLES_FOR_NORMALITY = min_samples
 
-                # Detect gaps
-                gap_detector.detect(df_selected)
+            # Detect gaps
+            gap_detector.detect(df_selected)
 
-                if gap_detector.detected is None:
-                    # Clear gap detector if no gaps found
-                    if 'gap_detector' in st.session_state:
-                        del st.session_state['gap_detector']
-                    st.warning(
+            if gap_detector.detected is None:
+                # Clear gap detector if no gaps found
+                if 'gap_detector' in st.session_state:
+                    del st.session_state['gap_detector']
+                st.warning(
                     "No abnormal gaps detected. This could mean:\n"
                     "- All gaps are within normal thresholds for their transitions\n"
                     "- Not enough transitions have sufficient samples (≥5)\n"
                     "- The log doesn't contain 'case_id' or 'activity' columns"
                 )
-                else:
-                    # Store gap detection results
-                    st.session_state['gap_detector'] = gap_detector
+            else:
+                # Store gap detection results
+                st.session_state['gap_detector'] = gap_detector
 
-        except Exception as e:
-            st.error(f"Error during gap detection: {str(e)}")
-            st.exception(e)
+    except Exception as e:
+        st.error(f"Error during gap detection: {str(e)}")
+        st.exception(e)
 
 def handle_pattern_detection():
     # Get current plot configuration from session state
