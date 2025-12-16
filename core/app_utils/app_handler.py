@@ -514,18 +514,18 @@ def handle_gap_detection_logic(df_selected, x_col, y_col, min_samples=5):
         # Determine if Y is categorical
         y_is_categorical = df_selected[y_col].nunique() <= 60
 
-            # Create view configuration for gap detection
-            view_config = {
+        # Create view configuration for gap detection
+        view_config = {
             'x': x_col,
             'y': y_col
-            }
+        }
 
-            # Create gap detector
+        # Create gap detector
         with st.spinner("Analyzing process transitions and detecting abnormal gaps..."):
-                gap_detector = GapPattern(
-                    view_config=view_config,
+            gap_detector = GapPattern(
+                view_config=view_config,
                 y_is_categorical=y_is_categorical
-                )
+            )
             
             # Apply min_samples setting
             gap_detector.MIN_SAMPLES_FOR_NORMALITY = min_samples
