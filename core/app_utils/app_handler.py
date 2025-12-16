@@ -193,64 +193,70 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
     # Auto-detect all meaningful patterns after plotting
     auto_detect_patterns(x_col, y_col, dots_config_col, x_axis, y_axis, df_plot)
 
+def _detect_temporal_clusters(x_col, y_col, df_selected):
+    """Detect temporal clusters and store in session state."""
+    try:
+        detector = TemporalClusterPattern(
+            df=df_selected,
+            x_axis=x_col,
+            y_axis=y_col,
+            min_cluster_size=10
+        )
+        if detector.detect():
+            st.session_state.temporal_clusters = detector
+            st.session_state.temporal_detected = True
+            st.session_state.visible_temporal_cluster = True
+    except Exception as e:
+        st.warning(f"Temporal cluster detection skipped: {str(e)}")
+
+
+def _detect_outliers():
+    """Detect outliers and store in session state."""
+    try:
+        outlier_pattern = OutlierDetectionPattern(
+            df=st.session_state.df,
+            view_config=st.session_state.view_config
+        )
+        if outlier_pattern.detect():
+            st.session_state.outlier_pattern = outlier_pattern
+            st.session_state.outlier_detected = True
+            st.session_state.visible_outlier = True
+    except Exception as e:
+        st.warning(f"Outlier detection skipped: {str(e)}")
+
+
+def _detect_gaps(x_col, y_col, df_selected):
+    """Detect gaps and store in session state."""
+    try:
+        y_is_categorical = df_selected[y_col].nunique() <= 60
+        view_config = {'x': x_col, 'y': y_col}
+        gap_detector = GapPattern(
+            view_config=view_config,
+            y_is_categorical=y_is_categorical
+        )
+        gap_detector.MIN_SAMPLES_FOR_NORMALITY = 5
+        gap_detector.detect(df_selected)
+        
+        if gap_detector.detected is not None and len(gap_detector.detected) > 0:
+            st.session_state['gap_detector'] = gap_detector
+            st.session_state.visible_gap = True
+    except Exception as e:
+        st.warning(f"Gap detection skipped: {str(e)}")
+
+
 def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df_selected):
     """Automatically detect all meaningful patterns after chart is plotted."""
-    # Check which patterns are meaningful
     temporal_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'temporal_cluster_x')
     outlier_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'outlier')
     gap_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'gap')
     
     with st.spinner("Auto-detecting patterns..."):
-        # Temporal Clusters
         if temporal_meaningful:
-            try:
-                detector = TemporalClusterPattern(
-                    df=df_selected,
-                    x_axis=x_col,
-                    y_axis=y_col,
-                    min_cluster_size=10
-                )
-                if detector.detect():
-                    st.session_state.temporal_clusters = detector
-                    st.session_state.temporal_detected = True
-                    # Initialize visibility to True when pattern is detected
-                    st.session_state.visible_temporal_cluster = True
-            except Exception as e:
-                st.warning(f"Temporal cluster detection skipped: {str(e)}")
-        
-        # Outlier Detection
+            _detect_temporal_clusters(x_col, y_col, df_selected)
         if outlier_meaningful:
-            try:
-                outlier_pattern = OutlierDetectionPattern(
-                    df=st.session_state.df,
-                    view_config=st.session_state.view_config
-                )
-                if outlier_pattern.detect():
-                    st.session_state.outlier_pattern = outlier_pattern
-                    st.session_state.outlier_detected = True
-                    # Initialize visibility to True when pattern is detected
-                    st.session_state.visible_outlier = True
-            except Exception as e:
-                st.warning(f"Outlier detection skipped: {str(e)}")
-        
-        # Gap Detection
+            _detect_outliers()
         if gap_meaningful:
-            try:
-                y_is_categorical = df_selected[y_col].nunique() <= 60
-                view_config = {'x': x_col, 'y': y_col}
-                gap_detector = GapPattern(
-                    view_config=view_config,
-                    y_is_categorical=y_is_categorical
-                )
-                gap_detector.MIN_SAMPLES_FOR_NORMALITY = 5
-                gap_detector.detect(df_selected)
-                
-                if gap_detector.detected is not None and len(gap_detector.detected) > 0:
-                    st.session_state['gap_detector'] = gap_detector
-                    # Initialize visibility to True when pattern is detected
-                    st.session_state.visible_gap = True
-            except Exception as e:
-                st.warning(f"Gap detection skipped: {str(e)}")
+            _detect_gaps(x_col, y_col, df_selected)
 
 
 def display_chart():
@@ -316,100 +322,79 @@ def display_chart():
     st.session_state['fig'] = fig
 
 
-def sidebar_pattern_layer_controls():
-    """Display pattern layer visibility controls in sidebar."""
-    # Initialize debug log
-    if 'debug_log' not in st.session_state:
-        st.session_state.debug_log = []
-    
-    # Check if any pattern was detected
-    any_detected = (
+def _is_any_pattern_detected() -> bool:
+    """Check if any pattern has been detected."""
+    return (
         st.session_state.get('temporal_detected', False) or 
         st.session_state.get('outlier_detected', False) or 
         ('gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None)
     )
+
+
+def _render_pattern_checkbox(label: str, visibility_key: str, version_key: str, checkbox_key_pattern: str):
+    """
+    Render a pattern visibility checkbox with change detection and sub-pattern sync.
     
-    if not any_detected:
+    Args:
+        label: Display label for the checkbox
+        visibility_key: Session state key for visibility (e.g., 'visible_temporal_cluster')
+        version_key: Session state key for widget version (e.g., 'temporal_cluster_version')
+        checkbox_key_pattern: Pattern to match sub-checkbox keys (e.g., 'checkbox_temporal_cluster_')
+    """
+    if visibility_key not in st.session_state:
+        st.session_state[visibility_key] = True
+    
+    prev_state = st.session_state[visibility_key]
+    
+    st.checkbox(
+        label,
+        key=visibility_key,
+        help=f"Show/hide {label.lower()} visualization. Also toggles all sub-patterns."
+    )
+    
+    # Detect change and sync sub-patterns
+    if st.session_state[visibility_key] != prev_state:
+        st.session_state[version_key] = st.session_state.get(version_key, 0) + 1
+        keys_to_delete = [k for k in list(st.session_state.keys()) if checkbox_key_pattern in k]
+        for key in keys_to_delete:
+            del st.session_state[key]
+        st.rerun()
+
+
+def sidebar_pattern_layer_controls():
+    """Display pattern layer visibility controls in sidebar."""
+    if not _is_any_pattern_detected():
         return
     
     st.subheader("Pattern Layers")
     st.caption("Toggle pattern visualizations on the chart")
     
-    # Initialize visibility flags in session state with separate keys
     # Temporal Clusters
     if st.session_state.get('temporal_detected', False):
-        if 'visible_temporal_cluster' not in st.session_state:
-            st.session_state.visible_temporal_cluster = True
-        
-        # Store previous state BEFORE checkbox
-        prev_temporal = st.session_state.visible_temporal_cluster
-        
-        st.checkbox(
-            "Temporal Clusters",
-            key='visible_temporal_cluster',
-            help="Show/hide temporal cluster visualization. Also toggles all sub-patterns."
+        _render_pattern_checkbox(
+            "Temporal Clusters", 
+            'visible_temporal_cluster', 
+            'temporal_cluster_version',
+            'checkbox_temporal_cluster_'
         )
-        
-        # Detect change AFTER checkbox and sync sub-patterns
-        if st.session_state.visible_temporal_cluster != prev_temporal:
-            # Increment version to force widget recreation with new keys
-            st.session_state['temporal_cluster_version'] = st.session_state.get('temporal_cluster_version', 0) + 1
-            # Delete all state keys so they reinitialize with parent_visible
-            keys_to_delete = [k for k in list(st.session_state.keys()) 
-                             if 'checkbox_temporal_cluster_' in k]
-            for key in keys_to_delete:
-                del st.session_state[key]
-            st.rerun()
 
     # Outlier Detection
     if st.session_state.get('outlier_detected', False):
-        if 'visible_outlier' not in st.session_state:
-            st.session_state.visible_outlier = True
-        
-        # Store previous state BEFORE checkbox
-        prev_outlier = st.session_state.visible_outlier
-        
-        st.checkbox(
+        _render_pattern_checkbox(
             "Outlier Detection",
-            key='visible_outlier',
-            help="Show/hide outlier detection visualization. Also toggles all sub-patterns."
+            'visible_outlier',
+            'outlier_type_version',
+            'checkbox_outlier_type_'
         )
-        
-        # Detect change AFTER checkbox and sync sub-patterns
-        if st.session_state.visible_outlier != prev_outlier:
-            # Increment version to force widget recreation with new keys
-            st.session_state['outlier_type_version'] = st.session_state.get('outlier_type_version', 0) + 1
-            # Delete all state keys so they reinitialize with parent_visible
-            keys_to_delete = [k for k in list(st.session_state.keys()) 
-                             if 'checkbox_outlier_type_' in k]
-            for key in keys_to_delete:
-                del st.session_state[key]
-            st.rerun()
     
     # Gap Detection
     if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
-        if 'visible_gap' not in st.session_state:
-            st.session_state.visible_gap = True
-        
-        # Store previous state BEFORE checkbox
-        prev_gap = st.session_state.visible_gap
-        
-        st.checkbox(
+        _render_pattern_checkbox(
             "Gap Detection",
-            key='visible_gap',
-            help="Show/hide gap detection visualization. Also toggles all sub-patterns."
+            'visible_gap',
+            'gap_transition_version',
+            'checkbox_gap_transition_'
         )
-        
-        # Detect change AFTER checkbox and sync sub-patterns
-        if st.session_state.visible_gap != prev_gap:
-            # Increment version to force widget recreation with new keys
-            st.session_state['gap_transition_version'] = st.session_state.get('gap_transition_version', 0) + 1
-            # Delete all state keys so they reinitialize with parent_visible
-            keys_to_delete = [k for k in list(st.session_state.keys()) 
-                             if 'checkbox_gap_transition_' in k]
-            for key in keys_to_delete:
-                del st.session_state[key]
-            st.rerun()
     
 
 
@@ -497,66 +482,54 @@ def handle_gap_detection_logic(df_selected, x_col, y_col, min_samples=5):
         st.error(f"Error during gap detection: {str(e)}")
         st.exception(e)
 
-def handle_pattern_detection():
-    # Get current plot configuration from session state
-    plot_config = st.session_state.get('current_plot_config', {})
-    x_col = plot_config.get('x_col')
-    y_col = plot_config.get('y_col')
-    color_col = plot_config.get('dots_config_col', 'case_id')  # Default to case_id if not set
-    x_axis_label = plot_config.get('x_axis_label')
-    y_axis_label = plot_config.get('y_axis_label')
-    df_selected = plot_config.get('df_selected')
-
-    # Check which patterns are meaningful for this view (now includes color dimension)
-    temporal_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'temporal_cluster_x')
-    outlier_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'outlier')
-    gap_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'gap')
+def _get_detected_pattern_tabs() -> tuple:
+    """
+    Get lists of detected pattern names and types for tab creation.
     
-    # Get pattern info for tooltips (now includes color dimension)
-    temporal_info = get_pattern_info(x_col, y_col, color_col, 'temporal_cluster_x')
-    outlier_info = get_pattern_info(x_col, y_col, color_col, 'outlier')
-    gap_info = get_pattern_info(x_col, y_col, color_col, 'gap')
-    
-    # ========== PATTERN SUMMARY SECTION (patterns auto-detected) ==========
-    st.subheader("Pattern Summary")
-    st.caption("Patterns are automatically detected after plotting. Toggle visibility in sidebar (←)")
-    
-    # Check if any pattern was detected
-    any_detected = (
-        st.session_state.get('temporal_detected', False) or 
-        st.session_state.get('outlier_detected', False) or 
-        ('gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None)
-    )
-    
-    if not any_detected:
-        st.info("💡 Patterns will appear here after chart is plotted.")
-        return
-    
-    # Create tabs for each detected pattern
-    tabs_list = []
+    Returns:
+        Tuple of (tab_names, tab_types) lists
+    """
     tabs_names = []
+    tabs_types = []
     
     if st.session_state.get('temporal_detected', False):
         tabs_names.append("Temporal Clusters")
-        tabs_list.append('temporal')
+        tabs_types.append('temporal')
     if st.session_state.get('outlier_detected', False):
         tabs_names.append("Outlier Detection")
-        tabs_list.append('outlier')
+        tabs_types.append('outlier')
     if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
         tabs_names.append("Gap Detection")
-        tabs_list.append('gap')
+        tabs_types.append('gap')
     
-    # Create tabs dynamically
+    return tabs_names, tabs_types
+
+
+def _display_pattern_tab(pattern_type: str):
+    """Render the appropriate pattern tab content."""
+    if pattern_type == 'temporal':
+        display_temporal_cluster_tab()
+    elif pattern_type == 'outlier':
+        display_outlier_tab()
+    elif pattern_type == 'gap':
+        display_gap_tab()
+
+
+def handle_pattern_detection():
+    """Display pattern summary with tabs for each detected pattern."""
+    st.subheader("Pattern Summary")
+    st.caption("Patterns are automatically detected after plotting. Toggle visibility in sidebar.")
+    
+    if not _is_any_pattern_detected():
+        st.info("Patterns will appear here after chart is plotted.")
+        return
+    
+    tabs_names, tabs_types = _get_detected_pattern_tabs()
     tabs = st.tabs(tabs_names)
     
-    for i, (tab, pattern_type) in enumerate(zip(tabs, tabs_list)):
+    for tab, pattern_type in zip(tabs, tabs_types):
         with tab:
-            if pattern_type == 'temporal':
-                display_temporal_cluster_tab()
-            elif pattern_type == 'outlier':
-                display_outlier_tab()
-            elif pattern_type == 'gap':
-                display_gap_tab()
+            _display_pattern_tab(pattern_type)
 
 
 def display_temporal_cluster_tab():
