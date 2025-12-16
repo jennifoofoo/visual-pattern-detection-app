@@ -632,9 +632,9 @@ def display_temporal_cluster_tab():
         subtab1, subtab2 = st.tabs(["Overview", "Cluster Control"])
         
         with subtab1:
-            # Details expander
-            with st.expander("Details", expanded=False):
-                st.text(summary['details']['summary_text'])
+            # Details (always visible)
+            st.write("**Details**")
+            st.text(summary['details']['summary_text'])
         
         with subtab2:
             # Individual cluster selection
@@ -684,12 +684,11 @@ def display_outlier_tab():
         subtab1, subtab2 = st.tabs(["Overview", "Outlier Type Control"])
         
         with subtab1:
-            # Details expander
-            with st.expander("Details", expanded=False):
-                if summary['details'].get('outlier_details'):
-                    st.write("**Outlier Types:**")
-                    for outlier_type, details in summary['details']['outlier_details'].items():
-                        st.write(f"- {outlier_type.replace('_', ' ').title()}: {details['count']} ({details['percentage']:.1f}%)")
+            # Details (always visible)
+            if summary['details'].get('outlier_details'):
+                st.write("**Outlier Types:**")
+                for outlier_type, details in summary['details']['outlier_details'].items():
+                    st.write(f"- {outlier_type.replace('_', ' ').title()}: {details['count']} ({details['percentage']:.1f}%)")
         
         with subtab2:
             # Individual outlier type selection
@@ -786,19 +785,18 @@ def display_gap_tab():
         subtab1, subtab2 = st.tabs(["Overview", "Transition Control"])
         
         with subtab1:
-            # Details expander
-            with st.expander("Details", expanded=False):
-                st.write("**Top Transitions with Anomalies:**")
-                trans_stats = details.get('transition_stats', {})
-                for trans, stats in list(trans_stats.items())[:5]:
-                    st.write(f"- **{trans}**: {stats['count']} occurrences, threshold: {stats['threshold']/86400:.1f} days")
-                
-                st.write("\n**Top 10 Abnormal Gaps by Severity:**")
-                abnormal_gaps = sorted(details['abnormal_gaps'], key=lambda x: x.get('severity', 0), reverse=True)[:10]
-                for i, gap in enumerate(abnormal_gaps, 1):
-                    duration_days = gap['duration'] / 86400
-                    threshold_days = gap['threshold'] / 86400
-                    st.write(f"{i}. {gap['transition']} - Duration: {duration_days:.1f}d, Threshold: {threshold_days:.1f}d, Severity: {gap['severity']:.2f}x")
+            # Details (always visible)
+            st.write("**Top Transitions with Anomalies:**")
+            trans_stats = details.get('transition_stats', {})
+            for trans, stats in list(trans_stats.items())[:5]:
+                st.write(f"- **{trans}**: {stats['count']} occurrences, threshold: {stats['threshold']/86400:.1f} days")
+            
+            st.write("\n**Top 10 Abnormal Gaps by Severity:**")
+            abnormal_gaps = sorted(details['abnormal_gaps'], key=lambda x: x.get('severity', 0), reverse=True)[:10]
+            for i, gap in enumerate(abnormal_gaps, 1):
+                duration_days = gap['duration'] / 86400
+                threshold_days = gap['threshold'] / 86400
+                st.write(f"{i}. {gap['transition']} - Duration: {duration_days:.1f}d, Threshold: {threshold_days:.1f}d, Severity: {gap['severity']:.2f}x")
         
         with subtab2:
             # Individual transition selection
