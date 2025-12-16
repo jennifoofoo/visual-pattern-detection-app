@@ -775,24 +775,24 @@ def handle_pattern_detection():
                         st.info("👁️‍🗨️ Layer hidden - toggle in sidebar to show on chart")
                     
                     st.success(f"✅ {summary['count']} abnormal gaps detected")
-                        
-                        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-                        with col_m1:
-                            st.metric("Gaps", summary['count'])
-                        with col_m2:
-                            st.metric("Transitions", details['total_transitions'])
-                        with col_m3:
-                            st.metric("Anomalies", details['transitions_with_anomalies'])
-                        with col_m4:
-                            total_duration = details['total_magnitude']
-                            if total_duration > 86400:
-                                duration_str = f"{total_duration/86400:.1f}d"
-                            elif total_duration > 3600:
-                                duration_str = f"{total_duration/3600:.1f}h"
-                            else:
-                                duration_str = f"{total_duration:.0f}s"
-                            st.metric("Duration", duration_str)
-                        
+                    
+                    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+                    with col_m1:
+                        st.metric("Gaps", summary['count'])
+                    with col_m2:
+                        st.metric("Transitions", details['total_transitions'])
+                    with col_m3:
+                        st.metric("Anomalies", details['transitions_with_anomalies'])
+                    with col_m4:
+                        total_duration = details['total_magnitude']
+                        if total_duration > 86400:
+                            duration_str = f"{total_duration/86400:.1f}d"
+                        elif total_duration > 3600:
+                            duration_str = f"{total_duration/3600:.1f}h"
+                        else:
+                            duration_str = f"{total_duration:.0f}s"
+                        st.metric("Duration", duration_str)
+                    
                     with st.expander("📊 Details", expanded=False):
                         st.write("**Top Transitions with Anomalies:**")
                         trans_stats = details.get('transition_stats', {})
