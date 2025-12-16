@@ -917,19 +917,15 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
             if st.button("Select All", key=f"{key_prefix}_select_all", use_container_width=True):
                 for index in range(len(item_list)):
                     st.session_state[f"list_checkbox_{key_prefix}_{index}"] = True
-                # Sync with sidebar checkbox
+                # Turn ON parent sidebar checkbox when selecting all
                 sync_sidebar_checkbox(key_prefix, True)
-                # Trigger chart redisplay
-                st.session_state['chart_needs_update'] = True
                 st.rerun()
         with col_b:
             if st.button("Deselect All", key=f"{key_prefix}_deselect_all", use_container_width=True):
                 for index in range(len(item_list)):
                     st.session_state[f"list_checkbox_{key_prefix}_{index}"] = False
-                # Sync with sidebar checkbox
+                # Turn OFF parent sidebar checkbox when deselecting all
                 sync_sidebar_checkbox(key_prefix, False)
-                # Trigger chart redisplay
-                st.session_state['chart_needs_update'] = True
                 st.rerun()
         
         st.markdown("---")
@@ -957,16 +953,6 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
             # If checked, add the original item to the results list
             if checked:
                 selected_items.append(item)
-        
-        # Sync back to sidebar ONLY if change did NOT originate from sidebar
-        # This prevents endless loops
-        change_source = st.session_state.get(f'{key_prefix.split("_")[0]}_last_change_source')
-        if change_source != 'sidebar':
-            selected_count = len(selected_items)
-            if selected_count == 0 and parent_visible:
-                sync_sidebar_checkbox(key_prefix, False)
-            elif selected_count > 0 and not parent_visible:
-                sync_sidebar_checkbox(key_prefix, True)
 
     return selected_items
 
@@ -1040,16 +1026,6 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
             # If checked, add the value to the results list
             if checked:
                 selected_items.append(value)
-        
-        # Sync back to sidebar ONLY if change did NOT originate from sidebar
-        # This prevents endless loops
-        change_source = st.session_state.get(f'{key_prefix.split("_")[0]}_last_change_source')
-        if change_source != 'sidebar':
-            selected_count = len(selected_items)
-            if selected_count == 0 and parent_visible:
-                sync_sidebar_checkbox(key_prefix, False)
-            elif selected_count > 0 and not parent_visible:
-                sync_sidebar_checkbox(key_prefix, True)
 
     return selected_items
 
