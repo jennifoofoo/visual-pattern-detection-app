@@ -264,6 +264,39 @@ def display_chart():
     
     st.plotly_chart(fig, use_container_width=True)
     
+    # Pattern Layer Toggle Controls (only show if patterns detected)
+    any_detected = (
+        st.session_state.get('temporal_detected', False) or 
+        st.session_state.get('outlier_detected', False) or 
+        ('gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None)
+    )
+    
+    if any_detected:
+        st.markdown("---")
+        toggle_col1, toggle_col2 = st.columns([0.7, 0.3])
+        with toggle_col1:
+            st.caption("**Pattern Layers:**")
+        with toggle_col2:
+            button_col1, button_col2 = st.columns(2)
+            with button_col1:
+                if st.button("👁️ Show", key='show_all_layers_chart', use_container_width=True, help="Show all pattern visualizations"):
+                    st.session_state.layer_visibility = {
+                        'gap': True,
+                        'outlier': True,
+                        'temporal_cluster': True
+                    }
+                    st.session_state['chart_needs_display'] = True
+                    st.rerun()
+            with button_col2:
+                if st.button("👁️‍🗨️ Hide", key='hide_all_layers_chart', use_container_width=True, help="Hide all pattern visualizations"):
+                    st.session_state.layer_visibility = {
+                        'gap': False,
+                        'outlier': False,
+                        'temporal_cluster': False
+                    }
+                    st.session_state['chart_needs_display'] = True
+                    st.rerun()
+    
     # Update stored figure
     st.session_state['fig'] = fig
 
@@ -611,6 +644,7 @@ def handle_pattern_detection():
     
     # ========== PATTERN SUMMARY SECTION ==========
     st.markdown("---")
+    st.subheader("📋 Pattern Summary")
     
     # Check if any pattern was detected
     any_detected = (
@@ -618,34 +652,6 @@ def handle_pattern_detection():
         st.session_state.get('outlier_detected', False) or 
         ('gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None)
     )
-    
-    # Header with Show All / Hide All buttons (only show if patterns detected)
-    if any_detected:
-        header_col1, header_col2 = st.columns([0.85, 0.15])
-        with header_col1:
-            st.subheader("📋 Pattern Summary")
-        with header_col2:
-            button_col1, button_col2 = st.columns(2)
-            with button_col1:
-                if st.button("👁️", key='show_all_layers', use_container_width=True, help="Show all pattern visualizations"):
-                    st.session_state.layer_visibility = {
-                        'gap': True,
-                        'outlier': True,
-                        'temporal_cluster': True
-                    }
-                    st.session_state['chart_needs_display'] = True
-                    st.rerun()
-            with button_col2:
-                if st.button("👁️‍🗨️", key='hide_all_layers', use_container_width=True, help="Hide all pattern visualizations"):
-                    st.session_state.layer_visibility = {
-                        'gap': False,
-                        'outlier': False,
-                        'temporal_cluster': False
-                    }
-                    st.session_state['chart_needs_display'] = True
-                    st.rerun()
-    else:
-        st.subheader("📋 Pattern Summary")
     
     if not any_detected:
         st.info("Run pattern detection above to see results here.")
