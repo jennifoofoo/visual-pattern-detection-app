@@ -352,8 +352,8 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_temporal_cluster != prev_temporal:
-            # Set flag to prevent tab->sidebar sync during this change
-            st.session_state['sidebar_is_changing'] = True
+            # Mark that sidebar initiated this change
+            st.session_state['visible_temporal_cluster_last_change_source'] = 'sidebar'
             if st.session_state.visible_temporal_cluster:
                 select_all_subpatterns('temporal')
             else:
@@ -377,8 +377,8 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_outlier != prev_outlier:
-            # Set flag to prevent tab->sidebar sync during this change
-            st.session_state['sidebar_is_changing'] = True
+            # Mark that sidebar initiated this change
+            st.session_state['visible_outlier_last_change_source'] = 'sidebar'
             if st.session_state.visible_outlier:
                 select_all_subpatterns('outlier')
             else:
@@ -402,18 +402,14 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_gap != prev_gap:
-            # Set flag to prevent tab->sidebar sync during this change
-            st.session_state['sidebar_is_changing'] = True
+            # Mark that sidebar initiated this change
+            st.session_state['visible_gap_last_change_source'] = 'sidebar'
             if st.session_state.visible_gap:
                 select_all_subpatterns('gap')
             else:
                 deselect_all_subpatterns('gap')
             # Force rerun to update tab checkboxes
             st.rerun()
-    
-    # Clear the sidebar_is_changing flag after all sidebar controls are rendered
-    if 'sidebar_is_changing' in st.session_state:
-        del st.session_state['sidebar_is_changing']
     
 
 
@@ -821,10 +817,29 @@ def check_and_sync_sidebar_state(key_prefix: str, total_items: int, selected_cou
         total_items: Total number of sub-patterns
         selected_count: Number of currently selected sub-patterns
     """
-    # Check if sidebar is currently triggering changes (to avoid race condition)
-    if st.session_state.get('sidebar_is_changing', False):
-        return  # Don't sync back to sidebar if sidebar initiated the change
+    # Map key_prefix to sidebar key
+    prefix_to_sidebar = {
+        'temporal_cluster': 'visible_temporal_cluster',
+        'outlier_type': 'visible_outlier',
+        'gap_transition': 'visible_gap'
+    }
     
+    sidebar_key = prefix_to_sidebar.get(key_prefix)
+    if not sidebar_key:
+        return
+    
+    # Get last change source
+    last_change_key = f'{sidebar_key}_last_change_source'
+    last_change_source = st.session_state.get(last_change_key, 'tab')
+    
+    # Only sync if last change was from tab (not from sidebar)
+    if last_change_source == 'sidebar':
+        # Sidebar changed it, don't sync back
+        # Reset the flag for next time
+        st.session_state[last_change_key] = 'tab'
+        return
+    
+    # Normal sync logic
     if selected_count == 0:
         # All deselected → Sidebar should be unchecked
         sync_sidebar_checkbox(key_prefix, False)
