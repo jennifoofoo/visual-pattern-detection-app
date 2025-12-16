@@ -306,12 +306,18 @@ def display_chart():
         yaxis=dict(autorange='reversed')
     )
     
-    # Get layer visibility settings
-    layer_visibility = st.session_state.get('layer_visibility', {
-        'gap': True,
-        'outlier': True,
-        'temporal_cluster': True
-    })
+    # Get layer visibility settings (default all to True if not set)
+    if 'layer_visibility' not in st.session_state:
+        st.session_state.layer_visibility = {
+            'gap': True,
+            'outlier': True,
+            'temporal_cluster': True
+        }
+    
+    layer_visibility = st.session_state.layer_visibility
+    
+    # Debug: Show current visibility state
+    st.caption(f"🔍 Debug - Layer Visibility: {layer_visibility}")
     
     # Add gap visualization if gaps were detected AND layer is visible
     if layer_visibility.get('gap', True):
