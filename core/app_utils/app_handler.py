@@ -917,23 +917,26 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
         
         # Check if parent pattern is visible in sidebar
         parent_visible = get_parent_visibility(key_prefix)
+        version = st.session_state.get(f'{key_prefix}_version', 0)
         
         for index, item in enumerate(item_list):
-            # Create a unique key for the checkbox state
+            # Create unique keys
             state_key = f"list_checkbox_{key_prefix}_{index}"
+            widget_key = f"{state_key}_w_{version}"
             
-            # Initialize or sync with parent
+            # ALWAYS sync widget key with parent_visible when version changes
+            # This forces the checkbox to display the correct value
+            if widget_key not in st.session_state:
+                st.session_state[widget_key] = parent_visible
+            
+            # Initialize state key if needed
             if state_key not in st.session_state:
                 st.session_state[state_key] = parent_visible
             
-            # Use ONLY value parameter (no key!) to ensure visual updates
-            checked = st.checkbox(
-                str(item), 
-                value=st.session_state[state_key],
-                key=f"{state_key}_w_{st.session_state.get(f'{key_prefix}_version', 0)}"  # Versioned key forces recreation
-            )
+            # Render checkbox - uses widget_key for state
+            checked = st.checkbox(str(item), key=widget_key)
             
-            # Update state from checkbox interaction
+            # Sync state key with widget
             st.session_state[state_key] = checked
             
             if checked:
@@ -989,23 +992,26 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
         
         # Check if parent pattern is visible in sidebar
         parent_visible = get_parent_visibility(key_prefix)
+        version = st.session_state.get(f'{key_prefix}_version', 0)
         
         for key, value in data_dict.items():
-            # Create a unique key for the checkbox state
+            # Create unique keys
             state_key = f"dict_checkbox_{key_prefix}_{key}"
+            widget_key = f"{state_key}_w_{version}"
             
-            # Initialize or sync with parent
+            # ALWAYS sync widget key with parent_visible when version changes
+            # This forces the checkbox to display the correct value
+            if widget_key not in st.session_state:
+                st.session_state[widget_key] = parent_visible
+            
+            # Initialize state key if needed
             if state_key not in st.session_state:
                 st.session_state[state_key] = parent_visible
             
-            # Use versioned key to force widget recreation when parent changes
-            checked = st.checkbox(
-                key, 
-                value=st.session_state[state_key],
-                key=f"{state_key}_w_{st.session_state.get(f'{key_prefix}_version', 0)}"
-            )
+            # Render checkbox - uses widget_key for state
+            checked = st.checkbox(key, key=widget_key)
             
-            # Update state from checkbox interaction
+            # Sync state key with widget
             st.session_state[state_key] = checked
             
             if checked:
