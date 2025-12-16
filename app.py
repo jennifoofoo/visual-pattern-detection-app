@@ -66,8 +66,6 @@ def main():
     # Pattern Detection Section (only show if chart is plotted)
     if st.session_state.chart_plotted:
         st.divider()
-        st.subheader("Pattern Detection")
-        
         app_handler.handle_pattern_detection()
     # endregion
     

@@ -566,7 +566,7 @@ def handle_pattern_detection():
     gap_info = get_pattern_info(x_col, y_col, color_col, 'gap')
     
     # ========== PATTERN SUMMARY SECTION (patterns auto-detected) ==========
-    st.subheader("📋 Pattern Summary")
+    st.subheader("Pattern Summary")
     st.caption("Patterns are automatically detected after plotting. Toggle visibility in sidebar (←)")
     
     # Check if any pattern was detected
