@@ -657,27 +657,16 @@ def display_outlier_tab():
         layer_visible = st.session_state.get('visible_outlier', True)
         
         if not layer_visible:
-            st.info("👁️‍🗨️ Layer hidden - toggle in sidebar to show on chart")
+            st.info("Layer hidden - toggle in sidebar to show on chart")
         
-        st.caption("Identifies unusual events or cases based on temporal deviations.")
-        st.success(f"✅ {summary['count']} outliers detected")
-        
-        col_m1, col_m2, col_m3 = st.columns(3)
-        with col_m1:
-            st.metric("Outliers", summary['count'])
-        with col_m2:
-            stats = summary['details'].get('statistics', {})
-            st.metric("Outlier %", f"{stats.get('outlier_percentage', 0):.1f}%")
-        with col_m3:
-            st.metric("Methods", f"{stats.get('detection_methods_used', 0)}/6")
+        stats = summary['details'].get('statistics', {})
+        st.success(f"{summary['count']} outliers detected ({stats.get('outlier_percentage', 0):.1f}%)")
         
         # === NESTED TABS FOR OVERVIEW AND OUTLIER TYPE CONTROL ===
         subtab1, subtab2 = st.tabs(["Overview", "Outlier Type Control"])
         
         with subtab1:
-            # Details (always visible)
             if summary['details'].get('outlier_details'):
-                st.write("**Outlier Types:**")
                 for outlier_type, details in summary['details']['outlier_details'].items():
                     st.write(f"- {outlier_type.replace('_', ' ').title()}: {details['count']} ({details['percentage']:.1f}%)")
         
@@ -717,12 +706,15 @@ def display_gap_tab():
         summary = gap_detector.get_summary()
         details = summary['details']
         
-        # Settings popover in header
-        header_col1, header_col2 = st.columns([0.85, 0.15])
-        with header_col1:
-            st.caption("Learns normal transition durations (A → B) and detects unusually long gaps.")
-        with header_col2:
-            # Settings popover for gap detection parameters
+        # Settings and status in header
+        col_info, col_settings = st.columns([0.85, 0.15])
+        with col_info:
+            layer_visible = st.session_state.get('visible_gap', True)
+            if not layer_visible:
+                st.info("Layer hidden - toggle in sidebar to show on chart")
+            else:
+                st.success(f"{summary['count']} gaps detected across {details['transitions_with_anomalies']} transitions")
+        with col_settings:
             with st.popover("⚙️"):
                 st.write("**Settings**")
                 current_min_samples = st.session_state.get('gap_min_samples', 5)
@@ -738,7 +730,6 @@ def display_gap_tab():
                 if min_samples != current_min_samples:
                     if st.button("Apply & Re-detect", use_container_width=True, type="primary", key="gap_redetect_tab"):
                         st.session_state['gap_min_samples'] = min_samples
-                        # Trigger re-detection
                         plot_config = st.session_state.get('current_plot_config', {})
                         if plot_config:
                             df_selected = plot_config['df_selected']
@@ -747,42 +738,16 @@ def display_gap_tab():
                             handle_gap_detection_logic(df_selected, x_col, y_col, min_samples)
                             st.rerun()
         
-        # Layer visibility is now controlled by sidebar
-        layer_visible = st.session_state.get('visible_gap', True)
-        
-        if not layer_visible:
-            st.info("👁️‍🗨️ Layer hidden - toggle in sidebar to show on chart")
-        
-        st.success(f"✅ {summary['count']} abnormal gaps detected")
-        
-        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-        with col_m1:
-            st.metric("Gaps", summary['count'])
-        with col_m2:
-            st.metric("Transitions", details['total_transitions'])
-        with col_m3:
-            st.metric("Anomalies", details['transitions_with_anomalies'])
-        with col_m4:
-            total_duration = details['total_magnitude']
-            if total_duration > 86400:
-                duration_str = f"{total_duration/86400:.1f}d"
-            elif total_duration > 3600:
-                duration_str = f"{total_duration/3600:.1f}h"
-            else:
-                duration_str = f"{total_duration:.0f}s"
-            st.metric("Duration", duration_str)
-        
         # === NESTED TABS FOR OVERVIEW AND TRANSITION CONTROL ===
         subtab1, subtab2 = st.tabs(["Overview", "Transition Control"])
         
         with subtab1:
-            # Details (always visible)
             st.write("**Top Transitions with Anomalies:**")
             trans_stats = details.get('transition_stats', {})
             for trans, stats in list(trans_stats.items())[:5]:
-                st.write(f"- **{trans}**: {stats['count']} occurrences, threshold: {stats['threshold']/86400:.1f} days")
+                st.write(f"- {trans}: {stats['count']} occurrences, threshold: {stats['threshold']/86400:.1f} days")
             
-            st.write("\n**Top 10 Abnormal Gaps by Severity:**")
+            st.write("**Top 10 Abnormal Gaps by Severity:**")
             abnormal_gaps = sorted(details['abnormal_gaps'], key=lambda x: x.get('severity', 0), reverse=True)[:10]
             for i, gap in enumerate(abnormal_gaps, 1):
                 duration_days = gap['duration'] / 86400
