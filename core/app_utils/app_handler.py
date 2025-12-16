@@ -370,12 +370,13 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_temporal_cluster != prev_temporal:
-            # Delete ALL keys (both state AND widget keys) to force recreation
+            # Increment version to force widget recreation with new keys
+            st.session_state['temporal_clusters_version'] = st.session_state.get('temporal_clusters_version', 0) + 1
+            # Delete all state keys so they reinitialize with parent_visible
             keys_to_delete = [k for k in list(st.session_state.keys()) 
-                             if 'checkbox_temporal_' in k]
+                             if k.startswith('list_checkbox_temporal_clusters_') and not k.endswith('_version')]
             for key in keys_to_delete:
                 del st.session_state[key]
-            # Force rerun - widgets will be recreated with parent_visible value
             st.rerun()
 
     # Outlier Detection
@@ -394,12 +395,13 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_outlier != prev_outlier:
-            # Delete ALL keys (both state AND widget keys) to force recreation
+            # Increment version to force widget recreation with new keys
+            st.session_state['outlier_types_version'] = st.session_state.get('outlier_types_version', 0) + 1
+            # Delete all state keys so they reinitialize with parent_visible
             keys_to_delete = [k for k in list(st.session_state.keys()) 
-                             if 'checkbox_outlier_' in k]
+                             if k.startswith('dict_checkbox_outlier_types_') and not k.endswith('_version')]
             for key in keys_to_delete:
                 del st.session_state[key]
-            # Force rerun - widgets will be recreated with parent_visible value
             st.rerun()
     
     # Gap Detection
@@ -418,12 +420,13 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_gap != prev_gap:
-            # Delete ALL keys (both state AND widget keys) to force recreation
+            # Increment version to force widget recreation with new keys
+            st.session_state['gap_transitions_version'] = st.session_state.get('gap_transitions_version', 0) + 1
+            # Delete all state keys so they reinitialize with parent_visible
             keys_to_delete = [k for k in list(st.session_state.keys()) 
-                             if 'checkbox_gap_' in k]
+                             if k.startswith('dict_checkbox_gap_transitions_') and not k.endswith('_version')]
             for key in keys_to_delete:
                 del st.session_state[key]
-            # Force rerun - widgets will be recreated with parent_visible value
             st.rerun()
     
 
@@ -917,25 +920,22 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
         
         for index, item in enumerate(item_list):
             # Create a unique key for the checkbox state
-            unique_key = f"list_checkbox_{key_prefix}_{index}"
+            state_key = f"list_checkbox_{key_prefix}_{index}"
             
-            # Initialize on first render
-            if unique_key not in st.session_state:
-                st.session_state[unique_key] = parent_visible
+            # Initialize or sync with parent
+            if state_key not in st.session_state:
+                st.session_state[state_key] = parent_visible
             
-            # IMPORTANT: Use value WITHOUT key to force visual updates
-            # The checkbox will always reflect the session state value
+            # Use ONLY value parameter (no key!) to ensure visual updates
             checked = st.checkbox(
                 str(item), 
-                value=st.session_state[unique_key],
-                key=f"{unique_key}_widget",  # Different key for widget
-                on_change=lambda k=unique_key: None  # Dummy callback
+                value=st.session_state[state_key],
+                key=f"{state_key}_w_{st.session_state.get(f'{key_prefix}_version', 0)}"  # Versioned key forces recreation
             )
             
-            # Update session state from checkbox
-            st.session_state[unique_key] = checked
+            # Update state from checkbox interaction
+            st.session_state[state_key] = checked
             
-            # If checked, add the original item to the results list
             if checked:
                 selected_items.append(item)
 
@@ -992,29 +992,22 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
         
         for key, value in data_dict.items():
             # Create a unique key for the checkbox state
-            unique_key = f"dict_checkbox_{key_prefix}_{key}"
+            state_key = f"dict_checkbox_{key_prefix}_{key}"
             
-            # Initialize on first render
-            if unique_key not in st.session_state:
-                st.session_state[unique_key] = parent_visible
+            # Initialize or sync with parent
+            if state_key not in st.session_state:
+                st.session_state[state_key] = parent_visible
             
-            # IMPORTANT: Use value WITHOUT key to force visual updates
-            # The checkbox will always reflect the session state value
+            # Use versioned key to force widget recreation when parent changes
             checked = st.checkbox(
                 key, 
-                value=st.session_state[unique_key],
-                key=f"{unique_key}_widget",  # Different key for widget
-                on_change=lambda k=unique_key: None  # Dummy callback
+                value=st.session_state[state_key],
+                key=f"{state_key}_w_{st.session_state.get(f'{key_prefix}_version', 0)}"
             )
             
-            # Update session state from checkbox
-            st.session_state[unique_key] = checked
+            # Update state from checkbox interaction
+            st.session_state[state_key] = checked
             
-            # If checked, add the value to the results list
-            if checked:
-                selected_items.append(value)
-            
-            # If checked, add the value to the results list
             if checked:
                 selected_items.append(value)
 
