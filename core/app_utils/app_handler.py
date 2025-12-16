@@ -370,18 +370,13 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_temporal_cluster != prev_temporal:
-            print(f"🔵 SIDEBAR: Temporal changed from {prev_temporal} to {st.session_state.visible_temporal_cluster}")
-            # Mark that sidebar initiated this change
-            st.session_state['temporal_last_change_source'] = 'sidebar'
-            print(f"🔵 SIDEBAR: Set change source to 'sidebar' for temporal")
-            if st.session_state.visible_temporal_cluster:
-                print(f"🔵 SIDEBAR: Calling select_all_subpatterns('temporal')")
-                select_all_subpatterns('temporal')
-            else:
-                print(f"🔵 SIDEBAR: Calling deselect_all_subpatterns('temporal')")
-                deselect_all_subpatterns('temporal')
+            # Directly update all child checkbox states
+            new_state = st.session_state.visible_temporal_cluster
+            for key in list(st.session_state.keys()):
+                if key.startswith('list_checkbox_temporal_') or key.startswith('dict_checkbox_temporal_'):
+                    if not key.endswith('_widget'):
+                        st.session_state[key] = new_state
             # Force rerun to update tab checkboxes
-            print(f"🔵 SIDEBAR: Calling st.rerun()")
             st.rerun()
 
     # Outlier Detection
@@ -400,18 +395,13 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_outlier != prev_outlier:
-            print(f"🟠 SIDEBAR: Outlier changed from {prev_outlier} to {st.session_state.visible_outlier}")
-            # Mark that sidebar initiated this change
-            st.session_state['outlier_last_change_source'] = 'sidebar'
-            print(f"🟠 SIDEBAR: Set change source to 'sidebar' for outlier")
-            if st.session_state.visible_outlier:
-                print(f"🟠 SIDEBAR: Calling select_all_subpatterns('outlier')")
-                select_all_subpatterns('outlier')
-            else:
-                print(f"🟠 SIDEBAR: Calling deselect_all_subpatterns('outlier')")
-                deselect_all_subpatterns('outlier')
+            # Directly update all child checkbox states
+            new_state = st.session_state.visible_outlier
+            for key in list(st.session_state.keys()):
+                if key.startswith('list_checkbox_outlier_') or key.startswith('dict_checkbox_outlier_'):
+                    if not key.endswith('_widget'):
+                        st.session_state[key] = new_state
             # Force rerun to update tab checkboxes
-            print(f"🟠 SIDEBAR: Calling st.rerun()")
             st.rerun()
     
     # Gap Detection
@@ -430,18 +420,13 @@ def sidebar_pattern_layer_controls():
         
         # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_gap != prev_gap:
-            print(f"🔴 SIDEBAR: Gap changed from {prev_gap} to {st.session_state.visible_gap}")
-            # Mark that sidebar initiated this change
-            st.session_state['gap_last_change_source'] = 'sidebar'
-            print(f"🔴 SIDEBAR: Set change source to 'sidebar' for gap")
-            if st.session_state.visible_gap:
-                print(f"🔴 SIDEBAR: Calling select_all_subpatterns('gap')")
-                select_all_subpatterns('gap')
-            else:
-                print(f"🔴 SIDEBAR: Calling deselect_all_subpatterns('gap')")
-                deselect_all_subpatterns('gap')
+            # Directly update all child checkbox states
+            new_state = st.session_state.visible_gap
+            for key in list(st.session_state.keys()):
+                if key.startswith('list_checkbox_gap_') or key.startswith('dict_checkbox_gap_'):
+                    if not key.endswith('_widget'):
+                        st.session_state[key] = new_state
             # Force rerun to update tab checkboxes
-            print(f"🔴 SIDEBAR: Calling st.rerun()")
             st.rerun()
     
 
