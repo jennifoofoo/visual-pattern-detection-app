@@ -1,5 +1,4 @@
 import streamlit as st
-from datetime import datetime
 from core.data_processing import load_xes_log
 from core.evaluation.summary_generator import summarize_event_log
 from core.app_utils.mappings import X_AXIS_COLUMN_MAP, Y_AXIS_COLUMN_MAP, DOTS_COLOR_MAP
@@ -9,23 +8,6 @@ from core.detection.gap_pattern import GapPattern
 from core.evaluation.ollama import OllamaEvaluator
 from core.utils.demo_sampling import sample_small_eventlog
 from config.extended_pattern_matrix import is_pattern_meaningful, get_pattern_info
-
-def log_debug(message: str):
-    """Write debug message to session state for display in UI."""
-    timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-    log_entry = f"[{timestamp}] {message}"
-    
-    # Initialize log list if not exists
-    if 'debug_log' not in st.session_state:
-        st.session_state.debug_log = []
-    
-    # Add to session state (keep last 50 entries)
-    st.session_state.debug_log.append(log_entry)
-    if len(st.session_state.debug_log) > 50:
-        st.session_state.debug_log = st.session_state.debug_log[-50:]
-    
-    # Also print to console
-    print(log_entry)
 
 
 # Streamlit caching for performance
@@ -804,32 +786,18 @@ def deselect_all_subpatterns(pattern_type: str):
     Args:
         pattern_type: 'temporal', 'outlier', or 'gap'
     """
-    log_debug(f"🟣 DESELECT: deselect_all_subpatterns('{pattern_type}')")
-    
-    count = 0
     if pattern_type == 'temporal':
-        # Deselect all temporal cluster checkboxes
         for key in list(st.session_state.keys()):
             if key.startswith('list_checkbox_temporal_cluster_'):
                 st.session_state[key] = False
-                count += 1
-                log_debug(f"🟣 DESELECT: Set {key} = False")
     elif pattern_type == 'outlier':
-        # Deselect all outlier type checkboxes
         for key in list(st.session_state.keys()):
             if key.startswith('dict_checkbox_outlier_type_'):
                 st.session_state[key] = False
-                count += 1
-                log_debug(f"🟣 DESELECT: Set {key} = False")
     elif pattern_type == 'gap':
-        # Deselect all gap transition checkboxes
         for key in list(st.session_state.keys()):
             if key.startswith('dict_checkbox_gap_transition_'):
                 st.session_state[key] = False
-                count += 1
-                log_debug(f"🟣 DESELECT: Set {key} = False")
-    
-    log_debug(f"🟣 DESELECT: Deselected {count} checkboxes for {pattern_type}")
 
 
 def select_all_subpatterns(pattern_type: str):
@@ -839,32 +807,18 @@ def select_all_subpatterns(pattern_type: str):
     Args:
         pattern_type: 'temporal', 'outlier', or 'gap'
     """
-    log_debug(f"🟢 SELECT: select_all_subpatterns('{pattern_type}')")
-    
-    count = 0
     if pattern_type == 'temporal':
-        # Select all temporal cluster checkboxes
         for key in list(st.session_state.keys()):
             if key.startswith('list_checkbox_temporal_cluster_'):
                 st.session_state[key] = True
-                count += 1
-                log_debug(f"🟢 SELECT: Set {key} = True")
     elif pattern_type == 'outlier':
-        # Select all outlier type checkboxes
         for key in list(st.session_state.keys()):
             if key.startswith('dict_checkbox_outlier_type_'):
                 st.session_state[key] = True
-                count += 1
-                log_debug(f"🟢 SELECT: Set {key} = True")
     elif pattern_type == 'gap':
-        # Select all gap transition checkboxes
         for key in list(st.session_state.keys()):
             if key.startswith('dict_checkbox_gap_transition_'):
                 st.session_state[key] = True
-                count += 1
-                log_debug(f"🟢 SELECT: Set {key} = True")
-    
-    log_debug(f"🟢 SELECT: Selected {count} checkboxes for {pattern_type}")
 
 
 def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_prefix: str = "item") -> list:

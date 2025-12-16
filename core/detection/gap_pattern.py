@@ -418,17 +418,6 @@ class GapPattern(Pattern):
             return fig
         
         abnormal_gaps = self.detected['abnormal_gaps']
-        
-        # Filter by selected transitions if specified
-        import streamlit as st
-        selected_transitions = st.session_state.get('selected_gap_transitions', None)
-        if selected_transitions is not None and len(selected_transitions) > 0:
-            # Only show gaps for selected transitions
-            abnormal_gaps = [gap for gap in abnormal_gaps if gap['transition'] in selected_transitions]
-        
-        if not abnormal_gaps:
-            return fig
-        
         y_col = self.view_config['y']
         
         # For numeric Y: try to get actual plot range

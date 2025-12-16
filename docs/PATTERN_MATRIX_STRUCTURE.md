@@ -58,25 +58,10 @@ Each pattern entry contains:
 {
     "can_be_found": bool,        # Technically detectable?
     "makes_sense": bool,         # Semantically meaningful?
-    "visual": str,               # Visual representation
+    "visual": str,               # Visual representation (including color impact)
     "interpretation": str,       # What does it mean?
     "use_case": str,            # When to use it?
-    "requirements": [str],       # Required columns
-    "output": str,              # What is returned?
-    "color_impact": str         # How does color affect interpretation? (NEW!)
-}
-```
-
-### New: `color_impact` Field
-
-The `color_impact` field describes how the color dimension affects pattern interpretation:
-
-**Example:**
-```python
-("actual_time", "resource", "case_id"): {
-    "gap": {
-        "color_impact": "Case coloring helps identify which specific cases experience delays at each resource"
-    }
+    "output": str               # What is returned?
 }
 ```
 
@@ -91,7 +76,7 @@ from config.extended_pattern_matrix import get_pattern_info
 
 info = get_pattern_info('actual_time', 'resource', 'case_id', 'gap')
 print(info['interpretation'])
-print(info['color_impact'])
+print(info['visual'])
 ```
 
 ### 2. `is_pattern_meaningful(x_axis, y_axis, color, pattern_name)`
@@ -128,18 +113,6 @@ views = get_all_view_combinations()
 # Returns: [('actual_time', 'resource', 'case_id'), ...]
 ```
 
-### 5. `get_color_impact(x_axis, y_axis, color, pattern_name)`
-
-Get the impact description of the color dimension for a specific pattern.
-
-```python
-from config.extended_pattern_matrix import get_color_impact
-
-impact = get_color_impact('actual_time', 'resource', 'case_id', 'gap')
-print(impact)
-# "Case coloring helps identify which specific cases experience delays at each resource"
-```
-
 ## Usage in Application
 
 ### In `app_handler.py`:
@@ -166,7 +139,7 @@ if gap_meaningful:
     st.caption(gap_info['use_case'])
 else:
     st.button("Detect Gaps", disabled=True)
-    st.caption(f"❌ {gap_info['interpretation']}")
+    st.caption(f"Not available: {gap_info['interpretation']}")
 ```
 
 ### In Pattern Detectors (e.g., `outlier_detection.py`):
@@ -206,15 +179,15 @@ As of now, the matrix defines **11 view combinations**:
 
 ## Benefits of Tuple-based Structure
 
-### ✅ Advantages:
+### Advantages:
 
 1. **Explicit 3D Configuration**: Clear separation of X, Y, and Color dimensions
 2. **Type-safe Keys**: Tuples prevent typos and enable IDE autocomplete
 3. **Extensible**: Easy to add 4th dimension (e.g., size, shape) later
 4. **No String Concatenation**: Avoids ambiguity (e.g., `"actual_time_resource_case_id"` vs `"actual_time_resource_case"` + `"_id"`)
-5. **Color Impact Tracking**: New `color_impact` field documents how color affects interpretation
+5. **Color Impact in Visual**: The `visual` field now includes how color affects interpretation
 
-### ❌ Previous Structure (String Keys):
+### Previous Structure (String Keys):
 
 ```python
 # OLD: String concatenation
@@ -263,15 +236,7 @@ As of now, the matrix defines **11 view combinations**:
    - Focus on meaningful combinations first
    - Mark non-meaningful combinations with `can_be_found: False`
 
-2. **Validate color impact descriptions**
-   - Ensure each pattern has accurate `color_impact` field
-   - Add examples where color significantly changes interpretation
-
-3. **Add pattern-specific requirements**
-   - Some patterns may require specific color dimensions
-   - Document these requirements in `requirements` field
-
-4. **Consider 4th dimension**
+2. **Consider 4th dimension**
    - Size (e.g., case duration, event count)
    - Shape (e.g., event type, lifecycle transition)
 
@@ -284,15 +249,18 @@ As of now, the matrix defines **11 view combinations**:
 
 # Case coloring: See which cases have delays
 get_pattern_info('actual_time', 'resource', 'case_id', 'gap')
-# color_impact: "Case coloring helps identify which specific cases experience delays at each resource"
+# visual: "Red rectangles showing time spans of abnormal gaps between activities. 
+#          Case coloring helps identify which specific cases experience delays at each resource."
 
 # Activity coloring: See which activities cause delays
 get_pattern_info('actual_time', 'resource', 'activity', 'gap')
-# color_impact: "Activity coloring reveals which specific activities are delayed at each resource"
+# visual: "Red rectangles showing time spans of abnormal gaps between activities. 
+#          Activity coloring reveals which specific activities are delayed at each resource."
 
 # Resource coloring: Clear visual separation
 get_pattern_info('actual_time', 'resource', 'resource', 'gap')
-# color_impact: "Resource coloring provides redundant but clear visual separation of resources"
+# visual: "Red rectangles showing time spans of abnormal gaps, colored by resource. 
+#          Resource coloring provides redundant but clear visual separation of resources."
 ```
 
 ### Example 2: Non-meaningful Combinations
@@ -312,5 +280,3 @@ print(info['interpretation'])
 - **Matrix File:** `config/extended_pattern_matrix.py`
 - **Usage in App:** `core/app_utils/app_handler.py`
 - **Usage in Patterns:** `core/detection/outlier_detection.py`, `core/detection/gap_pattern.py`
-
-
