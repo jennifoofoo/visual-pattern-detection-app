@@ -32,13 +32,13 @@ def init_state():
         st.session_state.data_loaded = False
     if 'chart_plotted' not in st.session_state:
         st.session_state.chart_plotted = False
-    # Initialize layer visibility (all layers visible by default)
-    if 'layer_visibility' not in st.session_state:
-        st.session_state.layer_visibility = {
-            'gap': True,
-            'outlier': True,
-            'temporal_cluster': True
-        }
+    # Initialize layer visibility flags (all layers visible by default)
+    if 'visible_gap' not in st.session_state:
+        st.session_state.visible_gap = True
+    if 'visible_outlier' not in st.session_state:
+        st.session_state.visible_outlier = True
+    if 'visible_temporal_cluster' not in st.session_state:
+        st.session_state.visible_temporal_cluster = True
 
 def load_data_button(xes_path, demo_mode=False):
     try:
@@ -306,31 +306,21 @@ def display_chart():
         yaxis=dict(autorange='reversed')
     )
     
-    # Get layer visibility settings (default all to True if not set)
-    if 'layer_visibility' not in st.session_state:
-        st.session_state.layer_visibility = {
-            'gap': True,
-            'outlier': True,
-            'temporal_cluster': True
-        }
-    
-    layer_visibility = st.session_state.layer_visibility
-    
     # Debug: Show current visibility state
-    st.caption(f"🔍 Debug - Layer Visibility: {layer_visibility}")
+    st.caption(f"🔍 Debug - Visibility: Gap={st.session_state.get('visible_gap', True)}, Outlier={st.session_state.get('visible_outlier', True)}, Temporal={st.session_state.get('visible_temporal_cluster', True)}")
     
     # Add gap visualization if gaps were detected AND layer is visible
-    if layer_visibility.get('gap', True):
+    if st.session_state.get('visible_gap', True):
         if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
             fig = st.session_state['gap_detector'].visualize(df_selected, fig)
     
     # Add outlier visualization if detected AND layer is visible
-    if layer_visibility.get('outlier', True):
+    if st.session_state.get('visible_outlier', True):
         if st.session_state.get('outlier_detected', False) and 'outlier_pattern' in st.session_state:
             fig = st.session_state.outlier_pattern.visualize(df_selected, fig)
     
     # Add temporal cluster visualization if detected AND layer is visible
-    if layer_visibility.get('temporal_cluster', True):
+    if st.session_state.get('visible_temporal_cluster', True):
         if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
             fig = st.session_state.temporal_clusters.visualize(df_selected, fig)
     
@@ -355,69 +345,54 @@ def sidebar_pattern_layer_controls():
     st.subheader("🎨 Pattern Layers")
     st.caption("Toggle pattern visualizations on the chart")
     
-    # Initialize checkbox keys in session state if not present
-    if 'layer_visibility' not in st.session_state:
-        st.session_state.layer_visibility = {}
-    
+    # Initialize visibility flags in session state with separate keys
     # Temporal Clusters
     if st.session_state.get('temporal_detected', False):
-        # Initialize if not present
-        if 'temporal_cluster' not in st.session_state.layer_visibility:
-            st.session_state.layer_visibility['temporal_cluster'] = True
+        if 'visible_temporal_cluster' not in st.session_state:
+            st.session_state.visible_temporal_cluster = True
         
-        temporal_visible = st.checkbox(
+        st.checkbox(
             "⏱️ Temporal Clusters",
-            value=st.session_state.layer_visibility['temporal_cluster'],
-            key='layer_toggle_temporal',
+            key='visible_temporal_cluster',
             help="Show/hide temporal cluster visualization"
         )
-        # Update layer_visibility based on checkbox
-        st.session_state.layer_visibility['temporal_cluster'] = temporal_visible
     
     # Outlier Detection
     if st.session_state.get('outlier_detected', False):
-        # Initialize if not present
-        if 'outlier' not in st.session_state.layer_visibility:
-            st.session_state.layer_visibility['outlier'] = True
+        if 'visible_outlier' not in st.session_state:
+            st.session_state.visible_outlier = True
         
-        outlier_visible = st.checkbox(
+        st.checkbox(
             "🎯 Outlier Detection",
-            value=st.session_state.layer_visibility['outlier'],
-            key='layer_toggle_outlier',
+            key='visible_outlier',
             help="Show/hide outlier detection visualization"
         )
-        # Update layer_visibility based on checkbox
-        st.session_state.layer_visibility['outlier'] = outlier_visible
     
     # Gap Detection
     if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
-        # Initialize if not present
-        if 'gap' not in st.session_state.layer_visibility:
-            st.session_state.layer_visibility['gap'] = True
+        if 'visible_gap' not in st.session_state:
+            st.session_state.visible_gap = True
         
-        gap_visible = st.checkbox(
+        st.checkbox(
             "🔬 Gap Detection",
-            value=st.session_state.layer_visibility['gap'],
-            key='layer_toggle_gap',
+            key='visible_gap',
             help="Show/hide gap detection visualization"
         )
-        # Update layer_visibility based on checkbox
-        st.session_state.layer_visibility['gap'] = gap_visible
     
     # Show/Hide All buttons
     st.markdown("---")
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Show All", use_container_width=True, key='sidebar_show_all', type="secondary"):
-            st.session_state.layer_visibility['gap'] = True
-            st.session_state.layer_visibility['outlier'] = True
-            st.session_state.layer_visibility['temporal_cluster'] = True
+            st.session_state.visible_gap = True
+            st.session_state.visible_outlier = True
+            st.session_state.visible_temporal_cluster = True
             st.rerun()
     with col2:
         if st.button("Hide All", use_container_width=True, key='sidebar_hide_all', type="secondary"):
-            st.session_state.layer_visibility['gap'] = False
-            st.session_state.layer_visibility['outlier'] = False
-            st.session_state.layer_visibility['temporal_cluster'] = False
+            st.session_state.visible_gap = False
+            st.session_state.visible_outlier = False
+            st.session_state.visible_temporal_cluster = False
             st.rerun()
 
 
@@ -790,22 +765,8 @@ def handle_pattern_detection():
                     with header_col1:
                         st.markdown("### ⏱️ Temporal Clusters")
                     with header_col2:
-                        # Layer visibility toggle
-                        old_value = st.session_state.layer_visibility.get('temporal_cluster', True)
-                        layer_visible = st.checkbox(
-                            "👁️",
-                            value=old_value,
-                            key='layer_temporal_cluster_toggle',
-                            help="Toggle temporal cluster visualization on/off",
-                            label_visibility="collapsed"
-                        )
-                        # Update session state and rerun if changed
-                        if layer_visible != old_value:
-                            st.session_state.layer_visibility['temporal_cluster'] = layer_visible
-                            st.session_state['chart_needs_display'] = True
-                            st.rerun()
-                        else:
-                            st.session_state.layer_visibility['temporal_cluster'] = layer_visible
+                        # Layer visibility is now controlled by sidebar
+                        layer_visible = st.session_state.get('visible_temporal_cluster', True)
                     
                     if layer_visible:
                         st.success(f"✅ {summary['count']} clusters detected")
@@ -832,22 +793,8 @@ def handle_pattern_detection():
                     with header_col1:
                         st.markdown("### 🎯 Outlier Detection")
                     with header_col2:
-                        # Layer visibility toggle
-                        old_value = st.session_state.layer_visibility.get('outlier', True)
-                        layer_visible = st.checkbox(
-                            "👁️",
-                            value=old_value,
-                            key='layer_outlier_toggle',
-                            help="Toggle outlier detection visualization on/off",
-                            label_visibility="collapsed"
-                        )
-                        # Update session state and rerun if changed
-                        if layer_visible != old_value:
-                            st.session_state.layer_visibility['outlier'] = layer_visible
-                            st.session_state['chart_needs_display'] = True
-                            st.rerun()
-                        else:
-                            st.session_state.layer_visibility['outlier'] = layer_visible
+                        # Layer visibility is now controlled by sidebar
+                        layer_visible = st.session_state.get('visible_outlier', True)
                     
                     if layer_visible:
                         st.success(f"✅ {summary['count']} outliers detected")
@@ -881,22 +828,8 @@ def handle_pattern_detection():
                     with header_col1:
                         st.markdown("### 🔬 Gap Detection")
                     with header_col2:
-                        # Layer visibility toggle
-                        old_value = st.session_state.layer_visibility.get('gap', True)
-                        layer_visible = st.checkbox(
-                            "👁️",
-                            value=old_value,
-                            key='layer_gap_toggle',
-                            help="Toggle gap detection visualization on/off",
-                            label_visibility="collapsed"
-                        )
-                        # Update session state and rerun if changed
-                        if layer_visible != old_value:
-                            st.session_state.layer_visibility['gap'] = layer_visible
-                            st.session_state['chart_needs_display'] = True
-                            st.rerun()
-                        else:
-                            st.session_state.layer_visibility['gap'] = layer_visible
+                        # Layer visibility is now controlled by sidebar
+                        layer_visible = st.session_state.get('visible_gap', True)
                     
                     if layer_visible:
                         st.success(f"✅ {summary['count']} abnormal gaps detected")
