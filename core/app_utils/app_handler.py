@@ -861,62 +861,22 @@ def sync_sidebar_checkbox(key_prefix: str, value: bool):
 
 def check_and_sync_sidebar_state(key_prefix: str, total_items: int, selected_count: int):
     """
-    Intelligent sidebar sync based on sub-pattern selection state.
+    AUTOMATIC SYNC DISABLED to avoid race conditions.
     
-    Rules:
-    - All sub-patterns selected → Sidebar checked
-    - All sub-patterns deselected → Sidebar unchecked
-    - Some selected, some not → Sidebar stays checked (partial visibility)
+    Sidebar = Master control (entire pattern on/off)
+    Tabs = Fine control (individual sub-patterns)
     
     Args:
         key_prefix: Pattern key prefix
         total_items: Total number of sub-patterns
         selected_count: Number of currently selected sub-patterns
     """
-    print(f"🟢 TAB: check_and_sync_sidebar_state('{key_prefix}', total={total_items}, selected={selected_count})")
+    log_debug(f"🟢 TAB: check_and_sync_sidebar_state('{key_prefix}', total={total_items}, selected={selected_count})")
+    log_debug(f"🟢 TAB: AUTO-SYNC DISABLED - no action")
     
-    # Map key_prefix to sidebar key
-    prefix_to_sidebar = {
-        'temporal_cluster': 'visible_temporal_cluster',
-        'outlier_type': 'visible_outlier',
-        'gap_transition': 'visible_gap'
-    }
-    
-    sidebar_key = prefix_to_sidebar.get(key_prefix)
-    if not sidebar_key:
-        print(f"🟢 TAB: Unknown key_prefix '{key_prefix}', skipping")
-        return
-    
-    # Get last change source
-    last_change_key = f'{sidebar_key}_last_change_source'
-    last_change_source = st.session_state.get(last_change_key, 'tab')
-    
-    print(f"🟢 TAB: Last change source for {sidebar_key} = '{last_change_source}'")
-    
-    # Only sync if last change was from tab (not from sidebar)
-    if last_change_source == 'sidebar':
-        # Sidebar changed it, don't sync back
-        print(f"🟢 TAB: Skipping sync (sidebar initiated change)")
-        # Reset the flag for next time
-        st.session_state[last_change_key] = 'tab'
-        print(f"🟢 TAB: Reset change source to 'tab' for next time")
-        return
-    
-    print(f"🟢 TAB: Proceeding with sync logic")
-    
-    # Normal sync logic
-    if selected_count == 0:
-        # All deselected → Sidebar should be unchecked
-        print(f"🟢 TAB: All deselected → unchecking sidebar")
-        sync_sidebar_checkbox(key_prefix, False)
-    elif selected_count == total_items:
-        # All selected → Sidebar should be checked
-        print(f"🟢 TAB: All selected → checking sidebar")
-        sync_sidebar_checkbox(key_prefix, True)
-    else:
-        print(f"🟢 TAB: Partial selection ({selected_count}/{total_items}) → keeping sidebar checked")
-    # If some are selected (0 < selected_count < total_items):
-    # → Sidebar stays checked (pattern is partially visible)
+    # Automatic sync disabled to prevent race conditions
+    # User must use Select All / Deselect All buttons
+    return
 
 
 def deselect_all_subpatterns(pattern_type: str):
