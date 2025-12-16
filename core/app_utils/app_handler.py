@@ -834,7 +834,7 @@ def display_gap_tab():
                         plot_config = st.session_state.get('current_plot_config', {})
                         if plot_config:
                             df_selected = plot_config['df_selected']
-                            x_col = plot_config['x_col']
+        x_col = plot_config['x_col']
                             y_col = plot_config['y_col']
                             handle_gap_detection_logic(df_selected, x_col, y_col, min_samples)
                             st.rerun()
@@ -912,6 +912,74 @@ def display_gap_tab():
 
 # ========== HELPER FUNCTIONS FOR SUB-PATTERN SELECTION ==========
 
+def sync_sidebar_checkbox(key_prefix: str, value: bool):
+    """
+    Synchronize sidebar checkbox with tab selection.
+    
+    Args:
+        key_prefix: Pattern key prefix (e.g. 'temporal_cluster', 'outlier_type', 'gap_transition')
+        value: True to enable, False to disable
+    """
+    # Map key_prefix to sidebar session state key
+    prefix_to_sidebar = {
+        'temporal_cluster': 'visible_temporal_cluster',
+        'outlier_type': 'visible_outlier',
+        'gap_transition': 'visible_gap'
+    }
+    
+    sidebar_key = prefix_to_sidebar.get(key_prefix)
+    if sidebar_key:
+        st.session_state[sidebar_key] = value
+
+
+def deselect_all_subpatterns(pattern_type: str):
+    """
+    Deselect all sub-patterns when sidebar checkbox is unchecked.
+    
+    Args:
+        pattern_type: 'temporal', 'outlier', or 'gap'
+    """
+    if pattern_type == 'temporal':
+        # Deselect all temporal cluster checkboxes
+        for key in list(st.session_state.keys()):
+            if key.startswith('list_checkbox_temporal_cluster_'):
+                st.session_state[key] = False
+    elif pattern_type == 'outlier':
+        # Deselect all outlier type checkboxes
+        for key in list(st.session_state.keys()):
+            if key.startswith('dict_checkbox_outlier_type_'):
+                st.session_state[key] = False
+    elif pattern_type == 'gap':
+        # Deselect all gap transition checkboxes
+        for key in list(st.session_state.keys()):
+            if key.startswith('dict_checkbox_gap_transition_'):
+                st.session_state[key] = False
+
+
+def select_all_subpatterns(pattern_type: str):
+    """
+    Select all sub-patterns when sidebar checkbox is checked.
+    
+    Args:
+        pattern_type: 'temporal', 'outlier', or 'gap'
+    """
+    if pattern_type == 'temporal':
+        # Select all temporal cluster checkboxes
+        for key in list(st.session_state.keys()):
+            if key.startswith('list_checkbox_temporal_cluster_'):
+                st.session_state[key] = True
+    elif pattern_type == 'outlier':
+        # Select all outlier type checkboxes
+        for key in list(st.session_state.keys()):
+            if key.startswith('dict_checkbox_outlier_type_'):
+                st.session_state[key] = True
+    elif pattern_type == 'gap':
+        # Select all gap transition checkboxes
+        for key in list(st.session_state.keys()):
+            if key.startswith('dict_checkbox_gap_transition_'):
+                st.session_state[key] = True
+
+
 def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_prefix: str = "item") -> list:
     """
     Renders a Streamlit multi-checkbox interface based on a Python list.
@@ -941,6 +1009,8 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
             if st.button("Select All", key=f"{key_prefix}_select_all", use_container_width=True):
                 for index in range(len(item_list)):
                     st.session_state[f"list_checkbox_{key_prefix}_{index}"] = True
+                # Sync with sidebar checkbox
+                sync_sidebar_checkbox(key_prefix, True)
                 # Trigger chart redisplay
                 st.session_state['chart_needs_update'] = True
                 st.rerun()
@@ -948,6 +1018,8 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
             if st.button("Deselect All", key=f"{key_prefix}_deselect_all", use_container_width=True):
                 for index in range(len(item_list)):
                     st.session_state[f"list_checkbox_{key_prefix}_{index}"] = False
+                # Sync with sidebar checkbox
+                sync_sidebar_checkbox(key_prefix, False)
                 # Trigger chart redisplay
                 st.session_state['chart_needs_update'] = True
                 st.rerun()
@@ -1000,6 +1072,8 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
             if st.button("Select All", key=f"{key_prefix}_select_all", use_container_width=True):
                 for key in data_dict.keys():
                     st.session_state[f"dict_checkbox_{key_prefix}_{key}"] = True
+                # Sync with sidebar checkbox
+                sync_sidebar_checkbox(key_prefix, True)
                 # Trigger chart redisplay
                 st.session_state['chart_needs_update'] = True
                 st.rerun()
@@ -1007,6 +1081,8 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
             if st.button("Deselect All", key=f"{key_prefix}_deselect_all", use_container_width=True):
                 for key in data_dict.keys():
                     st.session_state[f"dict_checkbox_{key_prefix}_{key}"] = False
+                # Sync with sidebar checkbox
+                sync_sidebar_checkbox(key_prefix, False)
                 # Trigger chart redisplay
                 st.session_state['chart_needs_update'] = True
                 st.rerun()
@@ -1030,7 +1106,7 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
 
     return selected_items
 
-
+                        
 def ollama_description_button():
     with st.spinner("Generating description..."):
                 try:
