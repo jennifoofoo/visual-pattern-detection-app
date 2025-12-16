@@ -933,6 +933,7 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
     # Use a container for visual grouping
     with st.container(border=True):
         st.write(f"**{title}**")
+        st.caption("⚠️ Changes will update the chart automatically")
         
         # Add "Select All" / "Deselect All" functionality
         col_a, col_b = st.columns(2)
@@ -940,11 +941,15 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
             if st.button("Select All", key=f"{key_prefix}_select_all", use_container_width=True):
                 for index in range(len(item_list)):
                     st.session_state[f"list_checkbox_{key_prefix}_{index}"] = True
+                # Trigger chart redisplay
+                st.session_state['chart_needs_update'] = True
                 st.rerun()
         with col_b:
             if st.button("Deselect All", key=f"{key_prefix}_deselect_all", use_container_width=True):
                 for index in range(len(item_list)):
                     st.session_state[f"list_checkbox_{key_prefix}_{index}"] = False
+                # Trigger chart redisplay
+                st.session_state['chart_needs_update'] = True
                 st.rerun()
         
         st.markdown("---")
@@ -987,6 +992,7 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
     
     with st.container(border=True):
         st.write(f"**{title}**")
+        st.caption("⚠️ Changes will update the chart automatically")
         
         # Add "Select All" / "Deselect All" functionality
         col_a, col_b = st.columns(2)
@@ -994,11 +1000,15 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
             if st.button("Select All", key=f"{key_prefix}_select_all", use_container_width=True):
                 for key in data_dict.keys():
                     st.session_state[f"dict_checkbox_{key_prefix}_{key}"] = True
+                # Trigger chart redisplay
+                st.session_state['chart_needs_update'] = True
                 st.rerun()
         with col_b:
             if st.button("Deselect All", key=f"{key_prefix}_deselect_all", use_container_width=True):
                 for key in data_dict.keys():
                     st.session_state[f"dict_checkbox_{key_prefix}_{key}"] = False
+                # Trigger chart redisplay
+                st.session_state['chart_needs_update'] = True
                 st.rerun()
         
         st.markdown("---")
