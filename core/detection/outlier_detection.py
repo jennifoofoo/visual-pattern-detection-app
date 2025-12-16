@@ -567,6 +567,22 @@ class OutlierDetectionPattern(Pattern):
         all_outlier_indices = self.outliers.get('combined', [])
         if not all_outlier_indices:
             return fig
+        
+        # Filter by selected outlier types if specified
+        import streamlit as st
+        selected_types = st.session_state.get('selected_outlier_types', None)
+        if selected_types is not None and len(selected_types) > 0:
+            # Only show outliers that match at least one selected type
+            filtered_indices = []
+            for idx in all_outlier_indices:
+                outlier_reasons = self.outlier_types.get(idx, [])
+                # Check if any of the outlier's types match the selected types
+                if any(otype in selected_types for otype in outlier_reasons):
+                    filtered_indices.append(idx)
+            all_outlier_indices = filtered_indices
+            
+            if not all_outlier_indices:
+                return fig
 
         # Find maximum score and filter to only those outliers
         max_score = max(self.outlier_scores.values()
