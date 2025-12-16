@@ -860,7 +860,7 @@ def display_gap_tab():
                         plot_config = st.session_state.get('current_plot_config', {})
                         if plot_config:
                             df_selected = plot_config['df_selected']
-        x_col = plot_config['x_col']
+                            x_col = plot_config['x_col']
                             y_col = plot_config['y_col']
                             handle_gap_detection_logic(df_selected, x_col, y_col, min_samples)
                             st.rerun()
