@@ -345,15 +345,13 @@ def sidebar_pattern_layer_controls():
     st.caption("Toggle pattern visualizations on the chart")
     
     # Initialize visibility flags in session state with separate keys
-    # Store previous states to detect changes
-    prev_temporal = st.session_state.get('visible_temporal_cluster', True)
-    prev_outlier = st.session_state.get('visible_outlier', True)
-    prev_gap = st.session_state.get('visible_gap', True)
-    
     # Temporal Clusters
     if st.session_state.get('temporal_detected', False):
         if 'visible_temporal_cluster' not in st.session_state:
             st.session_state.visible_temporal_cluster = True
+        
+        # Store previous state BEFORE checkbox
+        prev_temporal = st.session_state.visible_temporal_cluster
         
         st.checkbox(
             "⏱️ Temporal Clusters",
@@ -361,17 +359,22 @@ def sidebar_pattern_layer_controls():
             help="Show/hide temporal cluster visualization. Also toggles all sub-patterns."
         )
         
-        # Detect change and sync sub-patterns
+        # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_temporal_cluster != prev_temporal:
             if st.session_state.visible_temporal_cluster:
                 select_all_subpatterns('temporal')
             else:
                 deselect_all_subpatterns('temporal')
+            # Force rerun to update tab checkboxes
+            st.rerun()
     
     # Outlier Detection
     if st.session_state.get('outlier_detected', False):
         if 'visible_outlier' not in st.session_state:
             st.session_state.visible_outlier = True
+        
+        # Store previous state BEFORE checkbox
+        prev_outlier = st.session_state.visible_outlier
         
         st.checkbox(
             "🎯 Outlier Detection",
@@ -379,17 +382,22 @@ def sidebar_pattern_layer_controls():
             help="Show/hide outlier detection visualization. Also toggles all sub-patterns."
         )
         
-        # Detect change and sync sub-patterns
+        # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_outlier != prev_outlier:
             if st.session_state.visible_outlier:
                 select_all_subpatterns('outlier')
             else:
                 deselect_all_subpatterns('outlier')
+            # Force rerun to update tab checkboxes
+            st.rerun()
     
     # Gap Detection
     if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
         if 'visible_gap' not in st.session_state:
             st.session_state.visible_gap = True
+        
+        # Store previous state BEFORE checkbox
+        prev_gap = st.session_state.visible_gap
         
         st.checkbox(
             "🔬 Gap Detection",
@@ -397,12 +405,14 @@ def sidebar_pattern_layer_controls():
             help="Show/hide gap detection visualization. Also toggles all sub-patterns."
         )
         
-        # Detect change and sync sub-patterns
+        # Detect change AFTER checkbox and sync sub-patterns
         if st.session_state.visible_gap != prev_gap:
             if st.session_state.visible_gap:
                 select_all_subpatterns('gap')
             else:
                 deselect_all_subpatterns('gap')
+            # Force rerun to update tab checkboxes
+            st.rerun()
     
 
 
