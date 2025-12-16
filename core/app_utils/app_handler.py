@@ -194,6 +194,75 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
     st.session_state['chart_needs_display'] = True
 
     st.success("Chart created successfully!")
+    
+    # Auto-detect all meaningful patterns after plotting
+    auto_detect_patterns(x_col, y_col, dots_config_col, x_axis, y_axis, df_plot)
+
+def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df_selected):
+    """Automatically detect all meaningful patterns after chart is plotted."""
+    # Check which patterns are meaningful
+    temporal_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'temporal_cluster_x')
+    outlier_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'outlier')
+    gap_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'gap')
+    
+    with st.spinner("Auto-detecting patterns..."):
+        # Temporal Clusters
+        if temporal_meaningful:
+            try:
+                detector = TemporalClusterPattern(
+                    df=df_selected,
+                    x_axis=x_col,
+                    y_axis=y_col,
+                    min_cluster_size=10
+                )
+                if detector.detect():
+                    st.session_state.temporal_clusters = detector
+                    st.session_state.temporal_detected = True
+            except Exception as e:
+                st.warning(f"Temporal cluster detection skipped: {str(e)}")
+        
+        # Outlier Detection
+        if outlier_meaningful:
+            try:
+                outlier_pattern = OutlierDetectionPattern(
+                    df=st.session_state.df,
+                    view_config=st.session_state.view_config
+                )
+                if outlier_pattern.detect():
+                    st.session_state.outlier_pattern = outlier_pattern
+                    st.session_state.outlier_detected = True
+            except Exception as e:
+                st.warning(f"Outlier detection skipped: {str(e)}")
+        
+        # Gap Detection
+        if gap_meaningful:
+            try:
+                y_is_categorical = df_selected[y_col].nunique() <= 60
+                view_config = {'x': x_col, 'y': y_col}
+                gap_detector = GapPattern(
+                    view_config=view_config,
+                    y_is_categorical=y_is_categorical
+                )
+                gap_detector.MIN_SAMPLES_FOR_NORMALITY = 5
+                gap_detector.detect(df_selected)
+                
+                if gap_detector.detected is not None and len(gap_detector.detected) > 0:
+                    st.session_state['gap_detector'] = gap_detector
+            except Exception as e:
+                st.warning(f"Gap detection skipped: {str(e)}")
+    
+    # Trigger chart redisplay with patterns
+    st.session_state['chart_needs_display'] = True
+    
+    # Show success message with detected patterns count
+    detected_count = sum([
+        st.session_state.get('temporal_detected', False),
+        st.session_state.get('outlier_detected', False),
+        'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None
+    ])
+    if detected_count > 0:
+        st.success(f"✅ {detected_count} pattern(s) detected and visualized! Use sidebar to toggle layers.")
+
 
 def display_chart():
     """Display the chart from session state (persistent across reruns)."""
@@ -326,7 +395,7 @@ def sidebar_pattern_layer_controls():
     st.markdown("---")
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("👁️ Show All", use_container_width=True, key='sidebar_show_all'):
+        if st.button("Show All", use_container_width=True, key='sidebar_show_all', type="secondary"):
             st.session_state.layer_visibility = {
                 'gap': True,
                 'outlier': True,
@@ -335,7 +404,7 @@ def sidebar_pattern_layer_controls():
             st.session_state['chart_needs_display'] = True
             st.rerun()
     with col2:
-        if st.button("👁️‍🗨️ Hide All", use_container_width=True, key='sidebar_hide_all'):
+        if st.button("Hide All", use_container_width=True, key='sidebar_hide_all', type="secondary"):
             st.session_state.layer_visibility = {
                 'gap': False,
                 'outlier': False,
