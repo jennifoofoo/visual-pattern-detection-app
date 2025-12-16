@@ -749,26 +749,24 @@ def handle_pattern_detection():
                 summary = detector.get_summary()
                 
                 with st.container(border=True):
-                    header_col1, header_col2 = st.columns([0.8, 0.2])
-                    with header_col1:
-                        st.markdown("### ⏱️ Temporal Clusters")
-                    with header_col2:
-                        # Layer visibility is now controlled by sidebar
-                        layer_visible = st.session_state.get('visible_temporal_cluster', True)
+                    st.markdown("### ⏱️ Temporal Clusters")
                     
-                    if layer_visible:
-                        st.success(f"✅ {summary['count']} clusters detected")
-                        
-                        col_m1, col_m2 = st.columns(2)
-                        with col_m1:
-                            st.metric("Clusters", summary['count'])
-                        with col_m2:
-                            st.metric("Type", summary['pattern_type'].replace('_', ' ').title())
-                        
-                        with st.expander("📊 Details", expanded=False):
-                            st.text(summary['details']['summary_text'])
-                    else:
-                        st.caption("👁️‍🗨️ Layer hidden")
+                    # Layer visibility is now controlled by sidebar
+                    layer_visible = st.session_state.get('visible_temporal_cluster', True)
+                    
+                    if not layer_visible:
+                        st.caption("👁️‍🗨️ Layer hidden - toggle in sidebar to show on chart")
+                    
+                    st.success(f"✅ {summary['count']} clusters detected")
+                    
+                    col_m1, col_m2 = st.columns(2)
+                    with col_m1:
+                        st.metric("Clusters", summary['count'])
+                    with col_m2:
+                        st.metric("Type", summary['pattern_type'].replace('_', ' ').title())
+                    
+                    with st.expander("📊 Details", expanded=False):
+                        st.text(summary['details']['summary_text'])
         
         # === OUTLIER DETECTION SUMMARY ===
         with sum_col2:
@@ -777,32 +775,30 @@ def handle_pattern_detection():
                 summary = outlier_pattern.get_summary()
                 
                 with st.container(border=True):
-                    header_col1, header_col2 = st.columns([0.8, 0.2])
-                    with header_col1:
-                        st.markdown("### 🎯 Outlier Detection")
-                    with header_col2:
-                        # Layer visibility is now controlled by sidebar
-                        layer_visible = st.session_state.get('visible_outlier', True)
+                    st.markdown("### 🎯 Outlier Detection")
                     
-                    if layer_visible:
-                        st.success(f"✅ {summary['count']} outliers detected")
-                        
-                        col_m1, col_m2, col_m3 = st.columns(3)
-                        with col_m1:
-                            st.metric("Outliers", summary['count'])
-                        with col_m2:
-                            stats = summary['details'].get('statistics', {})
-                            st.metric("Outlier %", f"{stats.get('outlier_percentage', 0):.1f}%")
-                        with col_m3:
-                            st.metric("Methods", f"{stats.get('detection_methods_used', 0)}/6")
-                        
-                        with st.expander("📊 Details", expanded=False):
-                            if summary['details'].get('outlier_details'):
-                                st.write("**Outlier Types:**")
-                                for outlier_type, details in summary['details']['outlier_details'].items():
-                                    st.write(f"- {outlier_type.replace('_', ' ').title()}: {details['count']} ({details['percentage']:.1f}%)")
-                    else:
-                        st.caption("👁️‍🗨️ Layer hidden")
+                    # Layer visibility is now controlled by sidebar
+                    layer_visible = st.session_state.get('visible_outlier', True)
+                    
+                    if not layer_visible:
+                        st.caption("👁️‍🗨️ Layer hidden - toggle in sidebar to show on chart")
+                    
+                    st.success(f"✅ {summary['count']} outliers detected")
+                    
+                    col_m1, col_m2, col_m3 = st.columns(3)
+                    with col_m1:
+                        st.metric("Outliers", summary['count'])
+                    with col_m2:
+                        stats = summary['details'].get('statistics', {})
+                        st.metric("Outlier %", f"{stats.get('outlier_percentage', 0):.1f}%")
+                    with col_m3:
+                        st.metric("Methods", f"{stats.get('detection_methods_used', 0)}/6")
+                    
+                    with st.expander("📊 Details", expanded=False):
+                        if summary['details'].get('outlier_details'):
+                            st.write("**Outlier Types:**")
+                            for outlier_type, details in summary['details']['outlier_details'].items():
+                                st.write(f"- {outlier_type.replace('_', ' ').title()}: {details['count']} ({details['percentage']:.1f}%)")
         
         # === GAP DETECTION SUMMARY ===
         with sum_col3:
