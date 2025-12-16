@@ -886,21 +886,32 @@ def deselect_all_subpatterns(pattern_type: str):
     Args:
         pattern_type: 'temporal', 'outlier', or 'gap'
     """
+    log_debug(f"🟣 DESELECT: deselect_all_subpatterns('{pattern_type}')")
+    
+    count = 0
     if pattern_type == 'temporal':
         # Deselect all temporal cluster checkboxes
         for key in list(st.session_state.keys()):
             if key.startswith('list_checkbox_temporal_cluster_'):
                 st.session_state[key] = False
+                count += 1
+                log_debug(f"🟣 DESELECT: Set {key} = False")
     elif pattern_type == 'outlier':
         # Deselect all outlier type checkboxes
         for key in list(st.session_state.keys()):
             if key.startswith('dict_checkbox_outlier_type_'):
                 st.session_state[key] = False
+                count += 1
+                log_debug(f"🟣 DESELECT: Set {key} = False")
     elif pattern_type == 'gap':
         # Deselect all gap transition checkboxes
         for key in list(st.session_state.keys()):
             if key.startswith('dict_checkbox_gap_transition_'):
                 st.session_state[key] = False
+                count += 1
+                log_debug(f"🟣 DESELECT: Set {key} = False")
+    
+    log_debug(f"🟣 DESELECT: Deselected {count} checkboxes for {pattern_type}")
 
 
 def select_all_subpatterns(pattern_type: str):
@@ -910,21 +921,32 @@ def select_all_subpatterns(pattern_type: str):
     Args:
         pattern_type: 'temporal', 'outlier', or 'gap'
     """
+    log_debug(f"🟢 SELECT: select_all_subpatterns('{pattern_type}')")
+    
+    count = 0
     if pattern_type == 'temporal':
         # Select all temporal cluster checkboxes
         for key in list(st.session_state.keys()):
             if key.startswith('list_checkbox_temporal_cluster_'):
                 st.session_state[key] = True
+                count += 1
+                log_debug(f"🟢 SELECT: Set {key} = True")
     elif pattern_type == 'outlier':
         # Select all outlier type checkboxes
         for key in list(st.session_state.keys()):
             if key.startswith('dict_checkbox_outlier_type_'):
                 st.session_state[key] = True
+                count += 1
+                log_debug(f"🟢 SELECT: Set {key} = True")
     elif pattern_type == 'gap':
         # Select all gap transition checkboxes
         for key in list(st.session_state.keys()):
             if key.startswith('dict_checkbox_gap_transition_'):
                 st.session_state[key] = True
+                count += 1
+                log_debug(f"🟢 SELECT: Set {key} = True")
+    
+    log_debug(f"🟢 SELECT: Selected {count} checkboxes for {pattern_type}")
 
 
 def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_prefix: str = "item") -> list:
