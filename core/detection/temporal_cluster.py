@@ -7,6 +7,7 @@ available in the visualization system.
 
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 from typing import Dict, Any
 from sklearn.cluster import DBSCAN
 from datetime import datetime
