@@ -349,6 +349,11 @@ def sidebar_pattern_layer_controls():
     st.caption("Toggle pattern visualizations on the chart")
     
     # Initialize visibility flags in session state with separate keys
+    # Store previous states to detect changes
+    prev_temporal = st.session_state.get('visible_temporal_cluster', True)
+    prev_outlier = st.session_state.get('visible_outlier', True)
+    prev_gap = st.session_state.get('visible_gap', True)
+    
     # Temporal Clusters
     if st.session_state.get('temporal_detected', False):
         if 'visible_temporal_cluster' not in st.session_state:
@@ -357,8 +362,15 @@ def sidebar_pattern_layer_controls():
         st.checkbox(
             "⏱️ Temporal Clusters",
             key='visible_temporal_cluster',
-            help="Show/hide temporal cluster visualization"
+            help="Show/hide temporal cluster visualization. Also toggles all sub-patterns."
         )
+        
+        # Detect change and sync sub-patterns
+        if st.session_state.visible_temporal_cluster != prev_temporal:
+            if st.session_state.visible_temporal_cluster:
+                select_all_subpatterns('temporal')
+            else:
+                deselect_all_subpatterns('temporal')
     
     # Outlier Detection
     if st.session_state.get('outlier_detected', False):
@@ -368,8 +380,15 @@ def sidebar_pattern_layer_controls():
         st.checkbox(
             "🎯 Outlier Detection",
             key='visible_outlier',
-            help="Show/hide outlier detection visualization"
+            help="Show/hide outlier detection visualization. Also toggles all sub-patterns."
         )
+        
+        # Detect change and sync sub-patterns
+        if st.session_state.visible_outlier != prev_outlier:
+            if st.session_state.visible_outlier:
+                select_all_subpatterns('outlier')
+            else:
+                deselect_all_subpatterns('outlier')
     
     # Gap Detection
     if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
@@ -379,8 +398,15 @@ def sidebar_pattern_layer_controls():
         st.checkbox(
             "🔬 Gap Detection",
             key='visible_gap',
-            help="Show/hide gap detection visualization"
+            help="Show/hide gap detection visualization. Also toggles all sub-patterns."
         )
+        
+        # Detect change and sync sub-patterns
+        if st.session_state.visible_gap != prev_gap:
+            if st.session_state.visible_gap:
+                select_all_subpatterns('gap')
+            else:
+                deselect_all_subpatterns('gap')
     
 
 
