@@ -485,22 +485,22 @@ def handle_temporal_cluster_detection_logic(x_col, y_col, x_axis_label, y_axis_l
 def handle_outlier_detection_logic():
     """Execute outlier detection logic."""
     with st.spinner("Analyzing outliers..."):
-            try:
-                # Use original data for outlier detection (not sampled data)
-                outlier_pattern = OutlierDetectionPattern(
-                    df=st.session_state.df,  # Use full dataset
-                    view_config=st.session_state.view_config
-                )
-                if outlier_pattern.detect():
-                    # Store outlier results in session state
-                    st.session_state.outlier_pattern = outlier_pattern
-                    st.session_state.outlier_detected = True
-                else:
-                    st.session_state.outlier_detected = False
-                    st.info("No significant outliers detected!")
-            except Exception as e:
+        try:
+            # Use original data for outlier detection (not sampled data)
+            outlier_pattern = OutlierDetectionPattern(
+                df=st.session_state.df,  # Use full dataset
+                view_config=st.session_state.view_config
+            )
+            if outlier_pattern.detect():
+                # Store outlier results in session state
+                st.session_state.outlier_pattern = outlier_pattern
+                st.session_state.outlier_detected = True
+            else:
                 st.session_state.outlier_detected = False
-                st.error(f"Error during outlier detection: {str(e)}")
+                st.info("No significant outliers detected!")
+        except Exception as e:
+            st.session_state.outlier_detected = False
+            st.error(f"Error during outlier detection: {str(e)}")
 
 def handle_gap_detection_logic(df_selected, x_col, y_col, min_samples=5):
     """Execute gap detection logic."""
