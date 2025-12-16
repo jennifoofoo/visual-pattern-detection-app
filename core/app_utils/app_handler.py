@@ -941,16 +941,29 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
             # Check if parent pattern is visible in sidebar
             parent_visible = get_parent_visibility(key_prefix)
             
-            # ALWAYS sync with parent visibility - force update on every render
-            # This ensures checkboxes immediately reflect sidebar changes
-            st.session_state[unique_key] = parent_visible
+            # Initialize on first render or sync when parent changed from sidebar
+            if unique_key not in st.session_state:
+                st.session_state[unique_key] = parent_visible
+            elif f'{key_prefix.split("_")[0]}_last_change_source' in st.session_state:
+                if st.session_state.get(f'{key_prefix.split("_")[0]}_last_change_source') == 'sidebar':
+                    st.session_state[unique_key] = parent_visible
+                    # Clear the flag after syncing
+                    if index == len(item_list) - 1:  # Last item
+                        del st.session_state[f'{key_prefix.split("_")[0]}_last_change_source']
             
-            # Render the checkbox with the forced value
-            checked = st.checkbox(str(item), value=parent_visible, key=unique_key)
+            # Render the checkbox
+            checked = st.checkbox(str(item), key=unique_key)
             
             # If checked, add the original item to the results list
             if checked:
                 selected_items.append(item)
+        
+        # Sync back to sidebar: if no items selected, turn off parent
+        selected_count = len(selected_items)
+        if selected_count == 0 and parent_visible:
+            sync_sidebar_checkbox(key_prefix, False)
+        elif selected_count > 0 and not parent_visible:
+            sync_sidebar_checkbox(key_prefix, True)
 
     return selected_items
 
@@ -1007,16 +1020,30 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
             # Check if parent pattern is visible in sidebar
             parent_visible = get_parent_visibility(key_prefix)
             
-            # ALWAYS sync with parent visibility - force update on every render
-            # This ensures checkboxes immediately reflect sidebar changes
-            st.session_state[unique_key] = parent_visible
+            # Initialize on first render or sync when parent changed from sidebar
+            if unique_key not in st.session_state:
+                st.session_state[unique_key] = parent_visible
+            elif f'{key_prefix.split("_")[0]}_last_change_source' in st.session_state:
+                if st.session_state.get(f'{key_prefix.split("_")[0]}_last_change_source') == 'sidebar':
+                    st.session_state[unique_key] = parent_visible
+                    # Clear the flag after syncing (on last item)
+                    keys_list = list(data_dict.keys())
+                    if key == keys_list[-1]:
+                        del st.session_state[f'{key_prefix.split("_")[0]}_last_change_source']
             
-            # Display the checkbox with the forced value
-            checked = st.checkbox(key, value=parent_visible, key=unique_key)
+            # Display the checkbox
+            checked = st.checkbox(key, key=unique_key)
             
             # If checked, add the value to the results list
             if checked:
                 selected_items.append(value)
+        
+        # Sync back to sidebar: if no items selected, turn off parent
+        selected_count = len(selected_items)
+        if selected_count == 0 and parent_visible:
+            sync_sidebar_checkbox(key_prefix, False)
+        elif selected_count > 0 and not parent_visible:
+            sync_sidebar_checkbox(key_prefix, True)
 
     return selected_items
 
