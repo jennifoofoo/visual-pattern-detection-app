@@ -387,7 +387,7 @@ def sidebar_pattern_layer_controls():
         if st.session_state.visible_temporal_cluster != prev_temporal:
             print(f"🔵 SIDEBAR: Temporal changed from {prev_temporal} to {st.session_state.visible_temporal_cluster}")
             # Mark that sidebar initiated this change
-            st.session_state['visible_temporal_cluster_last_change_source'] = 'sidebar'
+            st.session_state['temporal_last_change_source'] = 'sidebar'
             print(f"🔵 SIDEBAR: Set change source to 'sidebar' for temporal")
             if st.session_state.visible_temporal_cluster:
                 print(f"🔵 SIDEBAR: Calling select_all_subpatterns('temporal')")
@@ -417,7 +417,7 @@ def sidebar_pattern_layer_controls():
         if st.session_state.visible_outlier != prev_outlier:
             print(f"🟠 SIDEBAR: Outlier changed from {prev_outlier} to {st.session_state.visible_outlier}")
             # Mark that sidebar initiated this change
-            st.session_state['visible_outlier_last_change_source'] = 'sidebar'
+            st.session_state['outlier_last_change_source'] = 'sidebar'
             print(f"🟠 SIDEBAR: Set change source to 'sidebar' for outlier")
             if st.session_state.visible_outlier:
                 print(f"🟠 SIDEBAR: Calling select_all_subpatterns('outlier')")
@@ -447,7 +447,7 @@ def sidebar_pattern_layer_controls():
         if st.session_state.visible_gap != prev_gap:
             print(f"🔴 SIDEBAR: Gap changed from {prev_gap} to {st.session_state.visible_gap}")
             # Mark that sidebar initiated this change
-            st.session_state['visible_gap_last_change_source'] = 'sidebar'
+            st.session_state['gap_last_change_source'] = 'sidebar'
             print(f"🔴 SIDEBAR: Set change source to 'sidebar' for gap")
             if st.session_state.visible_gap:
                 print(f"🔴 SIDEBAR: Calling select_all_subpatterns('gap')")
@@ -956,9 +956,13 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
             # Check if parent pattern is disabled in sidebar
             parent_visible = get_parent_visibility(key_prefix)
             
-            # Initialize based on parent visibility
+            # Initialize or update based on parent visibility when parent was just changed
             if unique_key not in st.session_state:
                 st.session_state[unique_key] = parent_visible
+            # If parent was just toggled from sidebar, sync children
+            elif f'{key_prefix.split("_")[0]}_last_change_source' in st.session_state:
+                if st.session_state.get(f'{key_prefix.split("_")[0]}_last_change_source') == 'sidebar':
+                    st.session_state[unique_key] = parent_visible
             
             # Render the checkbox
             checked = st.checkbox(str(item), key=unique_key)
@@ -1022,9 +1026,13 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
             # Check if parent pattern is disabled in sidebar
             parent_visible = get_parent_visibility(key_prefix)
             
-            # Initialize based on parent visibility
+            # Initialize or update based on parent visibility when parent was just changed
             if unique_key not in st.session_state:
                 st.session_state[unique_key] = parent_visible
+            # If parent was just toggled from sidebar, sync children
+            elif f'{key_prefix.split("_")[0]}_last_change_source' in st.session_state:
+                if st.session_state.get(f'{key_prefix.split("_")[0]}_last_change_source') == 'sidebar':
+                    st.session_state[unique_key] = parent_visible
             
             # Display the checkbox
             checked = st.checkbox(key, key=unique_key)
