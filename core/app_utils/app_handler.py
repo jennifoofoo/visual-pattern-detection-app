@@ -696,7 +696,7 @@ def handle_pattern_detection():
 
 
 def display_temporal_cluster_tab():
-    """Display Temporal Cluster pattern details in tab."""
+    """Display Temporal Cluster pattern details in tab with individual cluster selection."""
     if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
         detector = st.session_state.temporal_clusters
         summary = detector.get_summary()
@@ -718,10 +718,31 @@ def display_temporal_cluster_tab():
         
         with st.expander("📊 Details", expanded=False):
             st.text(summary['details']['summary_text'])
+        
+        # === INDIVIDUAL CLUSTER SELECTION ===
+        st.markdown("---")
+        st.subheader("🎯 Individual Cluster Control")
+        
+        # Get cluster data (assuming temporal_bursts exists in detector.clusters)
+        if hasattr(detector, 'clusters') and 'temporal_bursts' in detector.clusters:
+            cluster_list = detector.clusters['temporal_bursts']
+            selected_clusters = list_to_multicheckbox(
+                cluster_list, 
+                title="Select Clusters to Display",
+                key_prefix="temporal_cluster"
+            )
+            
+            # Store selected clusters in session state for visualization
+            st.session_state['selected_temporal_clusters'] = selected_clusters
+            
+            if selected_clusters:
+                st.success(f"✅ {len(selected_clusters)} of {len(cluster_list)} clusters selected")
+            else:
+                st.info("No clusters selected - showing all by default")
 
 
 def display_outlier_tab():
-    """Display Outlier Detection pattern details in tab."""
+    """Display Outlier Detection pattern details in tab with individual outlier type selection."""
     if st.session_state.get('outlier_detected', False) and 'outlier_pattern' in st.session_state:
         outlier_pattern = st.session_state.outlier_pattern
         summary = outlier_pattern.get_summary()
@@ -749,10 +770,40 @@ def display_outlier_tab():
                 st.write("**Outlier Types:**")
                 for outlier_type, details in summary['details']['outlier_details'].items():
                     st.write(f"- {outlier_type.replace('_', ' ').title()}: {details['count']} ({details['percentage']:.1f}%)")
+        
+        # === INDIVIDUAL OUTLIER TYPE SELECTION ===
+        st.markdown("---")
+        st.subheader("🎯 Individual Outlier Type Control")
+        
+        # Get outlier types
+        outlier_details = summary['details'].get('outlier_details', {})
+        if outlier_details:
+            # Create a dict with outlier types and their counts
+            outlier_types_dict = {
+                f"{otype.replace('_', ' ').title()} ({details['count']})": otype 
+                for otype, details in outlier_details.items() 
+                if details['count'] > 0
+            }
+            
+            selected_types = dict_to_multicheckbox(
+                outlier_types_dict,
+                title="Select Outlier Types to Display",
+                key_prefix="outlier_type"
+            )
+            
+            # Store selected types in session state
+            st.session_state['selected_outlier_types'] = selected_types
+            
+            if selected_types:
+                st.success(f"✅ {len(selected_types)} of {len(outlier_types_dict)} outlier types selected")
+            else:
+                st.info("No outlier types selected - showing all by default")
+        else:
+            st.info("No outlier type details available")
 
 
 def display_gap_tab():
-    """Display Gap Detection pattern details in tab."""
+    """Display Gap Detection pattern details in tab with individual transition selection."""
     if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
         gap_detector = st.session_state['gap_detector']
         summary = gap_detector.get_summary()
@@ -825,9 +876,149 @@ def display_gap_tab():
                 duration_days = gap['duration'] / 86400
                 threshold_days = gap['threshold'] / 86400
                 st.write(f"{i}. {gap['transition']} - Duration: {duration_days:.1f}d, Threshold: {threshold_days:.1f}d, Severity: {gap['severity']:.2f}x")
+        
+        # === INDIVIDUAL TRANSITION SELECTION ===
+        st.markdown("---")
+        st.subheader("🎯 Individual Transition Control")
+        
+        # Get transitions with anomalies
+        trans_stats = details.get('transition_stats', {})
+        if trans_stats:
+            # Create a dict with transitions and their anomaly counts
+            transition_dict = {
+                f"{trans} ({stats['count']} anomalies)": trans 
+                for trans, stats in trans_stats.items()
+            }
+            
+            selected_transitions = dict_to_multicheckbox(
+                transition_dict,
+                title="Select Transitions to Display",
+                key_prefix="gap_transition"
+            )
+            
+            # Store selected transitions in session state
+            st.session_state['selected_gap_transitions'] = selected_transitions
+            
+            if selected_transitions:
+                st.success(f"✅ {len(selected_transitions)} of {len(transition_dict)} transitions selected")
+            else:
+                st.info("No transitions selected - showing all by default")
+        else:
+            st.info("No transition stats available")
 
 
 
+
+
+# ========== HELPER FUNCTIONS FOR SUB-PATTERN SELECTION ==========
+
+def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_prefix: str = "item") -> list:
+    """
+    Renders a Streamlit multi-checkbox interface based on a Python list.
+    
+    Args:
+        item_list: The input list of items to be displayed as checkboxes.
+        title: The title to display above the group of checkboxes.
+        key_prefix: Prefix for unique checkbox keys.
+    
+    Returns:
+        List containing only the items selected by the user.
+    """
+    if not item_list:
+        st.info("The input list is empty. No checkboxes to display.")
+        return []
+    
+    selected_items = []
+    
+    # Use a container for visual grouping
+    with st.container(border=True):
+        st.write(f"**{title}**")
+        
+        # Add "Select All" / "Deselect All" functionality
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if st.button("Select All", key=f"{key_prefix}_select_all", use_container_width=True):
+                for index in range(len(item_list)):
+                    st.session_state[f"list_checkbox_{key_prefix}_{index}"] = True
+                st.rerun()
+        with col_b:
+            if st.button("Deselect All", key=f"{key_prefix}_deselect_all", use_container_width=True):
+                for index in range(len(item_list)):
+                    st.session_state[f"list_checkbox_{key_prefix}_{index}"] = False
+                st.rerun()
+        
+        st.markdown("---")
+        
+        for index, item in enumerate(item_list):
+            # Create a unique key for the checkbox
+            unique_key = f"list_checkbox_{key_prefix}_{index}"
+            
+            # Initialize to True (selected) if not in session state
+            if unique_key not in st.session_state:
+                st.session_state[unique_key] = True
+            
+            # Render the checkbox
+            checked = st.checkbox(str(item), key=unique_key)
+            
+            # If checked, add the original item to the results list
+            if checked:
+                selected_items.append(item)
+
+    return selected_items
+
+
+def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_prefix: str = "dict_item") -> list:
+    """
+    Renders a Streamlit multi-checkbox interface based on a Python dictionary.
+    
+    Args:
+        data_dict: The input dictionary where keys are display labels and values are actual identifiers.
+        title: The title to display above the group of checkboxes.
+        key_prefix: Prefix for unique checkbox keys.
+    
+    Returns:
+        List containing only the selected dictionary values.
+    """
+    if not data_dict:
+        st.info("The input dictionary is empty.")
+        return []
+    
+    selected_items = []
+    
+    with st.container(border=True):
+        st.write(f"**{title}**")
+        
+        # Add "Select All" / "Deselect All" functionality
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if st.button("Select All", key=f"{key_prefix}_select_all", use_container_width=True):
+                for key in data_dict.keys():
+                    st.session_state[f"dict_checkbox_{key_prefix}_{key}"] = True
+                st.rerun()
+        with col_b:
+            if st.button("Deselect All", key=f"{key_prefix}_deselect_all", use_container_width=True):
+                for key in data_dict.keys():
+                    st.session_state[f"dict_checkbox_{key_prefix}_{key}"] = False
+                st.rerun()
+        
+        st.markdown("---")
+        
+        for key, value in data_dict.items():
+            # Create a unique key for the checkbox
+            unique_key = f"dict_checkbox_{key_prefix}_{key}"
+            
+            # Initialize to True (selected) if not in session state
+            if unique_key not in st.session_state:
+                st.session_state[unique_key] = True
+            
+            # Display the checkbox
+            checked = st.checkbox(key, key=unique_key)
+            
+            # If checked, add the value to the results list
+            if checked:
+                selected_items.append(value)
+
+    return selected_items
 
 
 def ollama_description_button():
