@@ -958,12 +958,15 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
             if checked:
                 selected_items.append(item)
         
-        # Sync back to sidebar: if no items selected, turn off parent
-        selected_count = len(selected_items)
-        if selected_count == 0 and parent_visible:
-            sync_sidebar_checkbox(key_prefix, False)
-        elif selected_count > 0 and not parent_visible:
-            sync_sidebar_checkbox(key_prefix, True)
+        # Sync back to sidebar ONLY if change did NOT originate from sidebar
+        # This prevents endless loops
+        change_source = st.session_state.get(f'{key_prefix.split("_")[0]}_last_change_source')
+        if change_source != 'sidebar':
+            selected_count = len(selected_items)
+            if selected_count == 0 and parent_visible:
+                sync_sidebar_checkbox(key_prefix, False)
+            elif selected_count > 0 and not parent_visible:
+                sync_sidebar_checkbox(key_prefix, True)
 
     return selected_items
 
@@ -1038,12 +1041,15 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
             if checked:
                 selected_items.append(value)
         
-        # Sync back to sidebar: if no items selected, turn off parent
-        selected_count = len(selected_items)
-        if selected_count == 0 and parent_visible:
-            sync_sidebar_checkbox(key_prefix, False)
-        elif selected_count > 0 and not parent_visible:
-            sync_sidebar_checkbox(key_prefix, True)
+        # Sync back to sidebar ONLY if change did NOT originate from sidebar
+        # This prevents endless loops
+        change_source = st.session_state.get(f'{key_prefix.split("_")[0]}_last_change_source')
+        if change_source != 'sidebar':
+            selected_count = len(selected_items)
+            if selected_count == 0 and parent_visible:
+                sync_sidebar_checkbox(key_prefix, False)
+            elif selected_count > 0 and not parent_visible:
+                sync_sidebar_checkbox(key_prefix, True)
 
     return selected_items
 
