@@ -938,19 +938,15 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
             # Create a unique key for the checkbox
             unique_key = f"list_checkbox_{key_prefix}_{index}"
             
-            # Check if parent pattern is disabled in sidebar
+            # Check if parent pattern is visible in sidebar
             parent_visible = get_parent_visibility(key_prefix)
             
-            # Initialize or update based on parent visibility when parent was just changed
-            if unique_key not in st.session_state:
-                st.session_state[unique_key] = parent_visible
-            # If parent was just toggled from sidebar, sync children
-            elif f'{key_prefix.split("_")[0]}_last_change_source' in st.session_state:
-                if st.session_state.get(f'{key_prefix.split("_")[0]}_last_change_source') == 'sidebar':
-                    st.session_state[unique_key] = parent_visible
+            # ALWAYS sync with parent visibility - force update on every render
+            # This ensures checkboxes immediately reflect sidebar changes
+            st.session_state[unique_key] = parent_visible
             
-            # Render the checkbox with explicit value from session_state
-            checked = st.checkbox(str(item), value=st.session_state.get(unique_key, parent_visible), key=unique_key)
+            # Render the checkbox with the forced value
+            checked = st.checkbox(str(item), value=parent_visible, key=unique_key)
             
             # If checked, add the original item to the results list
             if checked:
@@ -1008,19 +1004,15 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
             # Create a unique key for the checkbox
             unique_key = f"dict_checkbox_{key_prefix}_{key}"
             
-            # Check if parent pattern is disabled in sidebar
+            # Check if parent pattern is visible in sidebar
             parent_visible = get_parent_visibility(key_prefix)
             
-            # Initialize or update based on parent visibility when parent was just changed
-            if unique_key not in st.session_state:
-                st.session_state[unique_key] = parent_visible
-            # If parent was just toggled from sidebar, sync children
-            elif f'{key_prefix.split("_")[0]}_last_change_source' in st.session_state:
-                if st.session_state.get(f'{key_prefix.split("_")[0]}_last_change_source') == 'sidebar':
-                    st.session_state[unique_key] = parent_visible
+            # ALWAYS sync with parent visibility - force update on every render
+            # This ensures checkboxes immediately reflect sidebar changes
+            st.session_state[unique_key] = parent_visible
             
-            # Display the checkbox with explicit value from session_state
-            checked = st.checkbox(key, value=st.session_state.get(unique_key, parent_visible), key=unique_key)
+            # Display the checkbox with the forced value
+            checked = st.checkbox(key, value=parent_visible, key=unique_key)
             
             # If checked, add the value to the results list
             if checked:
