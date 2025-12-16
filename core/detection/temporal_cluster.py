@@ -23,6 +23,7 @@ class TemporalClusterPattern(Pattern):
     """
 
     def __init__(self, df: pd.DataFrame, x_axis: str, y_axis: str,
+                 color: str = 'case_id',
                  min_cluster_size: int = 5,
                  temporal_eps: float = None,
                  spatial_eps: float = None):
@@ -33,12 +34,13 @@ class TemporalClusterPattern(Pattern):
             df: Event log dataframe
             x_axis: X-axis column name ('actual_time', 'relative_time', etc.)
             y_axis: Y-axis column name ('case_id', 'activity', etc.)
+            color: Color dimension column name (default: 'case_id')
             min_cluster_size: Minimum events to form a cluster
             temporal_eps: Optional custom epsilon for temporal clustering (auto-calculated if None)
             spatial_eps: Optional custom epsilon for spatial clustering (auto-calculated if None)
         """
-        # Initialize parent with name and view_config
-        view_config = {'x': x_axis, 'y': y_axis}
+        # Initialize parent with name and view_config (3D: x, y, color)
+        view_config = {'x': x_axis, 'y': y_axis, 'color': color}
         super().__init__(name="Temporal Cluster", view_config=view_config)
 
         self.df = df

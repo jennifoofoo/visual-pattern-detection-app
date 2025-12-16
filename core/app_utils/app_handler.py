@@ -183,12 +183,12 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
         'total_points': total_points
     }
 
-    # Store the figure and view config for pattern detection
+    # Store the figure and view config for pattern detection (with 3D matrix support)
     st.session_state['fig'] = fig
     st.session_state['view_config'] = {
         'x': x_col,
         'y': y_col,
-        'color': dots_config_col
+        'color': dots_config_col  # Include color for 3D matrix consistency
     }
     st.session_state['chart_plotted'] = True
     st.session_state['chart_needs_display'] = True
@@ -653,81 +653,9 @@ def handle_pattern_detection():
     outlier_info = get_pattern_info(x_col, y_col, color_col, 'outlier')
     gap_info = get_pattern_info(x_col, y_col, color_col, 'gap')
     
-    # Create three equal columns (always show all patterns)
-    col1, col2, col3 = st.columns(3)
-    
-    # === TEMPORAL CLUSTERS ===
-    with col1:
-        with st.container(border=True):
-            if temporal_meaningful:
-                st.subheader("⏱️ Temporal Clusters")
-                st.write("Finds time periods with unusually high or low event activity.")
-                st.caption("Uses density-based clustering (OPTICS, DBSCAN, K-Means) on temporal event distributions.")
-            else:
-                st.subheader("⏱️ Temporal Clusters", help=temporal_info.get('interpretation', 'Not available for this view') if temporal_info else 'Not available')
-                st.write("Finds time periods with unusually high or low event activity.")
-                st.caption(f"❌ {temporal_info.get('use_case', 'Not meaningful for this view configuration')}" if temporal_info else "Not available")
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Detect Temporal Clusters", type="primary", use_container_width=True, disabled=not temporal_meaningful):
-                handle_temporal_cluster_detection_logic(x_col, y_col, x_axis_label, y_axis_label, df_selected)
-    
-    # === OUTLIER DETECTION ===
-    with col2:
-        with st.container(border=True):
-            if outlier_meaningful:
-                st.subheader("🎯 Outlier Detection")
-                st.write("Identifies unusual events or cases based on temporal deviations.")
-                st.caption("Uses IQR-based statistical analysis for time, duration, frequency, resource, and sequence anomalies.")
-            else:
-                st.subheader("🎯 Outlier Detection", help=outlier_info.get('interpretation', 'Not available for this view') if outlier_info else 'Not available')
-                st.write("Identifies unusual events or cases based on temporal deviations.")
-                st.caption(f"❌ {outlier_info.get('use_case', 'Not meaningful for this view configuration')}" if outlier_info else "Not available")
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Detect Outliers", type="primary", use_container_width=True, disabled=not outlier_meaningful):
-                handle_outlier_detection_logic()
-    
-    # === GAP DETECTION ===
-    with col3:
-        with st.container(border=True):
-            # Header with settings icon
-            header_col1, header_col2 = st.columns([0.9, 0.1])
-            with header_col1:
-                if gap_meaningful:
-                    st.subheader("🔬 Gap Detection")
-                else:
-                    st.subheader("🔬 Gap Detection", help=gap_info.get('interpretation', 'Not available for this view') if gap_info else 'Not available')
-            with header_col2:
-                if gap_meaningful:
-                    with st.popover("⚙️"):
-                        st.write("**Settings**")
-                        min_samples = st.number_input(
-                            "Minimum samples per transition",
-                            min_value=3,
-                            max_value=20,
-                            value=5,
-                            step=1,
-                            key="gap_min_samples_popover",
-                            help="Transitions with fewer samples are skipped (insufficient data)"
-                        )
-            
-            if gap_meaningful:
-                st.write("Learns normal transition durations (A → B) and detects unusually long gaps.")
-                st.caption("Uses statistical learning (Q1, Q3, IQR, P95) per activity transition to identify abnormal delays.")
-            else:
-                st.write("Learns normal transition durations (A → B) and detects unusually long gaps.")
-                st.caption(f"❌ {gap_info.get('use_case', 'Not meaningful for this view configuration')}" if gap_info else "Not available")
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Detect Gaps", type="primary", use_container_width=True, disabled=not gap_meaningful):
-                # Use min_samples from popover if exists, otherwise default
-                gap_min_samples = st.session_state.get('gap_min_samples_popover', 5)
-                handle_gap_detection_logic(df_selected, x_col, y_col, gap_min_samples)
-    
-    # ========== PATTERN SUMMARY SECTION ==========
-    st.markdown("---")
+    # ========== PATTERN SUMMARY SECTION (patterns auto-detected) ==========
     st.subheader("📋 Pattern Summary")
+    st.caption("Patterns are automatically detected after plotting. Toggle visibility in sidebar (←)")
     
     # Check if any pattern was detected
     any_detected = (
@@ -737,7 +665,7 @@ def handle_pattern_detection():
     )
     
     if not any_detected:
-        st.info("Run pattern detection above to see results here.")
+        st.info("💡 Patterns will appear here after chart is plotted.")
     else:
         # Create three columns for summary boxes
         sum_col1, sum_col2, sum_col3 = st.columns(3)
@@ -750,12 +678,13 @@ def handle_pattern_detection():
                 
                 with st.container(border=True):
                     st.markdown("### ⏱️ Temporal Clusters")
+                    st.caption("Finds time periods with unusually high or low event activity.")
                     
                     # Layer visibility is now controlled by sidebar
                     layer_visible = st.session_state.get('visible_temporal_cluster', True)
                     
                     if not layer_visible:
-                        st.caption("👁️‍🗨️ Layer hidden - toggle in sidebar to show on chart")
+                        st.info("👁️‍🗨️ Layer hidden - toggle in sidebar to show on chart")
                     
                     st.success(f"✅ {summary['count']} clusters detected")
                     
@@ -776,12 +705,13 @@ def handle_pattern_detection():
                 
                 with st.container(border=True):
                     st.markdown("### 🎯 Outlier Detection")
+                    st.caption("Identifies unusual events or cases based on temporal deviations.")
                     
                     # Layer visibility is now controlled by sidebar
                     layer_visible = st.session_state.get('visible_outlier', True)
                     
                     if not layer_visible:
-                        st.caption("👁️‍🗨️ Layer hidden - toggle in sidebar to show on chart")
+                        st.info("👁️‍🗨️ Layer hidden - toggle in sidebar to show on chart")
                     
                     st.success(f"✅ {summary['count']} outliers detected")
                     
