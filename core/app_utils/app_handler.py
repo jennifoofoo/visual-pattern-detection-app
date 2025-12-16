@@ -10,16 +10,22 @@ from core.evaluation.ollama import OllamaEvaluator
 from core.utils.demo_sampling import sample_small_eventlog
 from config.extended_pattern_matrix import is_pattern_meaningful, get_pattern_info
 
-# Debug log file
-DEBUG_LOG_FILE = "debug_sidebar_sync.log"
-
 def log_debug(message: str):
-    """Write debug message to log file with timestamp."""
+    """Write debug message to session state for display in UI."""
     timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-    with open(DEBUG_LOG_FILE, "a") as f:
-        f.write(f"[{timestamp}] {message}\n")
+    log_entry = f"[{timestamp}] {message}"
+    
+    # Initialize log list if not exists
+    if 'debug_log' not in st.session_state:
+        st.session_state.debug_log = []
+    
+    # Add to session state (keep last 50 entries)
+    st.session_state.debug_log.append(log_entry)
+    if len(st.session_state.debug_log) > 50:
+        st.session_state.debug_log = st.session_state.debug_log[-50:]
+    
     # Also print to console
-    print(f"[{timestamp}] {message}")
+    print(log_entry)
 
 
 # Streamlit caching for performance
@@ -334,10 +340,6 @@ def display_chart():
 
 def sidebar_pattern_layer_controls():
     """Display pattern layer visibility controls in sidebar."""
-    # Initialize debug log if not exists
-    if 'debug_log' not in st.session_state:
-        st.session_state.debug_log = []
-    
     # Check if any pattern was detected
     any_detected = (
         st.session_state.get('temporal_detected', False) or 
@@ -351,12 +353,14 @@ def sidebar_pattern_layer_controls():
     st.subheader("🎨 Pattern Layers")
     st.caption("Toggle pattern visualizations on the chart")
     
-    # Show debug log
-    if st.session_state.debug_log:
-        with st.expander("🐛 Debug Log", expanded=False):
-            for log in st.session_state.debug_log[-20:]:  # Show last 20 entries
-                st.text(log)
-            if st.button("Clear Debug Log"):
+    # Show debug log at the top
+    if 'debug_log' in st.session_state and st.session_state.debug_log:
+        with st.expander("🐛 Debug Log (Click to view)", expanded=False):
+            st.caption(f"Last {len(st.session_state.debug_log)} events")
+            # Show in reverse order (newest first)
+            for log in reversed(st.session_state.debug_log[-30:]):
+                st.code(log, language=None)
+            if st.button("Clear Debug Log", key="clear_debug_log_sidebar"):
                 st.session_state.debug_log = []
                 st.rerun()
     
