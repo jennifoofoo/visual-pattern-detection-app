@@ -1,20 +1,10 @@
-# Process Mining Praktikum
+first draft of our Dotted Graph Pattern Visualizer tool. 
+it contains:
 
-Goal: 
-Create an Application that can guide Customers through Patterns in a Dotted Chart
+- gap detection
+- outlier detection
+- cluster detection
 
+GUI is more dev oriented and not userfriendly.
 
-### Preperation
-
-python -m venv /path/to/new/virtual/environment  
-.\venv\Scripts\activate
-
-pip install -r requirements.txt
-
-
-### Run Streamlit
-
-streamlit run app.py  
-or   
-run startApp.bat
-
+Also the Eventloader is not computing logical time correctly
