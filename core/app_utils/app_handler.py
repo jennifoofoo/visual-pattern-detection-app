@@ -484,23 +484,23 @@ def handle_temporal_cluster_detection_logic(x_col, y_col, x_axis_label, y_axis_l
 
 def handle_outlier_detection_logic():
     """Execute outlier detection logic."""
-    with st.spinner("Analyzing outliers..."):
-        try:
-            # Use original data for outlier detection (not sampled data)
-            outlier_pattern = OutlierDetectionPattern(
-                df=st.session_state.df,  # Use full dataset
-                view_config=st.session_state.view_config
-            )
-            if outlier_pattern.detect():
-                # Store outlier results in session state
-                st.session_state.outlier_pattern = outlier_pattern
-                st.session_state.outlier_detected = True
-            else:
+        with st.spinner("Analyzing outliers..."):
+            try:
+                # Use original data for outlier detection (not sampled data)
+                outlier_pattern = OutlierDetectionPattern(
+                    df=st.session_state.df,  # Use full dataset
+                    view_config=st.session_state.view_config
+                )
+                if outlier_pattern.detect():
+                    # Store outlier results in session state
+                    st.session_state.outlier_pattern = outlier_pattern
+                    st.session_state.outlier_detected = True
+                else:
+                    st.session_state.outlier_detected = False
+                    st.info("No significant outliers detected!")
+            except Exception as e:
                 st.session_state.outlier_detected = False
-                st.info("No significant outliers detected!")
-        except Exception as e:
-            st.session_state.outlier_detected = False
-            st.error(f"Error during outlier detection: {str(e)}")
+                st.error(f"Error during outlier detection: {str(e)}")
 
 def handle_gap_detection_logic(df_selected, x_col, y_col, min_samples=5):
     """Execute gap detection logic."""
@@ -508,42 +508,42 @@ def handle_gap_detection_logic(df_selected, x_col, y_col, min_samples=5):
         # Determine if Y is categorical
         y_is_categorical = df_selected[y_col].nunique() <= 60
 
-        # Create view configuration for gap detection
-        view_config = {
+            # Create view configuration for gap detection
+            view_config = {
             'x': x_col,
             'y': y_col
-        }
+            }
 
-        # Create gap detector
+            # Create gap detector
         with st.spinner("Analyzing process transitions and detecting abnormal gaps..."):
-            gap_detector = GapPattern(
-                view_config=view_config,
+                gap_detector = GapPattern(
+                    view_config=view_config,
                 y_is_categorical=y_is_categorical
-            )
+                )
             
             # Apply min_samples setting
             gap_detector.MIN_SAMPLES_FOR_NORMALITY = min_samples
 
-            # Detect gaps
-            gap_detector.detect(df_selected)
+                # Detect gaps
+                gap_detector.detect(df_selected)
 
-            if gap_detector.detected is None:
-                # Clear gap detector if no gaps found
-                if 'gap_detector' in st.session_state:
-                    del st.session_state['gap_detector']
-                st.warning(
+                if gap_detector.detected is None:
+                    # Clear gap detector if no gaps found
+                    if 'gap_detector' in st.session_state:
+                        del st.session_state['gap_detector']
+                    st.warning(
                     "No abnormal gaps detected. This could mean:\n"
                     "- All gaps are within normal thresholds for their transitions\n"
                     "- Not enough transitions have sufficient samples (≥5)\n"
                     "- The log doesn't contain 'case_id' or 'activity' columns"
                 )
-            else:
-                # Store gap detection results
-                st.session_state['gap_detector'] = gap_detector
+                else:
+                    # Store gap detection results
+                    st.session_state['gap_detector'] = gap_detector
 
-    except Exception as e:
-        st.error(f"Error during gap detection: {str(e)}")
-        st.exception(e)
+        except Exception as e:
+            st.error(f"Error during gap detection: {str(e)}")
+            st.exception(e)
 
 def handle_pattern_detection():
     # Get current plot configuration from session state
@@ -628,29 +628,32 @@ def display_temporal_cluster_tab():
         with col_m2:
             st.metric("Type", summary['pattern_type'].replace('_', ' ').title())
         
-        with st.expander("📊 Details", expanded=False):
-            st.text(summary['details']['summary_text'])
+        # === NESTED TABS FOR OVERVIEW AND CLUSTER CONTROL ===
+        subtab1, subtab2 = st.tabs(["Overview", "Cluster Control"])
         
-        # === INDIVIDUAL CLUSTER SELECTION ===
-        st.markdown("---")
-        st.subheader("Individual Cluster Control")
+        with subtab1:
+            # Details expander
+            with st.expander("Details", expanded=False):
+                st.text(summary['details']['summary_text'])
         
-        # Get cluster data (assuming temporal_bursts exists in detector.clusters)
-        if hasattr(detector, 'clusters') and 'temporal_bursts' in detector.clusters:
-            cluster_list = detector.clusters['temporal_bursts']
-            selected_clusters = list_to_multicheckbox(
-                cluster_list, 
-                title="Select Clusters to Display",
-                key_prefix="temporal_cluster"
-            )
-            
-            # Store selected clusters in session state for visualization
-            st.session_state['selected_temporal_clusters'] = selected_clusters
-            
-            if selected_clusters:
-                st.success(f"✅ {len(selected_clusters)} of {len(cluster_list)} clusters selected")
-            else:
-                st.info("No clusters selected - showing all by default")
+        with subtab2:
+            # Individual cluster selection
+            # Get cluster data (assuming temporal_bursts exists in detector.clusters)
+            if hasattr(detector, 'clusters') and 'temporal_bursts' in detector.clusters:
+                cluster_list = detector.clusters['temporal_bursts']
+                selected_clusters = list_to_multicheckbox(
+                    cluster_list, 
+                    title="Select Clusters to Display",
+                    key_prefix="temporal_cluster"
+                )
+                
+                # Store selected clusters in session state for visualization
+                st.session_state['selected_temporal_clusters'] = selected_clusters
+                
+                if selected_clusters:
+                    st.success(f"✅ {len(selected_clusters)} of {len(cluster_list)} clusters selected")
+                else:
+                    st.info("No clusters selected - showing all by default")
 
 
 def display_outlier_tab():
@@ -677,41 +680,44 @@ def display_outlier_tab():
         with col_m3:
             st.metric("Methods", f"{stats.get('detection_methods_used', 0)}/6")
         
-        with st.expander("📊 Details", expanded=False):
-            if summary['details'].get('outlier_details'):
-                st.write("**Outlier Types:**")
-                for outlier_type, details in summary['details']['outlier_details'].items():
-                    st.write(f"- {outlier_type.replace('_', ' ').title()}: {details['count']} ({details['percentage']:.1f}%)")
+        # === NESTED TABS FOR OVERVIEW AND OUTLIER TYPE CONTROL ===
+        subtab1, subtab2 = st.tabs(["Overview", "Outlier Type Control"])
         
-        # === INDIVIDUAL OUTLIER TYPE SELECTION ===
-        st.markdown("---")
-        st.subheader("Individual Outlier Type Control")
+        with subtab1:
+            # Details expander
+            with st.expander("Details", expanded=False):
+                if summary['details'].get('outlier_details'):
+                    st.write("**Outlier Types:**")
+                    for outlier_type, details in summary['details']['outlier_details'].items():
+                        st.write(f"- {outlier_type.replace('_', ' ').title()}: {details['count']} ({details['percentage']:.1f}%)")
         
-        # Get outlier types
-        outlier_details = summary['details'].get('outlier_details', {})
-        if outlier_details:
-            # Create a dict with outlier types and their counts
-            outlier_types_dict = {
-                f"{otype.replace('_', ' ').title()} ({details['count']})": otype 
-                for otype, details in outlier_details.items() 
-                if details['count'] > 0
-            }
-            
-            selected_types = dict_to_multicheckbox(
-                outlier_types_dict,
-                title="Select Outlier Types to Display",
-                key_prefix="outlier_type"
-            )
-            
-            # Store selected types in session state
-            st.session_state['selected_outlier_types'] = selected_types
-            
-            if selected_types:
-                st.success(f"✅ {len(selected_types)} of {len(outlier_types_dict)} outlier types selected")
+        with subtab2:
+            # Individual outlier type selection
+            # Get outlier types
+            outlier_details = summary['details'].get('outlier_details', {})
+            if outlier_details:
+                # Create a dict with outlier types and their counts
+                outlier_types_dict = {
+                    f"{otype.replace('_', ' ').title()} ({details['count']})": otype 
+                    for otype, details in outlier_details.items() 
+                    if details['count'] > 0
+                }
+                
+                selected_types = dict_to_multicheckbox(
+                    outlier_types_dict,
+                    title="Select Outlier Types to Display",
+                    key_prefix="outlier_type"
+                )
+                
+                # Store selected types in session state
+                st.session_state['selected_outlier_types'] = selected_types
+                
+                if selected_types:
+                    st.success(f"✅ {len(selected_types)} of {len(outlier_types_dict)} outlier types selected")
+                else:
+                    st.info("No outlier types selected - showing all by default")
             else:
-                st.info("No outlier types selected - showing all by default")
-        else:
-            st.info("No outlier type details available")
+                st.info("No outlier type details available")
 
 
 def display_gap_tab():
