@@ -776,47 +776,52 @@ def display_gap_tab():
                 duration_str = f"{total_duration:.0f}s"
             st.metric("Duration", duration_str)
         
-        with st.expander("📊 Details", expanded=False):
-            st.write("**Top Transitions with Anomalies:**")
+        # === NESTED TABS FOR OVERVIEW AND TRANSITION CONTROL ===
+        subtab1, subtab2 = st.tabs(["📊 Overview", "🎯 Transition Control"])
+        
+        with subtab1:
+            # Details expander
+            with st.expander("Details", expanded=False):
+                st.write("**Top Transitions with Anomalies:**")
+                trans_stats = details.get('transition_stats', {})
+                for trans, stats in list(trans_stats.items())[:5]:
+                    st.write(f"- **{trans}**: {stats['count']} occurrences, threshold: {stats['threshold']/86400:.1f} days")
+                
+                st.write("\n**Top 10 Abnormal Gaps by Severity:**")
+                abnormal_gaps = sorted(details['abnormal_gaps'], key=lambda x: x.get('severity', 0), reverse=True)[:10]
+                for i, gap in enumerate(abnormal_gaps, 1):
+                    duration_days = gap['duration'] / 86400
+                    threshold_days = gap['threshold'] / 86400
+                    st.write(f"{i}. {gap['transition']} - Duration: {duration_days:.1f}d, Threshold: {threshold_days:.1f}d, Severity: {gap['severity']:.2f}x")
+        
+        with subtab2:
+            # Individual transition selection
+            st.caption("⚠️ Changes will update the chart automatically")
+            
+            # Get transitions with anomalies
             trans_stats = details.get('transition_stats', {})
-            for trans, stats in list(trans_stats.items())[:5]:
-                st.write(f"- **{trans}**: {stats['count']} occurrences, threshold: {stats['threshold']/86400:.1f} days")
-            
-            st.write("\n**Top 10 Abnormal Gaps by Severity:**")
-            abnormal_gaps = sorted(details['abnormal_gaps'], key=lambda x: x.get('severity', 0), reverse=True)[:10]
-            for i, gap in enumerate(abnormal_gaps, 1):
-                duration_days = gap['duration'] / 86400
-                threshold_days = gap['threshold'] / 86400
-                st.write(f"{i}. {gap['transition']} - Duration: {duration_days:.1f}d, Threshold: {threshold_days:.1f}d, Severity: {gap['severity']:.2f}x")
-        
-        # === INDIVIDUAL TRANSITION SELECTION ===
-        st.markdown("---")
-        st.subheader("🎯 Individual Transition Control")
-        
-        # Get transitions with anomalies
-        trans_stats = details.get('transition_stats', {})
-        if trans_stats:
-            # Create a dict with transitions and their anomaly counts
-            transition_dict = {
-                f"{trans} ({stats['count']} anomalies)": trans 
-                for trans, stats in trans_stats.items()
-            }
-            
-            selected_transitions = dict_to_multicheckbox(
-                transition_dict,
-                title="Select Transitions to Display",
-                key_prefix="gap_transition"
-            )
-            
-            # Store selected transitions in session state
-            st.session_state['selected_gap_transitions'] = selected_transitions
-            
-            if selected_transitions:
-                st.success(f"✅ {len(selected_transitions)} of {len(transition_dict)} transitions selected")
+            if trans_stats:
+                # Create a dict with transitions and their anomaly counts
+                transition_dict = {
+                    f"{trans} ({stats['count']} anomalies)": trans 
+                    for trans, stats in trans_stats.items()
+                }
+                
+                selected_transitions = dict_to_multicheckbox(
+                    transition_dict,
+                    title="Select Transitions to Display",
+                    key_prefix="gap_transition"
+                )
+                
+                # Store selected transitions in session state
+                st.session_state['selected_gap_transitions'] = selected_transitions
+                
+                if selected_transitions:
+                    st.success(f"✅ {len(selected_transitions)} of {len(transition_dict)} transitions selected")
+                else:
+                    st.info("No transitions selected - showing all by default")
             else:
-                st.info("No transitions selected - showing all by default")
-        else:
-            st.info("No transition stats available")
+                st.info("No transition stats available")
 
 
 
