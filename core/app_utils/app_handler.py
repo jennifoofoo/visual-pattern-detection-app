@@ -340,6 +340,10 @@ def display_chart():
 
 def sidebar_pattern_layer_controls():
     """Display pattern layer visibility controls in sidebar."""
+    # Initialize debug log
+    if 'debug_log' not in st.session_state:
+        st.session_state.debug_log = []
+    
     # Check if any pattern was detected
     any_detected = (
         st.session_state.get('temporal_detected', False) or 
@@ -353,16 +357,20 @@ def sidebar_pattern_layer_controls():
     st.subheader("🎨 Pattern Layers")
     st.caption("Toggle pattern visualizations on the chart")
     
-    # Show debug log at the top
-    if 'debug_log' in st.session_state and st.session_state.debug_log:
-        with st.expander("🐛 Debug Log (Click to view)", expanded=False):
-            st.caption(f"Last {len(st.session_state.debug_log)} events")
+    # ALWAYS show debug log (even if empty)
+    with st.expander("🐛 Debug Log", expanded=True):
+        if st.session_state.debug_log:
+            st.caption(f"📝 {len(st.session_state.debug_log)} events recorded")
             # Show in reverse order (newest first)
             for log in reversed(st.session_state.debug_log[-30:]):
                 st.code(log, language=None)
             if st.button("Clear Debug Log", key="clear_debug_log_sidebar"):
                 st.session_state.debug_log = []
                 st.rerun()
+        else:
+            st.info("No events logged yet. Click a checkbox to see debug output.")
+    
+    st.markdown("---")  # Separator
     
     # Initialize visibility flags in session state with separate keys
     # Temporal Clusters
