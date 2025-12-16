@@ -484,7 +484,7 @@ def handle_temporal_cluster_detection_logic(x_col, y_col, x_axis_label, y_axis_l
 
 def handle_outlier_detection_logic():
     """Execute outlier detection logic."""
-        with st.spinner("Analyzing outliers..."):
+    with st.spinner("Analyzing outliers..."):
             try:
                 # Use original data for outlier detection (not sampled data)
                 outlier_pattern = OutlierDetectionPattern(
