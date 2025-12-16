@@ -268,9 +268,6 @@ def display_chart():
     """Display the chart from session state (persistent across reruns)."""
     if not st.session_state.get('chart_plotted', False):
         return
-    
-    if not st.session_state.get('chart_needs_display', False):
-        return
         
     plot_config = st.session_state.get('current_plot_config', {})
     if not plot_config:
@@ -337,6 +334,12 @@ def display_chart():
     st.session_state['fig'] = fig
 
 
+def _toggle_layer(layer_name):
+    """Callback to toggle pattern layer visibility."""
+    st.session_state.layer_visibility[layer_name] = st.session_state[f'checkbox_{layer_name}']
+    st.session_state['chart_needs_display'] = True
+
+
 def sidebar_pattern_layer_controls():
     """Display pattern layer visibility controls in sidebar."""
     # Check if any pattern was detected
@@ -354,42 +357,36 @@ def sidebar_pattern_layer_controls():
     
     # Temporal Clusters
     if st.session_state.get('temporal_detected', False):
-        temporal_visible = st.checkbox(
+        st.checkbox(
             "⏱️ Temporal Clusters",
             value=st.session_state.layer_visibility.get('temporal_cluster', True),
-            key='sidebar_temporal_toggle',
-            help="Show/hide temporal cluster visualization"
+            key='checkbox_temporal_cluster',
+            help="Show/hide temporal cluster visualization",
+            on_change=_toggle_layer,
+            args=('temporal_cluster',)
         )
-        if temporal_visible != st.session_state.layer_visibility.get('temporal_cluster', True):
-            st.session_state.layer_visibility['temporal_cluster'] = temporal_visible
-            st.session_state['chart_needs_display'] = True
-            st.rerun()
     
     # Outlier Detection
     if st.session_state.get('outlier_detected', False):
-        outlier_visible = st.checkbox(
+        st.checkbox(
             "🎯 Outlier Detection",
             value=st.session_state.layer_visibility.get('outlier', True),
-            key='sidebar_outlier_toggle',
-            help="Show/hide outlier detection visualization"
+            key='checkbox_outlier',
+            help="Show/hide outlier detection visualization",
+            on_change=_toggle_layer,
+            args=('outlier',)
         )
-        if outlier_visible != st.session_state.layer_visibility.get('outlier', True):
-            st.session_state.layer_visibility['outlier'] = outlier_visible
-            st.session_state['chart_needs_display'] = True
-            st.rerun()
     
     # Gap Detection
     if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
-        gap_visible = st.checkbox(
+        st.checkbox(
             "🔬 Gap Detection",
             value=st.session_state.layer_visibility.get('gap', True),
-            key='sidebar_gap_toggle',
-            help="Show/hide gap detection visualization"
+            key='checkbox_gap',
+            help="Show/hide gap detection visualization",
+            on_change=_toggle_layer,
+            args=('gap',)
         )
-        if gap_visible != st.session_state.layer_visibility.get('gap', True):
-            st.session_state.layer_visibility['gap'] = gap_visible
-            st.session_state['chart_needs_display'] = True
-            st.rerun()
     
     # Show/Hide All buttons
     st.markdown("---")
