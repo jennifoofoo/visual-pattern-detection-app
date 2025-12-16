@@ -930,38 +930,32 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
         
         st.markdown("---")
         
-        # Check if we need to sync from sidebar BEFORE rendering checkboxes
-        pattern_type = key_prefix.split("_")[0]
-        should_sync_from_sidebar = st.session_state.get(f'{pattern_type}_last_change_source') == 'sidebar'
+        # Check if parent pattern is visible in sidebar
+        parent_visible = get_parent_visibility(key_prefix)
         
         for index, item in enumerate(item_list):
-            # Create a unique key for the checkbox
+            # Create a unique key for the checkbox state
             unique_key = f"list_checkbox_{key_prefix}_{index}"
             
-            # Check if parent pattern is visible in sidebar
-            parent_visible = get_parent_visibility(key_prefix)
-            
-            # Initialize on first render or sync when parent changed from sidebar
+            # Initialize on first render
             if unique_key not in st.session_state:
                 st.session_state[unique_key] = parent_visible
-            elif should_sync_from_sidebar:
-                # Force sync to parent state when sidebar changed
-                st.session_state[unique_key] = parent_visible
             
-            # Render the checkbox with explicit value to force visual update
+            # IMPORTANT: Use value WITHOUT key to force visual updates
+            # The checkbox will always reflect the session state value
             checked = st.checkbox(
                 str(item), 
-                value=st.session_state.get(unique_key, parent_visible),
-                key=unique_key
+                value=st.session_state[unique_key],
+                key=f"{unique_key}_widget",  # Different key for widget
+                on_change=lambda k=unique_key: None  # Dummy callback
             )
+            
+            # Update session state from checkbox
+            st.session_state[unique_key] = checked
             
             # If checked, add the original item to the results list
             if checked:
                 selected_items.append(item)
-        
-        # Clear the sync flag after ALL checkboxes are rendered
-        if should_sync_from_sidebar:
-            del st.session_state[f'{pattern_type}_last_change_source']
 
     return selected_items
 
@@ -1011,38 +1005,32 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
         
         st.markdown("---")
         
-        # Check if we need to sync from sidebar BEFORE rendering checkboxes
-        pattern_type = key_prefix.split("_")[0]
-        should_sync_from_sidebar = st.session_state.get(f'{pattern_type}_last_change_source') == 'sidebar'
+        # Check if parent pattern is visible in sidebar
+        parent_visible = get_parent_visibility(key_prefix)
         
         for key, value in data_dict.items():
-            # Create a unique key for the checkbox
+            # Create a unique key for the checkbox state
             unique_key = f"dict_checkbox_{key_prefix}_{key}"
             
-            # Check if parent pattern is visible in sidebar
-            parent_visible = get_parent_visibility(key_prefix)
-            
-            # Initialize on first render or sync when parent changed from sidebar
+            # Initialize on first render
             if unique_key not in st.session_state:
                 st.session_state[unique_key] = parent_visible
-            elif should_sync_from_sidebar:
-                # Force sync to parent state when sidebar changed
-                st.session_state[unique_key] = parent_visible
             
-            # Display the checkbox with explicit value to force visual update
+            # IMPORTANT: Use value WITHOUT key to force visual updates
+            # The checkbox will always reflect the session state value
             checked = st.checkbox(
                 key, 
-                value=st.session_state.get(unique_key, parent_visible),
-                key=unique_key
+                value=st.session_state[unique_key],
+                key=f"{unique_key}_widget",  # Different key for widget
+                on_change=lambda k=unique_key: None  # Dummy callback
             )
+            
+            # Update session state from checkbox
+            st.session_state[unique_key] = checked
             
             # If checked, add the value to the results list
             if checked:
                 selected_items.append(value)
-        
-        # Clear the sync flag after ALL checkboxes are rendered
-        if should_sync_from_sidebar:
-            del st.session_state[f'{pattern_type}_last_change_source']
             
             # If checked, add the value to the results list
             if checked:
