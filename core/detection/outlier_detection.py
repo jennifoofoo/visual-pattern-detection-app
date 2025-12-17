@@ -42,8 +42,9 @@ class OutlierDetectionPattern(Pattern):
         # Check if outlier detection is meaningful for this view
         x_axis = self.view_config.get('x', '')
         y_axis = self.view_config.get('y', '')
+        color = self.view_config.get('color', 'case_id')  # Default to case_id if not set
         
-        if not is_pattern_meaningful(x_axis, y_axis, 'outlier'):
+        if not is_pattern_meaningful(x_axis, y_axis, color, 'outlier'):
             return False
         
         try:
@@ -544,8 +545,21 @@ class OutlierDetectionPattern(Pattern):
             'available_features': list(self.available_columns)
         }
 
-    def visualize(self, fig: go.Figure) -> go.Figure:
-        """Add outlier visualization to the existing figure."""
+    def visualize(self, df: pd.DataFrame, fig: go.Figure) -> go.Figure:
+        """Add outlier visualization to the existing figure.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Event log dataframe (for consistency with Pattern API, not used here)
+        fig : go.Figure
+            Plotly figure to annotate
+            
+        Returns
+        -------
+        go.Figure
+            Figure with outlier overlays
+        """
         if not self.detected:
             return fig
 
@@ -553,6 +567,22 @@ class OutlierDetectionPattern(Pattern):
         all_outlier_indices = self.outliers.get('combined', [])
         if not all_outlier_indices:
             return fig
+        
+        # Filter by selected outlier types if specified
+        import streamlit as st
+        selected_types = st.session_state.get('selected_outlier_types', None)
+        if selected_types is not None and len(selected_types) > 0:
+            # Only show outliers that match at least one selected type
+            filtered_indices = []
+            for idx in all_outlier_indices:
+                outlier_reasons = self.outlier_types.get(idx, [])
+                # Check if any of the outlier's types match the selected types
+                if any(otype in selected_types for otype in outlier_reasons):
+                    filtered_indices.append(idx)
+            all_outlier_indices = filtered_indices
+            
+            if not all_outlier_indices:
+                return fig
 
         # Find maximum score and filter to only those outliers
         max_score = max(self.outlier_scores.values()
@@ -613,8 +643,8 @@ class OutlierDetectionPattern(Pattern):
 
         # Add maximum score outlier points as a separate trace with enhanced highlighting
         fig.add_trace(go.Scatter(
-            x=outlier_data[self.view_config['x_axis']],
-            y=outlier_data[self.view_config['y_axis']],
+            x=outlier_data[self.view_config['x']],
+            y=outlier_data[self.view_config['y']],
             mode='markers',
             marker=dict(
                 size=10,

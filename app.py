@@ -6,7 +6,7 @@ st.set_page_config(
     page_title="Event Log Dotted Chart",
     page_icon=None,
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="collapsed"  # Sidebar opens after plotting chart
 )
 
 
@@ -37,14 +37,14 @@ def main():
         
         if st.button('Load Data', type="primary"):
             app_handler.load_data_button(xes_path, demo_mode=demo_mode)
-    
+
     # Show data status
     with col2:
         if st.session_state.data_loaded:
             app_handler.show_xes_summary()
-        else:
-            st.info("Please load your XES file first")
-            return
+                else:
+        st.info("Please load your XES file first")
+        return
     # endregion
 
     # region Chart Configuration and Plotting
@@ -60,20 +60,24 @@ def main():
     
     # Display chart persistently (survives reruns from pattern detection)
     app_handler.display_chart()
-    # endregion
+            # endregion
 
     # region Pattern Detection
     # Pattern Detection Section (only show if chart is plotted)
     if st.session_state.chart_plotted:
         st.divider()
-        st.subheader("Pattern Detection")
-        
         app_handler.handle_pattern_detection()
     # endregion
     
-    # region Ollama
-    # Ollama Description (moved to sidebar for better performance)
+    # region Sidebar
     with st.sidebar:
+        # Pattern Layer Controls
+        if st.session_state.chart_plotted:
+            app_handler.sidebar_pattern_layer_controls()
+        
+        st.divider()
+        
+        # Ollama Description
         st.subheader(" AI Description")
         if st.button("Describe Chart", disabled=not st.session_state.data_loaded):
             app_handler.ollama_description_button()

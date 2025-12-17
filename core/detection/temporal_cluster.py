@@ -7,6 +7,7 @@ available in the visualization system.
 
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 from typing import Dict, Any
 from sklearn.cluster import DBSCAN
 from datetime import datetime
@@ -22,6 +23,7 @@ class TemporalClusterPattern(Pattern):
     """
 
     def __init__(self, df: pd.DataFrame, x_axis: str, y_axis: str,
+                 color: str = 'case_id',
                  min_cluster_size: int = 5,
                  temporal_eps: float = None,
                  spatial_eps: float = None):
@@ -32,12 +34,13 @@ class TemporalClusterPattern(Pattern):
             df: Event log dataframe
             x_axis: X-axis column name ('actual_time', 'relative_time', etc.)
             y_axis: Y-axis column name ('case_id', 'activity', etc.)
+            color: Color dimension column name (default: 'case_id')
             min_cluster_size: Minimum events to form a cluster
             temporal_eps: Optional custom epsilon for temporal clustering (auto-calculated if None)
             spatial_eps: Optional custom epsilon for spatial clustering (auto-calculated if None)
         """
-        # Initialize parent with name and view_config
-        view_config = {'x': x_axis, 'y': y_axis}
+        # Initialize parent with name and view_config (3D: x, y, color)
+        view_config = {'x': x_axis, 'y': y_axis, 'color': color}
         super().__init__(name="Temporal Cluster", view_config=view_config)
 
         self.df = df
@@ -360,10 +363,22 @@ class TemporalClusterPattern(Pattern):
 
     # ==================== Visualization Support ====================
 
-    def visualize(self, df: pd.DataFrame = None, fig=None):
+    def visualize(self, df: pd.DataFrame, fig: go.Figure) -> go.Figure:
         #### FOR NOW ONLY ACTIVITY BURSTS IS VISUALISED
         """
         Add cluster visualizations to the figure.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Event log dataframe
+        fig : go.Figure
+            Plotly figure to annotate
+            
+        Returns
+        -------
+        go.Figure
+            Figure with cluster overlays
 
         Args:
             df: DataFrame (uses self.df if not provided)
@@ -386,10 +401,14 @@ class TemporalClusterPattern(Pattern):
 
         # Add visual overlays to the figure
         import plotly.graph_objects as go
+        
+        # Check for selected clusters filter
+        import streamlit as st
+        selected_clusters = st.session_state.get('selected_temporal_clusters', None)
 
         # Visualize temporal bursts
         if 'temporal_bursts' in self.clusters:
-            self._add_burst_visualization(fig)
+            self._add_burst_visualization(fig, selected_filter=selected_clusters)
 
         # Visualize case parallelism
         if 'case_parallelism' in self.clusters:
@@ -405,11 +424,26 @@ class TemporalClusterPattern(Pattern):
 
         return fig
 
-    def _add_burst_visualization(self, fig):
-        """Add temporal burst overlays to figure."""
+    def _add_burst_visualization(self, fig, selected_filter=None):
+        """Add temporal burst overlays to figure.
+        
+        Parameters
+        ----------
+        fig : go.Figure
+            Plotly figure to annotate
+        selected_filter : list, optional
+            List of selected burst dicts to display. If None, shows all.
+        """
         import plotly.graph_objects as go
 
         bursts = self.clusters['temporal_bursts']
+        
+        # Filter by selection if provided
+        if selected_filter is not None and len(selected_filter) > 0:
+            bursts = [b for b in bursts if b in selected_filter]
+        
+        if not bursts:
+            return
 
         # Show only significant bursts (top 20 by event count)
         sorted_bursts = sorted(
