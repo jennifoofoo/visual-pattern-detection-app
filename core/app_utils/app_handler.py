@@ -135,7 +135,7 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
     df_plot = df_selected
 
     # Configure hover data and colors
-    hover_cols = ['activity', 'event_index', 'actual_time']
+    hover_cols = ['activity', 'logical_relative', 'actual_time']
     color_col = dots_config_col
 
     # Generate the Plotly Scatter (Dotted Chart)
@@ -277,7 +277,7 @@ def display_chart():
     dots_config_label = plot_config['dots_config_label']
     total_points = plot_config['total_points']
     color_col = dots_config_col
-    hover_cols = ['activity', 'event_index', 'actual_time']
+    hover_cols = ['activity', 'logical_relative', 'actual_time']
     
     # Recreate the chart
     fig = plot_chart(

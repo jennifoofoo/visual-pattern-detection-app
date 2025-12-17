@@ -33,14 +33,11 @@ EXTENDED_PATTERN_MATRIX = {
    - `resource`: Resource performing the activity
    - `activity`: Activity name
    - `case_id`: Case identifier
-   - `event_index`: Event position within case
 
 3. **Color/Dot Color** (5 options):
    - `case_id`: Color by case
    - `activity`: Color by activity
    - `resource`: Color by resource
-   - `event_index_in_trace`: Color by event position
-   - `timestamp_logical_global`: Color by global timestamp
 
 ### Pattern Types
 
