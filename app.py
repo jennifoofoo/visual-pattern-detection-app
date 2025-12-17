@@ -19,6 +19,7 @@ def main():
     xes_path = st.text_input(
         'Enter XES log file path:',
         value='data/Hospital_log.xes',
+        # value='data\Sepsis Cases - Event Log.xes\Sepsis Cases - Event Log.xes',
         key='xes_path_input'
     )
 
@@ -42,9 +43,9 @@ def main():
     with col2:
         if st.session_state.data_loaded:
             app_handler.show_xes_summary()
-                else:
-        st.info("Please load your XES file first")
-        return
+        else:
+            st.info("Please load your XES file first")
+            return
     # endregion
 
     # region Chart Configuration and Plotting
