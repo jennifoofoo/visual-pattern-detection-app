@@ -1,8 +1,15 @@
-from pm4py.objects.log.importer.xes import importer as xes_importer
 import pandas as pd
+import pm4py
+
+import streamlit as st
+
+import numpy as np # Used for safe division/handling NaT values
 
 '''
-Reminder:
+pm4py defaults: 
+1. 'case:concept:name' = case id
+2. 'concept:name' = activity
+3. 'time:timestamp' = actual time
 
 Times Representations from the paper:
 0. Actual Time: normal timelime
@@ -18,117 +25,131 @@ Traces:
     end_time = timestamp of last event in trace
     total_events = amount of events
 Events:
+    # 
     'case_id'
-    'event_index'
     'activity'
+    'resource'
+    
     # time representations
-    'actual_time'
+    'actual_time' # which is the same as 'time:timestamp'
     'relative_time'
     'relative_ratio'
     'logical_time'
     'logical_relative'
-
-
-
 '''
+
 def load_xes_log(xes_path):
     """
-    extracts event features
-    possible ToDo: add trace dataframe so we have meta data about traces
-
     :param xes_path: Path to XES log file.
     :return: DataFrame containing Event Data:
-        'case_id', 'event_index' , 'activity', 
+        'case_id', 'activity', 'resource',
         'actual_time', 'relative_time', 'relative_ratio', 
         'logical_time', 'logical_relative'
     """
-    log = xes_importer.apply(xes_path)
-    events = []
+    # 1. Load the XES log
+    df = pm4py.read_xes(xes_path)
 
-    # Initialize a GLOBAL event counter for Logical Time (3)
-    global_event_index = 0
+    # Check if all required columns are present
+    validate_xes_input(df)  # df contains now case_id, activity, actual time and resource
 
-    for trace in log:
-        # region Trace attributes
-        # trace overall data/attributes
-        case_id = trace.attributes.get('concept:name', None)
-        if len(trace) == 0:
-            continue
-        start_time = trace[0].get('time:timestamp', None)
-        end_time = trace[-1].get('time:timestamp', None)
-        
-        # for logical relative ratio if needed
-        # total_events = len(trace)
-        
-        # event duration
-        duration_in_seconds = None
-        if start_time and end_time:
-            duration_in_seconds = (end_time - start_time).total_seconds()
-        # endregion 
+    # compute differen time attributes
+    df['time:timestamp'] = pd.to_datetime(df['time:timestamp'])
 
-        # region Event attributes
-        # event attributes of a trace
-        # is idx relative sequence? --> logical relative?
-        for idx, event in enumerate(trace):
-            # time stamps
-            # 0. timestamp - actual time
-            actual_time = event.get('time:timestamp', None)
-            # 1. Relative Time: Event time - Trace start time (in seconds)
-            relative_time = None
-            if start_time and actual_time:
-                # Time difference in seconds from the trace's start time
-                relative_time = (actual_time - start_time).total_seconds()
-            # 2. Relative Ratio: Relative Time / Trace Duration (Normalized time [0, 1] using actual time)
-            # This is the more common interpretation for 'Relative Ratio' in time-based charts.
-            relative_ratio = None
-            if relative_time is not None:
-                if duration_in_seconds > 0:
-                    # Safe division
-                    relative_ratio = relative_time / duration_in_seconds
-                elif duration_in_seconds == 0:
-                    # If duration is 0, the event is the only event or all events are instantaneous.
-                    # Since relative_time must also be 0 in this case, the ratio is 0.
-                    relative_ratio = 0.0
-            # 3. timestamp - Logical Time: Sequence of all Events across all traces
-            logical_time = global_event_index
-            global_event_index += 1 # Increment for the next event
-            # 4. timestamp - logical_relative
-            logical_relative = idx
+    # 1. relative_time
+    df['start_time'] = df.groupby('case:concept:name')['time:timestamp'].transform('min')
+    df['relative_time'] = (df['time:timestamp'] - df['start_time']).dt.total_seconds()
+    # ToDo: remove this if we need start time of a trace
+    df = df.drop(columns=['start_time'])
+    # print(df[['case:concept:name', 'concept:name', 'time:timestamp', 'relative_time']].head())
 
-            
-            # # 5. timestamp - logical_relative_ratio 
-            # logical_relative = None
-            # if start_time and timestamp:
-            #     # logical_time = (timestamp - start_time).total_seconds()
-            #     if total_events and total_events > 0:
-            #         logical_relative = logical_time / total_events
-            
-            # other attributes
-            # Extract resource/group information (try multiple common XES attributes)
-            resource = (event.get('org:resource') or
-                        event.get('org:group') or
-                        event.get('resource') or
-                        event.get('user') or
-                        None)
+    # 2. relative_ratio
+    # maximum relative_time is the total duration because it's relatively the last
+    df['trace_duration'] = df.groupby('case:concept:name')['relative_time'].transform('max')
+    df['relative_ratio'] = np.where(
+        # Condition: duration_in_seconds == 0
+        df['trace_duration'] == 0,
 
-            events.append({
-                'case_id': case_id,
-                'event_index': idx,
-                # might be smart to add total_events for comparing this timestamp to overall
-                'activity': event.get('concept:name', None),
-                'resource': resource,
-                # time representations
-                'actual_time': actual_time,
-                'relative_time': relative_time,
-                'relative_ratio': relative_ratio,
-                'logical_time': logical_time,
-                'logical_relative': logical_relative
-            })
-        # endregion
-    # maybe ToDo: add trace dataframe so we have meta data about traces
-    return pd.DataFrame(events)
+        # Value if True: 
+        # If duration is 0, the event is the only event or all events are instantaneous.
+        # Since relative_time must also be 0 in this case, the ratio is 0.
+        0.0,
+
+        # Value if False: relative_ratio = relative_time / duration_in_seconds
+        df['relative_time'] / df['trace_duration']
+    )
+    df = df.drop(columns=['trace_duration'])
+    # print(df[['case:concept:name', 'concept:name', 'time:timestamp', 'relative_ratio']].sort_values(by='time:timestamp').head(7))
+
+    # 3. logical_time
+    df_sorted = df.sort_values(by='time:timestamp', ascending=True).copy()
+    # The order is preserved because the DataFrame is already sorted
+    codes, unique_timestamps = pd.factorize(df_sorted['time:timestamp'])
+    df_sorted['logical_time'] = codes
+    df['logical_time'] = df_sorted['logical_time']
+    # print(df[['case:concept:name', 'concept:name', 'time:timestamp', 'logical_time']].sort_values(by='time:timestamp').head(7))
+
+    # 4. logical_relative
+    df = df.sort_values(by=['case:concept:name', 'time:timestamp'], ascending=True)
+    df['logical_relative'] = (
+        df.groupby('case:concept:name')['time:timestamp']
+        .transform(lambda x: pd.factorize(x)[0])
+    )
+    # print(df[['case:concept:name', 'concept:name',  'time:timestamp', 'logical_relative']].head(7))
+    rename_df_columns(df)
+    print("Loader:")
+    print(df[['case_id', 'activity', 'resource', 'actual_time']].sort_values(by='case_id').head(7))
+
+    return df
+
+def validate_xes_input(dataframe):
+    '''
+    1. case_id (case:concept:name)
+    2. activity (concept:name)
+    3. timestamp (time:timestamp)
+    4. resource (org:group) - this one is not default by pm4py
+    '''
+    required_columns = [
+        'case:concept:name',
+        'concept:name',
+        'time:timestamp',
+        'org:group'
+    ]
+
+    data_is_usable = all(col in dataframe.columns for col in required_columns)
+
+    if data_is_usable:
+        return
+
+    # handle invalid columnnames:
+    handle_unreadable_xes_file()
+
+
+def handle_unreadable_xes_file():
+    st.session_state.log_loaded = False
+    # # Print the missing ones
+    # missing = [col for col in required_columns if col not in dataframe.columns]
+    # print(f"\n❌ Missing columns: {missing}")
+    # TODO: add streamlit input for the missing columns
+    # 
+    # dataframe = pm4py.format_dataframe(
+    #     dataframe, 
+    #     case_id='case:concept:name', # insert streamlit input
+    #     activity_key='concept:name', # insert streamlit input
+    #     timestamp_key='time:timestamp' # insert streamlit input
+    # )
+
+def rename_df_columns(dataframe):
+    column_mapping = {
+        'case:concept:name': 'case_id',
+        'concept:name': 'activity',
+        'time:timestamp': 'actual_time',
+        'org:group':  'resource'
+    }
+    dataframe.rename(columns=column_mapping, inplace=True)
+
+
 
 
 if __name__ == '__main__':
-    load_xes_log("data/Hospital_log.xes")
-
+    # load_xes_log("./data/Hospital_log.xes")
+    load_xes_log("data/Sepsis Cases - Event Log.xes/Sepsis Cases - Event Log.xes")
