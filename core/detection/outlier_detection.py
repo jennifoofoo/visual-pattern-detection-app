@@ -45,16 +45,18 @@ class OutlierDetectionPattern(Pattern):
     def detect(self) -> bool:
         """Detect various types of outliers in the event log."""
         # Check if outlier detection is meaningful for this view
-        x_axis = self.view_config.get('x_axis', '')
-        y_axis = self.view_config.get('y_axis', '')
+        x_axis = self.view_config.get('x', '')
+        y_axis = self.view_config.get('y', '')
+        color = self.view_config.get('color', '')
 
         print(f"=== OUTLIER DETECTION START ===")
         print(f"available view: {self.view_config}")
-        print(f"View config: x={x_axis}, y={y_axis}")
+        print(f"View config: x={x_axis}, y={y_axis}, color={color}")
         print(f"DataFrame shape: {self.df.shape}")
 
-        is_meaningful = is_pattern_meaningful(x_axis, y_axis, 'outlier')
+        is_meaningful = is_pattern_meaningful(x_axis, y_axis, color, 'outlier')
         print(f"Is pattern meaningful for outlier detection: {is_meaningful}")
+        print(f"Lookup key: ({x_axis}, {y_axis}, {color})")
 
         if not is_meaningful:
             print("Outlier detection skipped - not meaningful for this view")
@@ -847,14 +849,14 @@ class OutlierDetectionPattern(Pattern):
 
     def visualize(self, df: pd.DataFrame, fig: go.Figure) -> go.Figure:
         """Add outlier visualization to the existing figure.
-        
+
         Parameters
         ----------
         df : pd.DataFrame
             Event log dataframe (for consistency with Pattern API, not used here)
         fig : go.Figure
             Plotly figure to annotate
-            
+
         Returns
         -------
         go.Figure
@@ -867,7 +869,7 @@ class OutlierDetectionPattern(Pattern):
         all_outlier_indices = self.outliers.get('combined', [])
         if not all_outlier_indices:
             return fig
-        
+
         # Filter by selected outlier types if specified
         import streamlit as st
         selected_types = st.session_state.get('selected_outlier_types', None)
@@ -880,7 +882,7 @@ class OutlierDetectionPattern(Pattern):
                 if any(otype in selected_types for otype in outlier_reasons):
                     filtered_indices.append(idx)
             all_outlier_indices = filtered_indices
-            
+
             if not all_outlier_indices:
                 return fig
 
