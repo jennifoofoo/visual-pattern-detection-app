@@ -124,8 +124,6 @@ detector.MIN_SAMPLES_FOR_NORMALITY = 5
 | X-Axis | Y-Axis | Why Not? |
 |--------|--------|----------|
 | `logical_time` | any | Not time-based, just sequential counter |
-| `event_index` | any | Position-based, not time-based |
-| any | `variant` | Too many categories, low sample sizes |
 
 ---
 
