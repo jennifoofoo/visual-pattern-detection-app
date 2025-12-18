@@ -209,66 +209,38 @@ def display_outlier_tab():
 # endregion
 
 # region Gap
-def _detect_gaps(x_col, y_col, df_selected):
-    """Detect gaps and store in session state."""
+def _detect_gaps(x_col, y_col, df_selected, min_samples=None):
+    """Detect gaps and store in session state.
+    
+    Args:
+        x_col: X-axis column name
+        y_col: Y-axis column name  
+        df_selected: DataFrame with selected data
+        min_samples: Minimum samples per transition (default: from session_state or 5)
+    """
     try:
+        # Get min_samples from session state or use default
+        if min_samples is None:
+            min_samples = st.session_state.get('gap_min_samples', 5)
+        
         y_is_categorical = df_selected[y_col].nunique() <= 60
         view_config = {'x': x_col, 'y': y_col}
         gap_detector = GapPattern(
             view_config=view_config,
             y_is_categorical=y_is_categorical
         )
-        gap_detector.MIN_SAMPLES_FOR_NORMALITY = 5
+        gap_detector.MIN_SAMPLES_FOR_NORMALITY = min_samples
         gap_detector.detect(df_selected)
         
         if gap_detector.detected is not None and len(gap_detector.detected) > 0:
             st.session_state['gap_detector'] = gap_detector
             st.session_state.visible_gap = True
+        else:
+            # Clear gap detector if no gaps found
+            if 'gap_detector' in st.session_state:
+                del st.session_state['gap_detector']
     except Exception as e:
         st.warning(f"Gap detection skipped: {str(e)}")
-
-def handle_gap_detection_logic(df_selected, x_col, y_col, min_samples=5):
-    """Execute gap detection logic."""
-    try:
-        # Determine if Y is categorical
-        y_is_categorical = df_selected[y_col].nunique() <= 60
-
-        # Create view configuration for gap detection
-        view_config = {
-            'x': x_col,
-            'y': y_col
-        }
-
-        # Create gap detector
-        with st.spinner("Analyzing process transitions and detecting abnormal gaps..."):
-            gap_detector = GapPattern(
-                view_config=view_config,
-                y_is_categorical=y_is_categorical
-            )
-            
-            # Apply min_samples setting
-            gap_detector.MIN_SAMPLES_FOR_NORMALITY = min_samples
-
-            # Detect gaps
-            gap_detector.detect(df_selected)
-
-            if gap_detector.detected is None:
-                # Clear gap detector if no gaps found
-                if 'gap_detector' in st.session_state:
-                    del st.session_state['gap_detector']
-                st.warning(
-                    "No abnormal gaps detected. This could mean:\n"
-                    "- All gaps are within normal thresholds for their transitions\n"
-                    "- Not enough transitions have sufficient samples (≥5)\n"
-                    "- The log doesn't contain 'case_id' or 'activity' columns"
-                )
-            else:
-                # Store gap detection results
-                st.session_state['gap_detector'] = gap_detector
-
-    except Exception as e:
-        st.error(f"Error during gap detection: {str(e)}")
-        st.exception(e)
 
 def display_gap_tab():
     """Display Gap Detection pattern details in tab with individual transition selection."""
@@ -306,7 +278,7 @@ def display_gap_tab():
                             df_selected = plot_config['df_selected']
                             x_col = plot_config['x_col']
                             y_col = plot_config['y_col']
-                            handle_gap_detection_logic(df_selected, x_col, y_col, min_samples)
+                            _detect_gaps(x_col, y_col, df_selected, min_samples)
                             st.rerun()
         
         # === NESTED TABS FOR OVERVIEW AND TRANSITION CONTROL ===
