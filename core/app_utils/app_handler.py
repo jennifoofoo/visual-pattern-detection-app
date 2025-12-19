@@ -254,6 +254,12 @@ def display_chart():
         if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
             fig = st.session_state.temporal_clusters.visualize(df_selected, fig)
     
+    # Add sequence visualization if detected AND layer is visible
+    if st.session_state.get('visible_sequence', True):
+        if st.session_state.get('sequence_detected', False) and 'sequence_detector' in st.session_state:
+            selected = st.session_state.get('selected_seq_patterns', [])
+            fig = st.session_state.sequence_detector.visualize(df_selected, fig, selected_patterns=selected)
+    
     st.plotly_chart(fig, use_container_width=True)
     
     # Update stored figure
@@ -308,7 +314,16 @@ def sidebar_pattern_layer_controls():
             'visible_gap',
             'gap_transition_version',
             'checkbox_gap_transition_'
-        ) 
+        )
+
+    # Sequence Detection
+    if st.session_state.get('sequence_detected', False):
+        _render_pattern_checkbox(
+            "Sequence Detection",
+            'visible_sequence',
+            'sequence_pattern_version',
+            'checkbox_sequence_pattern_'
+        )
 # endregion
 
 # region Helpers
