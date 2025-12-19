@@ -16,17 +16,14 @@ X_AXIS_COLUMN_MAP = {
 Y_AXIS_COLUMN_MAP = {
     'Case ID': 'case_id',
     'Activity': 'activity',
-    # Used 'event_index_in_trace' in latest load_xes_log
-    'Event Index': 'event_index',
+    # TODO: what shall we do if there is no resource?
     # Assuming 'resource' is in the log/DataFrame
     'Resource': 'resource',
 }
 
 # Mapping for Dot Colors (Color/Dots Config)
 DOTS_COLOR_MAP = {
-    'Case ID (Default)': 'case_id',
     'Activity': 'activity',
+    'Case ID': 'case_id',
     'Resource': 'resource',
-    'Event Index (in trace)': 'event_index_in_trace',
-    'Global Logical Time': 'timestamp_logical_global',
 }

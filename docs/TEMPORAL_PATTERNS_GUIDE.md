@@ -25,7 +25,6 @@ The pattern uses DBSCAN clustering to find regions where events are densely pack
 |--------|--------|---------------|-------------|
 | `logical_time` | Non-Activity | Sequential counter | Logical time is just event ordering (1,2,3...) - clustering sequential numbers reveals no meaningful temporal patterns |
 | `logical_relative` | Non-Activity | Position counter | Just event position within traces (0,1,2...) - no actual time information |
-| `event_index` | Any | Index counter | Similar to logical_relative - shows sequence position, not timing |
 | `relative_ratio` | `case_id` | Cross-case normalization | Normalized time [0,1] loses meaning across different cases with different durations |
 | `relative_ratio` | `resource` | Cross-case normalization | Resource activities span multiple cases - [0,1] ratios are not comparable |
 | `actual_time` | `activity` | Visually Meaningless | For activity bursts visually meaningless |
