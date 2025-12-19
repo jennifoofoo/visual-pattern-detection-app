@@ -34,7 +34,10 @@ def _get_detected_pattern_tabs() -> tuple:
     if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
         tabs_names.append("Gap Detection")
         tabs_types.append('gap')
-    
+    if st.session_state.get('sequence_detected', False):
+        tabs_names.append("Sequence Detection")
+        tabs_types.append('sequence')
+
     return tabs_names, tabs_types
 
 def _display_pattern_tab(pattern_type: str):
@@ -45,6 +48,8 @@ def _display_pattern_tab(pattern_type: str):
         display_outlier_tab()
     elif pattern_type == 'gap':
         display_gap_tab()
+    elif pattern_type == 'sequence':
+        display_sequence_tab()
 
 
 
@@ -329,82 +334,68 @@ def _detect_sequences():
     """Detect horizontal sequences and store in session state."""
     try:
         sequence_detector = HorizontalSequencePatternDetector(
-            df=st.session_state.df,
             min_support=50
         )
         # TODO: 1. detect sequence to bool
-        if sequence_detector.detect_sequence():
+        if sequence_detector.detect():
             st.session_state.sequence_detector = sequence_detector
             st.session_state.sequence_detected = True
             st.session_state.visible_sequence = True
     except Exception as e:
         st.warning(f"Sequence detection skipped: {str(e)}")
 
-def handle_sequence_detection_logic():
-    """Execute outlier detection logic."""
-    with st.spinner("Analyzing outliers..."):
-        try:
-            # Use original data for outlier detection (not sampled data)
-            outlier_pattern = OutlierDetectionPattern(
-                df=st.session_state.df,  # Use full dataset
-                view_config=st.session_state.view_config
-            )
-            if outlier_pattern.detect():
-                # Store outlier results in session state
-                st.session_state.outlier_pattern = outlier_pattern
-                st.session_state.outlier_detected = True
-            else:
-                st.session_state.outlier_detected = False
-                st.info("No significant outliers detected!")
-        except Exception as e:
-            st.session_state.outlier_detected = False
-            st.error(f"Error during outlier detection: {str(e)}")
-
 def display_sequence_tab():
-    """Display Outlier Detection pattern details in tab with individual outlier type selection."""
-    if st.session_state.get('outlier_detected', False) and 'outlier_pattern' in st.session_state:
-        outlier_pattern = st.session_state.outlier_pattern
-        summary = outlier_pattern.get_summary()
+    """Display Sequence Detection pattern details in tab with individual outlier type selection."""
+    if st.session_state.get('sequence_detected', False) and 'sequence_detector' in st.session_state:
+        sequence_detector = st.session_state.sequence_detector
+        summary = sequence_detector.get_summary()
+        details = summary['details']
         
         # Layer visibility is now controlled by sidebar
-        layer_visible = st.session_state.get('visible_outlier', True)
+        layer_visible = st.session_state.get('visible_sequence', True)
         
         if not layer_visible:
             st.info("Layer hidden - toggle in sidebar to show on chart")
         
         stats = summary['details'].get('statistics', {})
-        st.success(f"{summary['count']} outliers detected ({stats.get('outlier_percentage', 0):.1f}%)")
+        st.success(f"{summary['count']} sequences detected.")
         
         # === NESTED TABS FOR OVERVIEW AND OUTLIER TYPE CONTROL ===
-        subtab1, subtab2 = st.tabs(["Overview", "Outlier Type Control"])
+        subtab1, subtab2 = st.tabs(["Overview", "Sequences Control"])
         
         with subtab1:
-            if summary['details'].get('outlier_details'):
-                for outlier_type, details in summary['details']['outlier_details'].items():
-                    st.write(f"- {outlier_type.replace('_', ' ').title()}: {details['count']} ({details['percentage']:.1f}%)")
+            pass
+            # if summary['details'].get('outlier_details'):
+            #     for outlier_type, details in summary['details']['outlier_details'].items():
+            #         st.write(f"- {outlier_type.replace('_', ' ').title()}: {details['count']} ({details['percentage']:.1f}%)")
         
         with subtab2:
             # Individual outlier type selection
             # Get outlier types
-            outlier_details = summary['details'].get('outlier_details', {})
-            if outlier_details:
-                # Create a dict with outlier types and their counts
-                outlier_types_dict = {
-                    f"{otype.replace('_', ' ').title()} ({details['count']})": otype 
-                    for otype, details in outlier_details.items() 
-                    if details['count'] > 0
+            pattern_stats = details.get('pattern_stats', {})
+
+            if pattern_stats:
+                # Create a dict: "Label (Count)" -> "Unique Pattern String"
+                # This matches the logic you used for the gap_detector
+                sequence_dict = {
+                    f"{p_str} ({stats['count']} cases)": p_str 
+                    for p_str, stats in pattern_stats.items()
                 }
                 
-                selected_types = dict_to_multicheckbox(
-                    outlier_types_dict,
-                    title="Select Outlier Types to Display",
-                    key_prefix="outlier_type"
+                # Call your helper function
+                selected_patterns = dict_to_multicheckbox(
+                    sequence_dict,
+                    title="Select Sequences to Display",
+                    key_prefix="seq_pattern"
                 )
                 
+                print("display sequence tab selected patterns:")
+                print(selected_patterns)
+
                 # Store selected types in session state
-                st.session_state['selected_outlier_types'] = selected_types
+                st.session_state['selected_seq_patterns'] = selected_patterns
                 
-                if selected_types:
-                    st.success(f"✅ {len(selected_types)} of {len(outlier_types_dict)} outlier types selected")
+                if selected_patterns:
+                    st.success(f"✅ {len(selected_patterns)} of {len(sequence_dict)} sequences selected")
             else:
-                st.info("No outlier type details available")
+                st.info("No sequence details available")

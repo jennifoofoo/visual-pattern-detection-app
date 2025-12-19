@@ -13,6 +13,16 @@ from core.app_utils.mappings import X_AXIS_COLUMN_MAP, Y_AXIS_COLUMN_MAP, DOTS_C
 
 from prefixspan import PrefixSpan
 
+'''
+TODO:
+1. improve visualize method
+currently pass because too many sequences make application crash
+
+2. add min support parameter to UI
+
+TODO LATER: 
+preprocessing: make sets of events when same timestamp
+'''
 
 class ChartConfig:
     """Stub for chart configuration, e.g., x_axis, y_axis, dot"""
@@ -36,10 +46,10 @@ class ChartConfig:
         self.df = full_df[[self.x_axis_df_key, self.y_axis_df_key, self.dot_df_key]].copy()
 
     def get_chart_config_from_streamlit_state(self):
-        x_axis = st.session_state.current_view['x_axis']
-        y_axis = st.session_state.current_view['y_axis']
-        dot_input = st.session_state.current_view['dot']
-        df_full = st.session_state.get('df_full', None)
+        x_axis = st.session_state.view_config['x']
+        y_axis = st.session_state.view_config['y']
+        dot_input = st.session_state.view_config['color']
+        df_full = st.session_state.get('df', None)
 
         assert x_axis is not None, "X-Axis user input is missing from session state."
         assert y_axis is not None, "Y-Axis user input is missing from session state."
@@ -81,6 +91,7 @@ class HorizontalSequencePatternDetector(Pattern):
         self.min_support = min_support_count # absolute count
 
         # results
+        self.detected = False
         self.prefix_span = None
         self.df_found_patterns = pd.DataFrame()
 
@@ -88,9 +99,9 @@ class HorizontalSequencePatternDetector(Pattern):
         # this is also needed for visualization
         self.results = pd.DataFrame()
 
-    def detect_sequence(self):
+    def detect(self):
         if self.warn_grouping_key_dot_config:
-            return {}
+            return False
         # 1. Preprocessing Data for PrefixSpan
         sequence_data = self.prepare_data_for_prefixspan() 
         # print(sequence_data)
@@ -103,7 +114,13 @@ class HorizontalSequencePatternDetector(Pattern):
         # 4. generate result dataframe? --> depends on visualization needs
         # 5. save final dataframe to session state
         self.df_found_patterns = pattern_map_df
-        return pattern_map_df
+
+        # todo: add original df context for visualization
+        full_df = st.session_state.get('df', pd.DataFrame())
+        self.results = self._add_original_df_context(full_df, self.df_found_patterns)
+
+        self.detected = True
+        return True
 
     def prepare_data_for_prefixspan(self) -> Dict[Any, pd.DataFrame]:
         """Prepare data for PrefixSpan sequence detection.
@@ -208,7 +225,158 @@ class HorizontalSequencePatternDetector(Pattern):
         pattern_map_df = pd.DataFrame(mapping_data).set_index('index')
 
         return pattern_map_df
+    
+    def get_sequences_summary(self) -> Dict[str, Any]:
+        if self.df_found_patterns.empty:
+            return {'total_patterns_found': 0, 'details': {'pattern_stats': {}}}
 
+        # 1. Group by the pattern tuple to aggregate stats
+        df_stats = self.df_found_patterns.copy()
+        df_stats['pattern_tuple'] = df_stats['pattern'].apply(tuple)
+        
+        pattern_groups = df_stats.groupby('pattern_tuple').agg({
+            'group_id': lambda x: sorted(list(set(x))),
+            'support_count': 'first',
+            'support_percentile': 'first',
+            'pattern_instance_id': 'nunique' # Count how many times this specific pattern type appears
+        })
+
+        # 2. Build the pattern_stats dictionary for the UI
+        pattern_stats = {}
+        for pattern_tuple, row in pattern_groups.iterrows():
+            pattern_str = " -> ".join(map(str, pattern_tuple))
+            pattern_stats[pattern_str] = {
+                'sequence': list(pattern_tuple),
+                'group_ids': row['group_id'],
+                'count': int(row['support_count']), # used for the label in the UI
+                'occurrence_count': int(row['pattern_instance_id']),
+                'support_percentile': float(row['support_percentile'])
+            }
+
+        return {
+            'total_patterns_found': len(self.df_found_patterns['pattern_instance_id'].unique()),
+            'max_pattern_length': self.df_found_patterns['pattern'].apply(len).max(),
+            'details': {
+                'pattern_stats': pattern_stats
+            }
+        }
+
+    def get_summary(self) -> Dict[str, Any]:
+        """
+        Get standardized pattern summary.
+        
+        Returns
+        -------
+        Dict[str, Any]
+            Standardized summary with pattern_type, detected, count, and details
+        """
+        sequences_summary = self.get_sequences_summary()
+        
+        return {
+            'pattern_type': 'sequence',
+            'detected': self.detected,
+            'count': sequences_summary['total_patterns_found'],
+            'details': sequences_summary['details']
+        }
+
+    def _add_original_df_context(self, full_df: pd.DataFrame, pattern_map_df: pd.DataFrame) -> pd.DataFrame:
+            """
+            Joins the detected pattern information back to the original full dataframe.
+            Because an event can belong to multiple patterns, this performs a left join 
+            that may result in duplicated rows (one for each pattern match).
+            """
+            if full_df.empty:
+                return pd.DataFrame()
+                
+            if pattern_map_df.empty:
+                # If no patterns found, return original df with empty pattern columns
+                results = full_df.copy()
+                results['is_part_of_pattern'] = False
+                results['pattern_instance_id'] = None
+                return results
+
+            # 
+            
+            # Perform the join. Since pattern_map_df index refers to full_df index:
+            # 'how=left' keeps all original data. 
+            # If an index exists multiple times in pattern_map_df, rows are duplicated here.
+            results = full_df.join(pattern_map_df, how='left')
+
+            # Clean up and add helper columns for the UI
+            results['is_part_of_pattern'] = results['is_part_of_pattern'].fillna(False)
+            
+            # Create a readable label for charts/tooltips
+            results['pattern_display_name'] = results.apply(
+                lambda x: f"Pattern {int(x['pattern_instance_id'])}: {' -> '.join(map(str, x['pattern']))}" 
+                if x['is_part_of_pattern'] else "No Pattern",
+                axis=1
+            )
+
+            return results
+    
+    def visualize(self, df, fig, selected_patterns=None):
+        pass
+        """
+        Overlays lines on the Plotly figure to connect events in detected sequences.
+        """
+        if not self.detected or self.results.empty:
+            return fig
+
+        # If no specific patterns are selected from the UI, 
+        # we might want to show nothing or all. 
+        # Based on your UI logic, let's assume we filter by selected_patterns.
+        if not selected_patterns:
+            return fig
+
+        # 1. Filter results to only include the selected patterns
+        # We create the same string representation used in your checkbox
+        plot_df = self.results.copy()
+        plot_df['pattern_str'] = plot_df.apply(
+            lambda x: " -> ".join(map(str, x['pattern'])) if x['is_part_of_pattern'] else None, 
+            axis=1
+        )
+        
+        filtered_results = plot_df[plot_df['pattern_str'].isin(selected_patterns)]
+
+        if filtered_results.empty:
+            return fig
+
+        # 2. Draw a line for each specific pattern instance (unique occurrence)
+        # We group by pattern_instance_id to ensure we don't connect different users together
+        instance_ids = filtered_results['pattern_instance_id'].unique()
+        
+        # Color mapping for pattern types (to keep the same color for same sequence templates)
+        unique_templates = list(filtered_results['pattern_str'].unique())
+        colors = [
+            '#636EFA', '#EF553B', '#00CC96', '#AB63FA', '#FFA15A', 
+            '#19D3F3', '#FF6692', '#B6E880', '#FF97FF', '#FECB52'
+        ]
+        color_map = {template: colors[i % len(colors)] for i, template in enumerate(unique_templates)}
+
+        for instance_id in instance_ids:
+            # Get events for this specific sequence instance
+            instance_data = filtered_results[filtered_results['pattern_instance_id'] == instance_id]
+            
+            # Sort by the x-axis (sequence axis) to ensure lines connect chronologically
+            instance_data = instance_data.sort_values(by=self.sequence_detection_axis)
+
+            template_str = instance_data['pattern_str'].iloc[0]
+
+            # Add the line trace
+            fig.add_trace(
+                go.Scatter(
+                    x=instance_data[self.sequence_detection_axis],
+                    y=instance_data[self.grouping_key],
+                    mode='lines',
+                    line=dict(color=color_map[template_str], width=2),
+                    name=f"Instance {int(instance_id)}",
+                    legendgroup=template_str, # Groups multiple instances of the same pattern together in legend
+                    showlegend=False,         # Hide individual instance IDs to avoid legend clutter
+                    hoverinfo='skip'          # Prevent line hover from blocking dot hover
+                )
+            )
+
+        return fig
 
 def find_subsequence_matches(sub: List[Any], seq: List[Any]) -> List[List[int]]:
     """
