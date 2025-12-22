@@ -43,6 +43,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects unusual events based on timing, resource behavior, and frequency patterns. Color-coded by case for case-level anomaly analysis.",
             "use_case": "Finding exceptional cases, data quality issues, resource violations",
             "output": "Outlier events with resource-specific and case-specific anomaly reasons"
+        },
+        "trend": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Trend line showing resource activity changes over time. Green for increasing, red for decreasing trends. Per-resource trend analysis available.",
+            "interpretation": "Detects monotonic trends in event frequency over time using Mann-Kendall test. Shows if resources are becoming more or less active.",
+            "use_case": "Finding workload shifts, seasonal patterns, process changes, resource utilization trends",
+            "output": "Trend direction, slope percentage, statistical significance (p-value), per-resource breakdown"
         }
     },
 
@@ -73,6 +81,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects unusual events based on timing, resource behavior, and frequency patterns. Color-coded by activity for activity-level anomaly analysis.",
             "use_case": "Finding exceptional resource-activity combinations, rare activities",
             "output": "Outlier events with resource-activity-specific anomaly reasons"
+        },
+        "trend": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Trend line showing resource activity changes over time. Per-resource trend analysis with activity breakdown.",
+            "interpretation": "Detects monotonic trends in event frequency. Shows if specific activities at resources are increasing or decreasing.",
+            "use_case": "Finding workload shifts per resource-activity combination",
+            "output": "Trend direction, slope percentage, statistical significance"
         }
     },
 
@@ -103,6 +119,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects unusual events based on timing, resource behavior, and frequency patterns. Color matches Y-axis for clear resource identification.",
             "use_case": "Finding exceptional resource behavior with clear visual separation",
             "output": "Outlier events with resource-specific anomaly reasons"
+        },
+        "trend": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Trend line showing resource activity changes over time with clear resource separation.",
+            "interpretation": "Detects monotonic trends in event frequency per resource.",
+            "use_case": "Finding workload shifts per resource",
+            "output": "Trend direction, slope percentage, statistical significance per resource"
         }
     },
 
@@ -133,6 +157,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects activities that happen at unusual times or with unusual frequency. Color-coded by case for case-level analysis.",
             "use_case": "Finding rare activities, off-hours events, frequency anomalies per case",
             "output": "Outlier events with activity-specific and case-specific anomaly reasons"
+        },
+        "trend": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Trend line showing activity frequency changes over time. Per-activity trend analysis.",
+            "interpretation": "Detects if specific activities are becoming more or less frequent over time.",
+            "use_case": "Finding process evolution, activity frequency shifts",
+            "output": "Trend direction and slope per activity"
         }
     },
 
@@ -163,6 +195,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects activities that happen at unusual times or with unusual frequency. Color matches Y-axis for clear activity identification.",
             "use_case": "Finding rare activities, off-hours events with clear visual separation",
             "output": "Outlier events with activity-specific anomaly reasons"
+        },
+        "trend": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Trend line showing activity frequency changes over time with clear activity separation.",
+            "interpretation": "Detects if specific activities are becoming more or less frequent.",
+            "use_case": "Finding process evolution per activity",
+            "output": "Trend direction and slope per activity"
         }
     },
 
@@ -193,6 +233,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects activities that happen at unusual times or with unusual frequency. Color-coded by resource for resource-level analysis.",
             "use_case": "Finding rare activities, identifying which resources perform unusual activities",
             "output": "Outlier events with activity-resource-specific anomaly reasons"
+        },
+        "trend": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Trend line showing activity frequency changes over time, colored by resource.",
+            "interpretation": "Detects if specific activities by specific resources are changing over time.",
+            "use_case": "Finding activity-resource combination shifts",
+            "output": "Trend direction and slope per activity"
         }
     },
 
@@ -223,6 +271,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects cases with unusual execution patterns or extreme durations. Color matches Y-axis for clear case identification.",
             "use_case": "Finding exceptional cases, compliance violations with clear visual separation",
             "output": "Outlier cases with anomaly reasons, colored by case"
+        },
+        "trend": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Trend line showing case start frequency over time.",
+            "interpretation": "Detects if case volume is increasing or decreasing over time.",
+            "use_case": "Finding business volume trends, seasonal patterns",
+            "output": "Case volume trend direction and slope"
         }
     },
 
@@ -253,6 +309,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects cases with unusual execution patterns or extreme durations. Color-coded by activity for activity-level analysis.",
             "use_case": "Finding exceptional cases, identifying which activities are outliers in each case",
             "output": "Outlier cases with activity-specific anomaly reasons"
+        },
+        "trend": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Trend line showing case volume over time, with activity distribution.",
+            "interpretation": "Detects case volume trends and activity composition changes.",
+            "use_case": "Finding business volume and activity mix trends",
+            "output": "Case volume trend with activity breakdown"
         }
     },
 
@@ -283,6 +347,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects cases with unusual execution patterns or extreme durations. Color-coded by resource for resource-level analysis.",
             "use_case": "Finding exceptional cases, identifying which resources are involved in outlier cases",
             "output": "Outlier cases with resource-specific anomaly reasons"
+        },
+        "trend": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Trend line showing case volume over time, with resource distribution.",
+            "interpretation": "Detects case volume trends and resource utilization changes.",
+            "use_case": "Finding business volume and resource allocation trends",
+            "output": "Case volume trend with resource breakdown"
         }
     },
 

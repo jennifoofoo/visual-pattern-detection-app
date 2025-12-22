@@ -30,7 +30,7 @@ def main():
     with col1:
         # Demo Mode Checkbox
         demo_mode = st.checkbox(
-            "🎬 Demo Mode", 
+            "Demo Mode", 
             value=True,
             help="Enable for fast gap detection (samples to 100 cases). Disable to analyze full dataset."
         )
@@ -42,9 +42,9 @@ def main():
     with col2:
         if st.session_state.data_loaded:
             app_handler.show_xes_summary()
-                else:
-        st.info("Please load your XES file first")
-        return
+        else:
+            st.info("Please load your XES file first")
+            return
     # endregion
 
     # region Chart Configuration and Plotting
@@ -60,7 +60,7 @@ def main():
     
     # Display chart persistently (survives reruns from pattern detection)
     app_handler.display_chart()
-            # endregion
+    # endregion
 
     # region Pattern Detection
     # Pattern Detection Section (only show if chart is plotted)
@@ -78,7 +78,7 @@ def main():
         st.divider()
         
         # Ollama Description
-        st.subheader(" AI Description")
+        st.subheader("AI Description")
         if st.button("Describe Chart", disabled=not st.session_state.data_loaded):
             app_handler.ollama_description_button()
     # endregion

@@ -7,6 +7,7 @@ from .cluster_pattern import ClusterPattern
 from .outlier_detection import OutlierDetectionPattern
 from .temporal_cluster import TemporalClusterPattern
 from .gap_pattern import GapPattern
+from .trend_pattern import TrendPattern
 
 __all__ = ['Pattern', 'ClusterPattern',
-           'OutlierDetectionPattern', 'TemporalClusterPattern', 'GapPattern']
+           'OutlierDetectionPattern', 'TemporalClusterPattern', 'GapPattern', 'TrendPattern']

@@ -12,6 +12,7 @@ from .pattern_base import Pattern
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import streamlit as st
 from typing import Dict, Any, List, Optional
 
 
@@ -400,7 +401,10 @@ class GapPattern(Pattern):
     
     def visualize(self, df: pd.DataFrame, fig: go.Figure) -> go.Figure:
         """
-        Overlay abnormal gaps on a Plotly figure using precomputed positions.
+        Overlay abnormal gaps on a Plotly figure using connecting lines.
+        
+        Uses dashed red lines between events to show gaps intuitively.
+        Much cleaner than rectangles - shows exactly where the delay is.
         
         Parameters
         ----------
@@ -412,59 +416,78 @@ class GapPattern(Pattern):
         Returns
         -------
         go.Figure
-            Figure with abnormal gap rectangles added
+            Figure with abnormal gap lines added
         """
         if self.detected is None or not self.detected.get('abnormal_gaps'):
             return fig
         
         abnormal_gaps = self.detected['abnormal_gaps']
-        y_col = self.view_config['y']
         
-        # For numeric Y: try to get actual plot range
-        if not self.y_is_categorical:
-            # Try to extract Y range from figure layout
-            if fig.layout.yaxis and fig.layout.yaxis.range:
-                y_min_plot = fig.layout.yaxis.range[0]
-                y_max_plot = fig.layout.yaxis.range[1]
-            else:
-                # Extract from figure traces
-                all_y_values = []
-                if fig.data:
-                    for trace in fig.data:
-                        if hasattr(trace, 'y') and trace.y is not None:
-                            all_y_values.extend([y for y in trace.y if y is not None])
-                
-                if all_y_values:
-                    y_min_plot = min(all_y_values)
-                    y_max_plot = max(all_y_values)
-                else:
-                    # Final fallback
-                    y_min_plot = df[y_col].min()
-                    y_max_plot = df[y_col].max()
-            
-            # Update all gaps to use actual plot range
-            for gap in abnormal_gaps:
-                gap['y_low'] = y_min_plot
-                gap['y_high'] = y_max_plot
+        # Filter by selected transitions if set
+        selected_transitions = st.session_state.get('selected_gap_transitions')
+        if selected_transitions is not None:
+            abnormal_gaps = [g for g in abnormal_gaps if g['transition'] in selected_transitions]
         
-        # Draw gaps
+        if not abnormal_gaps:
+            return fig
+        
+        # Collect all line coordinates for batch drawing
+        x_coords = []
+        y_coords = []
+        hover_texts = []
+        severities = []
+        
         for gap in abnormal_gaps:
             x_start = gap['x_start']
             x_end = gap['x_end']
-            y_low = gap['y_low']
-            y_high = gap['y_high']
+            y_from = gap['y_value_from']
+            y_to = gap['y_value_to']
+            severity = gap.get('severity', 1.0)
+            duration_hours = gap['duration'] / 3600  # Convert to hours
             
-            # Draw red rectangle for abnormal gap
-            fig.add_shape(
-                type="rect",
-                x0=x_start,
-                y0=y_low,
-                x1=x_end,
-                y1=y_high,
-                fillcolor="rgba(255, 0, 0, 0.25)",
-                line=dict(color="rgba(255, 0, 0, 0.6)", width=2),
-                layer="below"
-            )
+            # Format duration for hover
+            if duration_hours < 1:
+                duration_str = f"{duration_hours * 60:.0f} min"
+            elif duration_hours < 24:
+                duration_str = f"{duration_hours:.1f} hours"
+            else:
+                duration_str = f"{duration_hours / 24:.1f} days"
+            
+            # Add line segment (with None to break between segments)
+            x_coords.extend([x_start, x_end, None])
+            y_coords.extend([y_from, y_to, None])
+            hover_texts.extend([
+                f"Gap Start<br>{gap['transition']}<br>Duration: {duration_str}<br>Severity: {severity:.1f}x",
+                f"Gap End<br>{gap['transition']}<br>Duration: {duration_str}<br>Severity: {severity:.1f}x",
+                None
+            ])
+            severities.append(severity)
+        
+        # Calculate line opacity based on severity (more severe = more visible)
+        avg_severity = sum(severities) / len(severities) if severities else 1.0
+        opacity = min(0.8, 0.3 + avg_severity * 0.1)
+        
+        # Draw all gap lines as a single trace (much faster)
+        fig.add_trace(go.Scatter(
+            x=x_coords,
+            y=y_coords,
+            mode='lines+markers',
+            line=dict(
+                color=f'rgba(220, 53, 69, {opacity})',  # Bootstrap danger red
+                width=2,
+                dash='dot'  # Dotted line for gaps
+            ),
+            marker=dict(
+                size=8,
+                color='rgba(220, 53, 69, 0.8)',
+                symbol='circle',
+                line=dict(color='white', width=1)
+            ),
+            hoverinfo='text',
+            hovertext=hover_texts,
+            name=f'Gaps ({len(abnormal_gaps)})',
+            showlegend=True
+        ))
         
         return fig
     

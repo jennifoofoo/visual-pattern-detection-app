@@ -3,7 +3,7 @@ from core.data_processing import load_xes_log
 from core.evaluation.summary_generator import summarize_event_log
 from core.app_utils.mappings import X_AXIS_COLUMN_MAP, Y_AXIS_COLUMN_MAP, DOTS_COLOR_MAP
 from core.visualization.visualizer import plot_dotted_chart as plot_chart
-from core.detection import OutlierDetectionPattern, TemporalClusterPattern
+from core.detection import OutlierDetectionPattern, TemporalClusterPattern, TrendPattern
 from core.detection.gap_pattern import GapPattern
 from core.evaluation.ollama import OllamaEvaluator
 from core.utils.demo_sampling import sample_small_eventlog
@@ -225,16 +225,27 @@ def _detect_outliers():
         st.warning(f"Outlier detection skipped: {str(e)}")
 
 
-def _detect_gaps(x_col, y_col, df_selected):
-    """Detect gaps and store in session state."""
+def _detect_gaps(x_col, y_col, df_selected, min_samples=None):
+    """Detect gaps and store in session state.
+    
+    Args:
+        x_col: X-axis column name
+        y_col: Y-axis column name  
+        df_selected: DataFrame with selected data
+        min_samples: Minimum samples per transition (default: from session_state or 5)
+    """
     try:
+        # Get min_samples from session state or use default
+        if min_samples is None:
+            min_samples = st.session_state.get('gap_min_samples', 5)
+        
         y_is_categorical = df_selected[y_col].nunique() <= 60
         view_config = {'x': x_col, 'y': y_col}
         gap_detector = GapPattern(
             view_config=view_config,
             y_is_categorical=y_is_categorical
         )
-        gap_detector.MIN_SAMPLES_FOR_NORMALITY = 5
+        gap_detector.MIN_SAMPLES_FOR_NORMALITY = min_samples
         gap_detector.detect(df_selected)
         
         if gap_detector.detected is not None and len(gap_detector.detected) > 0:
@@ -244,11 +255,61 @@ def _detect_gaps(x_col, y_col, df_selected):
         st.warning(f"Gap detection skipped: {str(e)}")
 
 
+def _detect_trend(x_col, y_col, df_selected):
+    """Detect trends and store in session state."""
+    try:
+        view_config = {'x': x_col, 'y': y_col}
+        trend_detector = TrendPattern(
+            view_config=view_config,
+            aggregation_period='D',  # Daily aggregation
+            min_periods=3,  # Lowered for demo data
+            analyze_per_category=True
+        )
+        if trend_detector.detect(df_selected):
+            st.session_state['trend_detector'] = trend_detector
+            st.session_state.trend_detected = True
+            st.session_state.visible_trend = True
+        else:
+            # Still show in UI even if no significant trend
+            if trend_detector.global_trend is not None:
+                st.session_state['trend_detector'] = trend_detector
+                st.session_state.trend_detected = True
+                st.session_state.visible_trend = True
+    except Exception as e:
+        st.warning(f"Trend detection skipped: {str(e)}")
+        import traceback
+        print(f"Trend detection error: {traceback.format_exc()}")
+
+
+def _get_detection_cache_key(x_col, y_col, color_col, df_len):
+    """Generate a cache key for pattern detection."""
+    return f"{x_col}_{y_col}_{color_col}_{df_len}"
+
+
 def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df_selected):
     """Automatically detect all meaningful patterns after chart is plotted."""
+    # Check if we already detected patterns for this exact configuration
+    cache_key = _get_detection_cache_key(x_col, y_col, color_col, len(df_selected))
+    last_cache_key = st.session_state.get('_pattern_cache_key', '')
+    
+    if cache_key == last_cache_key:
+        # Patterns already detected for this config, skip re-detection
+        return
+    
+    # Store new cache key
+    st.session_state['_pattern_cache_key'] = cache_key
+    
+    # Clear old pattern results
+    st.session_state.temporal_detected = False
+    st.session_state.outlier_detected = False
+    st.session_state.trend_detected = False
+    if 'gap_detector' in st.session_state:
+        del st.session_state['gap_detector']
+    
     temporal_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'temporal_cluster_x')
     outlier_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'outlier')
     gap_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'gap')
+    trend_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'trend')
     
     with st.spinner("Auto-detecting patterns..."):
         if temporal_meaningful:
@@ -257,6 +318,8 @@ def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df
             _detect_outliers()
         if gap_meaningful:
             _detect_gaps(x_col, y_col, df_selected)
+        if trend_meaningful:
+            _detect_trend(x_col, y_col, df_selected)
 
 
 def display_chart():
@@ -316,6 +379,11 @@ def display_chart():
         if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
             fig = st.session_state.temporal_clusters.visualize(df_selected, fig)
     
+    # Add trend visualization if detected AND layer is visible
+    if st.session_state.get('visible_trend', True):
+        if st.session_state.get('trend_detected', False) and 'trend_detector' in st.session_state:
+            fig = st.session_state['trend_detector'].visualize(df_selected, fig)
+    
     st.plotly_chart(fig, use_container_width=True)
     
     # Update stored figure
@@ -327,6 +395,7 @@ def _is_any_pattern_detected() -> bool:
     return (
         st.session_state.get('temporal_detected', False) or 
         st.session_state.get('outlier_detected', False) or 
+        st.session_state.get('trend_detected', False) or
         ('gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None)
     )
 
@@ -396,6 +465,14 @@ def sidebar_pattern_layer_controls():
             'checkbox_gap_transition_'
         )
     
+    # Trend Detection
+    if st.session_state.get('trend_detected', False):
+        _render_pattern_checkbox(
+            "Trend Detection",
+            'visible_trend',
+            'trend_version',
+            'checkbox_trend_'
+        )
 
 
 # region Pattern Detection
@@ -439,48 +516,7 @@ def handle_outlier_detection_logic():
             st.session_state.outlier_detected = False
             st.error(f"Error during outlier detection: {str(e)}")
 
-def handle_gap_detection_logic(df_selected, x_col, y_col, min_samples=5):
-    """Execute gap detection logic."""
-    try:
-        # Determine if Y is categorical
-        y_is_categorical = df_selected[y_col].nunique() <= 60
-
-        # Create view configuration for gap detection
-        view_config = {
-            'x': x_col,
-            'y': y_col
-        }
-
-        # Create gap detector
-        with st.spinner("Analyzing process transitions and detecting abnormal gaps..."):
-            gap_detector = GapPattern(
-                view_config=view_config,
-                y_is_categorical=y_is_categorical
-            )
-            
-            # Apply min_samples setting
-            gap_detector.MIN_SAMPLES_FOR_NORMALITY = min_samples
-
-            # Detect gaps
-            gap_detector.detect(df_selected)
-
-            if gap_detector.detected is None:
-                # Clear gap detector if no gaps found
-                if 'gap_detector' in st.session_state:
-                    del st.session_state['gap_detector']
-                st.warning(
-                    "No abnormal gaps detected. This could mean:\n"
-                    "- All gaps are within normal thresholds for their transitions\n"
-                    "- Not enough transitions have sufficient samples (≥5)\n"
-                    "- The log doesn't contain 'case_id' or 'activity' columns"
-                )
-            else:
-                # Store gap detection results
-                st.session_state['gap_detector'] = gap_detector
-
-    except Exception as e:
-        st.error(f"Error during gap detection: {str(e)}")
-        st.exception(e)
+# handle_gap_detection_logic REMOVED - use _detect_gaps instead (avoids code duplication)
 
 def _get_detected_pattern_tabs() -> tuple:
     """
@@ -501,6 +537,9 @@ def _get_detected_pattern_tabs() -> tuple:
     if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
         tabs_names.append("Gap Detection")
         tabs_types.append('gap')
+    if st.session_state.get('trend_detected', False):
+        tabs_names.append("Trend Detection")
+        tabs_types.append('trend')
     
     return tabs_names, tabs_types
 
@@ -513,6 +552,8 @@ def _display_pattern_tab(pattern_type: str):
         display_outlier_tab()
     elif pattern_type == 'gap':
         display_gap_tab()
+    elif pattern_type == 'trend':
+        display_trend_tab()
 
 
 def handle_pattern_detection():
@@ -656,7 +697,7 @@ def display_gap_tab():
                             df_selected = plot_config['df_selected']
                             x_col = plot_config['x_col']
                             y_col = plot_config['y_col']
-                            handle_gap_detection_logic(df_selected, x_col, y_col, min_samples)
+                            _detect_gaps(x_col, y_col, df_selected, min_samples)
                             st.rerun()
         
         # === NESTED TABS FOR OVERVIEW AND TRANSITION CONTROL ===
@@ -696,11 +737,89 @@ def display_gap_tab():
                 st.session_state['selected_gap_transitions'] = selected_transitions
                 
                 if selected_transitions:
-                    st.success(f"✅ {len(selected_transitions)} of {len(transition_dict)} transitions selected")
+                    st.success(f"{len(selected_transitions)} of {len(transition_dict)} transitions selected")
             else:
                 st.info("No transition stats available")
 
 
+def display_trend_tab():
+    """Display Trend Detection pattern details in tab."""
+    if st.session_state.get('trend_detected', False) and 'trend_detector' in st.session_state:
+        detector = st.session_state['trend_detector']
+        summary = detector.get_summary()
+        
+        # Layer visibility status
+        layer_visible = st.session_state.get('visible_trend', True)
+        if not layer_visible:
+            st.info("Layer hidden - toggle in sidebar to show on chart")
+        
+        # Global trend info
+        global_trend = summary.get('global_trend', 'no_trend')
+        global_change = summary.get('global_change', 0)
+        p_value = summary.get('p_value', 1.0)
+        
+        # Trend icon
+        if global_trend == 'increasing':
+            trend_icon = '↗'
+            trend_color = 'green'
+        elif global_trend == 'decreasing':
+            trend_icon = '↘'
+            trend_color = 'red'
+        elif global_trend == 'stable':
+            trend_icon = '→'
+            trend_color = 'blue'
+        else:  # no_trend
+            trend_icon = '−'
+            trend_color = 'gray'
+        
+        # Format slope - use more precision for small values
+        def format_slope(val):
+            if abs(val) < 0.1:
+                return f"{val:+.3f}%" if val != 0 else "~0%"
+            return f"{val:+.1f}%"
+        
+        # Display summary
+        if global_trend == 'increasing':
+            st.success(f"{trend_icon} {global_trend.upper()}: {format_slope(global_change)} per period (p={p_value:.4f})")
+        elif global_trend == 'decreasing':
+            st.error(f"{trend_icon} {global_trend.upper()}: {format_slope(global_change)} per period (p={p_value:.4f})")
+        elif global_trend == 'stable':
+            st.info(f"{trend_icon} STABLE: No practical trend (change < 0.5% per period)")
+        else:
+            st.warning("No significant trend detected")
+        
+        # Nested tabs for Overview and Details
+        subtab1, subtab2 = st.tabs(["Overview", "Category Trends"])
+        
+        with subtab1:
+            st.write("**Global Event Frequency Trend:**")
+            st.write(f"- Direction: {global_trend}")
+            st.write(f"- Change rate: {format_slope(global_change)} per period")
+            st.write(f"- Statistical significance: p = {p_value:.4f}")
+            
+            if p_value <= 0.05:
+                st.write("- Trend is **statistically significant** (p ≤ 0.05)")
+            else:
+                st.write("- Trend is **not statistically significant** (p > 0.05)")
+        
+        with subtab2:
+            # Show per-category trends (only for meaningful categories like activity/resource)
+            details = summary.get('details', {})
+            category_trends = details.get('category_trends', [])
+            
+            if category_trends:
+                st.write("**Significant Category Trends:**")
+                for cat, info in category_trends:
+                    trend_dir = info.get('trend', 'no_trend')
+                    slope_pct = info.get('slope_percent', 0)
+                    cat_p_value = info.get('p_value', 1.0)
+                    
+                    if trend_dir == 'increasing':
+                        st.write(f"- ↗ **{cat}**: {format_slope(slope_pct)} (p={cat_p_value:.4f})")
+                    elif trend_dir == 'decreasing':
+                        st.write(f"- ↘ **{cat}**: {format_slope(slope_pct)} (p={cat_p_value:.4f})")
+            else:
+                st.caption("Category trends only available for Activity or Resource axes")
 
 
 
