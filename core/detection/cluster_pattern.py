@@ -566,6 +566,7 @@ class ClusterPattern(Pattern):
 
         x_col = self.view_config['x']
         y_col = self.view_config['y']
+        color_col = self.view_config.get('color')
 
         # Get the coordinates used for clustering
         coordinates = self.detected.get('coordinates')
@@ -580,7 +581,8 @@ class ClusterPattern(Pattern):
             cluster_indices = original_indices[mask]
 
             # Get original data for these points (for display)
-            cluster_data = df.iloc[cluster_indices]
+            # Use .loc since cluster_indices are index LABELS, not positions
+            cluster_data = df.loc[cluster_indices]
 
             color = colors[i % len(colors)]
 
@@ -597,8 +599,6 @@ class ClusterPattern(Pattern):
                 # Get the actual min/max values from original data
                 x_min = cluster_data[x_col].min()
                 x_max = cluster_data[x_col].max()
-                y_min = cluster_data[y_col].min()
-                y_max = cluster_data[y_col].max()
 
                 # Add padding based on coordinate space
                 coord_x_range = coord_x_max - coord_x_min
@@ -612,6 +612,22 @@ class ClusterPattern(Pattern):
                         padding_factor if time_range.total_seconds() > 0 else pd.Timedelta(hours=1)
                     x_min_padded = pd.to_datetime(x_min) - padding
                     x_max_padded = pd.to_datetime(x_max) + padding
+                elif pd.api.types.is_object_dtype(cluster_data[x_col]):
+                    # For categorical x-axis, use category names
+                    all_x_categories = df[x_col].unique().tolist()
+                    cluster_x_categories = cluster_data[x_col].unique(
+                    ).tolist()
+                    cluster_x_indices = [all_x_categories.index(
+                        cat) for cat in cluster_x_categories if cat in all_x_categories]
+
+                    if cluster_x_indices:
+                        min_idx = min(cluster_x_indices)
+                        max_idx = max(cluster_x_indices)
+                        x_min_padded = all_x_categories[min_idx]
+                        x_max_padded = all_x_categories[max_idx]
+                    else:
+                        x_min_padded = x_min
+                        x_max_padded = x_max
                 else:
                     # For numeric axes
                     x_range = x_max - x_min if x_max != x_min else 1
@@ -619,19 +635,37 @@ class ClusterPattern(Pattern):
                     x_min_padded = x_min - padding
                     x_max_padded = x_max + padding
 
-                # For y-axis: use categorical indices from plotly
-                # Get unique y values in this cluster and find their range
-                y_unique = cluster_data[y_col].unique()
-                if len(y_unique) == 1:
-                    # Single value, use fixed padding
-                    y_min_padded = -0.4
-                    y_max_padded = 0.4
+                # For y-axis: handle categorical properly
+                if pd.api.types.is_object_dtype(cluster_data[y_col]):
+                    # For categorical y-axis, use category names
+                    all_y_categories = df[y_col].unique().tolist()
+                    cluster_y_categories = cluster_data[y_col].unique(
+                    ).tolist()
+                    cluster_y_indices = [all_y_categories.index(
+                        cat) for cat in cluster_y_categories if cat in all_y_categories]
+
+                    if cluster_y_indices:
+                        min_idx = min(cluster_y_indices)
+                        max_idx = max(cluster_y_indices)
+                        y_min_padded = all_y_categories[min_idx]
+                        y_max_padded = all_y_categories[max_idx]
+                    else:
+                        y_min_padded = cluster_y_categories[0]
+                        y_max_padded = cluster_y_categories[-1] if len(
+                            cluster_y_categories) > 1 else cluster_y_categories[0]
                 else:
-                    # Multiple values - padding in categorical space
-                    y_min_padded = -0.4
-                    y_max_padded = len(y_unique) - 0.6
+                    # Numeric y-axis
+                    y_min = cluster_data[y_col].min()
+                    y_max = cluster_data[y_col].max()
+                    y_range = y_max - y_min if y_max != y_min else 1
+                    padding = y_range * padding_factor
+                    y_min_padded = y_min - padding
+                    y_max_padded = y_max + padding
             else:
                 # Fallback for hierarchical clustering (no coordinates)
+                # For categorical axes, we need to get all categories from the figure/dataframe
+                # to properly calculate indices for rectangles
+
                 # For x-axis
                 if pd.api.types.is_datetime64_any_dtype(cluster_data[x_col]):
                     time_range = pd.to_datetime(
@@ -641,22 +675,64 @@ class ClusterPattern(Pattern):
                         cluster_data[x_col].min()) - padding
                     x_max_padded = pd.to_datetime(
                         cluster_data[x_col].max()) + padding
+                elif pd.api.types.is_object_dtype(cluster_data[x_col]):
+                    # For categorical x-axis (e.g., activity), get all categories and their indices
+                    all_x_categories = df[x_col].unique().tolist()
+                    cluster_x_categories = cluster_data[x_col].unique(
+                    ).tolist()
+
+                    # Find the indices of cluster categories in the full category list
+                    cluster_x_indices = [all_x_categories.index(
+                        cat) for cat in cluster_x_categories if cat in all_x_categories]
+
+                    if cluster_x_indices:
+                        min_idx = min(cluster_x_indices)
+                        max_idx = max(cluster_x_indices)
+                        # Use category names with half-category padding for rectangle width
+                        x_min_padded = all_x_categories[min_idx]
+                        x_max_padded = all_x_categories[max_idx]
+                    else:
+                        x_min_padded = cluster_x_categories[0]
+                        x_max_padded = cluster_x_categories[-1] if len(
+                            cluster_x_categories) > 1 else cluster_x_categories[0]
                 else:
-                    x_min_padded = cluster_data[x_col].min()
-                    x_max_padded = cluster_data[x_col].max()
+                    # Numeric x-axis
+                    x_range = cluster_data[x_col].max(
+                    ) - cluster_data[x_col].min()
+                    padding = x_range * 0.1 if x_range > 0 else 0.5
+                    x_min_padded = cluster_data[x_col].min() - padding
+                    x_max_padded = cluster_data[x_col].max() + padding
 
                 # For y-axis: get actual categorical values
                 if pd.api.types.is_object_dtype(cluster_data[y_col]):
-                    y_unique = cluster_data[y_col].unique()
-                    # Use the actual category names for the rectangle
-                    y_min_padded = y_unique[0]
-                    y_max_padded = y_unique[-1] if len(
-                        y_unique) > 1 else y_unique[0]
+                    # For categorical y-axis, get all categories and their indices
+                    all_y_categories = df[y_col].unique().tolist()
+                    cluster_y_categories = cluster_data[y_col].unique(
+                    ).tolist()
+
+                    # Find the indices of cluster categories in the full category list
+                    cluster_y_indices = [all_y_categories.index(
+                        cat) for cat in cluster_y_categories if cat in all_y_categories]
+
+                    if cluster_y_indices:
+                        min_idx = min(cluster_y_indices)
+                        max_idx = max(cluster_y_indices)
+                        # Use category names
+                        y_min_padded = all_y_categories[min_idx]
+                        y_max_padded = all_y_categories[max_idx]
+                    else:
+                        y_min_padded = cluster_y_categories[0]
+                        y_max_padded = cluster_y_categories[-1] if len(
+                            cluster_y_categories) > 1 else cluster_y_categories[0]
                 else:
-                    y_min_padded = cluster_data[y_col].min() - 0.4
-                    y_max_padded = cluster_data[y_col].max() + 0.4
+                    y_range = cluster_data[y_col].max(
+                    ) - cluster_data[y_col].min()
+                    padding = y_range * 0.1 if y_range > 0 else 0.5
+                    y_min_padded = cluster_data[y_col].min() - padding
+                    y_max_padded = cluster_data[y_col].max() + padding
 
             # Add rectangle shape for cluster boundary
+            # Use category names directly for categorical axes - Plotly accepts them!
             fig.add_shape(
                 type="rect",
                 x0=x_min_padded, x1=x_max_padded,
@@ -667,11 +743,19 @@ class ClusterPattern(Pattern):
                 layer="below"
             )
 
-            # Add transparent hover area for the cluster
-            # Create a rectangle perimeter using 4 points
-            center_x = cluster_data[x_col].mean()
-            center_y = cluster_data[y_col].iloc[len(
-                cluster_data)//2] if pd.api.types.is_object_dtype(cluster_data[y_col]) else cluster_data[y_col].mean()
+            # Calculate center point for hover marker
+            x_is_object = pd.api.types.is_object_dtype(cluster_data[x_col])
+            y_is_object = pd.api.types.is_object_dtype(cluster_data[y_col])
+
+            if x_is_object:
+                center_x = cluster_data[x_col].iloc[len(cluster_data)//2]
+            else:
+                center_x = cluster_data[x_col].mean()
+
+            if y_is_object:
+                center_y = cluster_data[y_col].iloc[len(cluster_data)//2]
+            else:
+                center_y = cluster_data[y_col].mean()
 
             fig.add_trace(go.Scatter(
                 x=[center_x],
@@ -693,7 +777,7 @@ class ClusterPattern(Pattern):
         noise_mask = labels == -1
         if np.any(noise_mask):
             noise_indices = original_indices[noise_mask]
-            noise_data = df.iloc[noise_indices]
+            noise_data = df.loc[noise_indices]
 
             fig.add_trace(go.Scatter(
                 x=noise_data[x_col],

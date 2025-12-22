@@ -73,9 +73,10 @@ class TemporalClusterPattern(Pattern):
             True if any meaningful patterns are detected
         """
         # Check if temporal_cluster_x is meaningful for this view
-        if not is_pattern_meaningful(self.x_axis, self.y_axis, 'temporal_cluster_x'):
+        # Note: color is None for temporal cluster pattern (not used)
+        if not is_pattern_meaningful(self.x_axis, self.y_axis, None, 'temporal_cluster_x'):
             return False
-        
+
         # Use provided df or fall back to self.df
         if df is not None:
             self.df = df
@@ -140,7 +141,8 @@ class TemporalClusterPattern(Pattern):
                 # This adapts to the actual process duration
                 std_based = df_work['time_numeric'].std() * 0.5
                 range_based = time_range * 0.05
-                self.temporal_eps = min(std_based, range_based, 7200)  # Max 2 hours        # Perform DBSCAN clustering on time dimension
+                # Max 2 hours        # Perform DBSCAN clustering on time dimension
+                self.temporal_eps = min(std_based, range_based, 7200)
         X = df_work[['time_numeric']].values
         clustering = DBSCAN(eps=self.temporal_eps,
                             min_samples=self.min_cluster_size)
@@ -244,22 +246,20 @@ class TemporalClusterPattern(Pattern):
 
         return len(self.clusters['activity_time']) > 0
 
-
-
     # ==================== Visualization Support ====================
 
     def visualize(self, df: pd.DataFrame, fig: go.Figure) -> go.Figure:
-        #### FOR NOW ONLY ACTIVITY BURSTS IS VISUALISED
+        # FOR NOW ONLY ACTIVITY BURSTS IS VISUALISED
         """
         Add cluster visualizations to the figure.
-        
+
         Parameters
         ----------
         df : pd.DataFrame
             Event log dataframe
         fig : go.Figure
             Plotly figure to annotate
-            
+
         Returns
         -------
         go.Figure
@@ -286,14 +286,16 @@ class TemporalClusterPattern(Pattern):
 
         # Add visual overlays to the figure
         import plotly.graph_objects as go
-        
+
         # Check for selected clusters filter
         import streamlit as st
-        selected_clusters = st.session_state.get('selected_temporal_clusters', None)
+        selected_clusters = st.session_state.get(
+            'selected_temporal_clusters', None)
 
         # Visualize temporal bursts
         if 'temporal_bursts' in self.clusters:
-            self._add_burst_visualization(fig, selected_filter=selected_clusters)
+            self._add_burst_visualization(
+                fig, selected_filter=selected_clusters)
 
         # Visualize activity-time clusters
         if 'activity_time' in self.clusters:
@@ -303,7 +305,7 @@ class TemporalClusterPattern(Pattern):
 
     def _add_burst_visualization(self, fig, selected_filter=None):
         """Add temporal burst overlays to figure.
-        
+
         Parameters
         ----------
         fig : go.Figure
@@ -314,11 +316,11 @@ class TemporalClusterPattern(Pattern):
         import plotly.graph_objects as go
 
         bursts = self.clusters['temporal_bursts']
-        
+
         # Filter by selection if provided
         if selected_filter is not None and len(selected_filter) > 0:
             bursts = [b for b in bursts if b in selected_filter]
-        
+
         if not bursts:
             return
 
