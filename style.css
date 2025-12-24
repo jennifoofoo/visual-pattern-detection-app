@@ -123,6 +123,61 @@ html, body {
   background: transparent !important;
 }
 
+/* Sidebar Toggle Button - Always Visible & White */
+[data-testid="collapsedControl"] {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: fixed !important;
+  left: 0 !important;
+  top: 0.75rem !important;
+  z-index: 999999 !important;
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-medium) !important;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0 !important;
+  padding: 0.5rem 0.75rem !important;
+  transition: all 0.2s ease !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+[data-testid="collapsedControl"]:hover {
+  background: var(--bg-hover) !important;
+  border-color: var(--border-strong) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+[data-testid="collapsedControl"] svg {
+  color: var(--text-primary) !important;
+  fill: var(--text-primary) !important;
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+}
+
+/* Sidebar collapse button when sidebar is open */
+[data-testid="stSidebar"] button[kind="header"] {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  background: transparent !important;
+  border: 1px solid var(--border-medium) !important;
+  border-radius: var(--radius-md) !important;
+  padding: 0.5rem !important;
+  transition: all 0.2s ease !important;
+  margin-bottom: var(--space-md) !important;
+}
+
+[data-testid="stSidebar"] button[kind="header"]:hover {
+  background: var(--bg-hover) !important;
+  border-color: var(--border-strong) !important;
+}
+
+[data-testid="stSidebar"] button[kind="header"] svg {
+  color: var(--text-primary) !important;
+  fill: var(--text-primary) !important;
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+}
+
 .sidebar-title {
   font-size: 1rem;
   font-weight: 600;
