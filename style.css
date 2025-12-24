@@ -188,9 +188,21 @@ html, body {
 
 .sidebar-subtitle {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--text-primary);
   font-weight: 400;
   margin-bottom: var(--space-xl);
+}
+
+/* All text in sidebar should be white */
+[data-testid="stSidebar"] * {
+  color: var(--text-primary) !important;
+}
+
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] div {
+  color: var(--text-primary) !important;
 }
 
 /* ----------------------------------------------------------------
@@ -299,10 +311,17 @@ html, body {
 .stTextInput label,
 .stNumberInput label,
 .stSelectbox label {
-  color: var(--text-secondary) !important;
+  color: var(--text-primary) !important;
   font-size: 0.8125rem !important;
   font-weight: 500 !important;
   margin-bottom: var(--space-xs) !important;
+}
+
+/* Sidebar input labels - always white */
+[data-testid="stSidebar"] .stTextInput label,
+[data-testid="stSidebar"] .stNumberInput label,
+[data-testid="stSidebar"] .stSelectbox label {
+  color: var(--text-primary) !important;
 }
 
 .stTextInput input,
@@ -356,9 +375,15 @@ html, body {
 }
 
 .stCheckbox label {
-  color: var(--text-secondary) !important;
+  color: var(--text-primary) !important;
   font-size: 0.875rem !important;
   font-weight: 400 !important;
+}
+
+/* Sidebar checkboxes - always white */
+[data-testid="stSidebar"] .stCheckbox label,
+[data-testid="stSidebar"] .stCheckbox span {
+  color: var(--text-primary) !important;
 }
 
 .stCheckbox input[type="checkbox"] {
@@ -491,6 +516,11 @@ hr {
   color: var(--text-muted) !important;
   font-size: 0.75rem !important;
   line-height: 1.5 !important;
+}
+
+/* Sidebar captions - white */
+[data-testid="stSidebar"] .stCaption {
+  color: var(--text-primary) !important;
 }
 
 /* ----------------------------------------------------------------
