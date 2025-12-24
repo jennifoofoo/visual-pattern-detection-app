@@ -172,7 +172,8 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
             hovermode='closest',
             template='plotly_white',
             yaxis=dict(autorange='reversed'),
-            height=850  # Set fixed height for better visibility
+            height=600,  # Optimal height - not too tall
+            autosize=True  # Allow width to adapt
         )
 
         # Note: Visualization overlays will be added by display_chart()
@@ -245,7 +246,8 @@ def display_chart():
         hovermode='closest',
         template='plotly_white',
         yaxis=dict(autorange='reversed'),
-        height=850  # Set fixed height for better visibility
+        height=600,  # Optimal height - not too tall
+        autosize=True  # Allow width to adapt
     )
     
     # Add gap visualization if gaps were detected AND layer is visible

@@ -593,26 +593,29 @@ hr {
   border-radius: var(--radius-lg) !important;
   padding: var(--space-md) !important;
   box-shadow: var(--shadow-sm) !important;
-  min-height: 900px !important;
+  min-height: 650px !important;
   height: auto !important;
+  width: 100% !important;
 }
 
-/* Make chart container full width and taller */
+/* Make chart container wider and optimal height */
 .stPlotlyChart > div {
   width: 100% !important;
-  height: 850px !important;
-  min-height: 850px !important;
+  height: 600px !important;
+  min-height: 600px !important;
 }
 
-/* Increase plot height */
+/* Optimal plot height */
 .js-plotly-plot {
-  min-height: 850px !important;
-  height: 850px !important;
+  min-height: 600px !important;
+  height: 600px !important;
+  width: 100% !important;
 }
 
 /* Plotly container */
 .plotly {
-  height: 850px !important;
+  height: 600px !important;
+  width: 100% !important;
 }
 
 /* ----------------------------------------------------------------
