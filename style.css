@@ -111,6 +111,8 @@ html, body {
 [data-testid="stSidebar"] > div:first-child {
   background-color: var(--bg-secondary) !important;
   border-right: 1px solid var(--border-subtle) !important;
+  min-width: 340px !important;
+  width: 340px !important;
 }
 
 [data-testid="stSidebar"] .block-container {
