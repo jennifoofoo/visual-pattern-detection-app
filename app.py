@@ -125,13 +125,13 @@ def main():
 
             if st.button("Load Data", type="primary"):
                 app_handler.load_data_button(xes_path, demo_mode=demo_mode)
-                st.session_state.ui_step = "layers"  # Skip config, go directly to layers
+                st.session_state.ui_step = "config"  # Open config section after loading
                 st.rerun()
 
         # -----------------------------
         # CHART CONFIGURATION
         # -----------------------------
-        with st.expander("Chart Configuration", expanded=False):
+        with st.expander("Chart Configuration", expanded=st.session_state.ui_step == "config"):
             st.caption("Chart is auto-plotted on data load. Customize here if needed.")
             x_axis, y_axis, dots_config_label = app_handler.get_chart_config_with_selectboxes()
 

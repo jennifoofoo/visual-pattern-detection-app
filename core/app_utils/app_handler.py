@@ -83,6 +83,9 @@ def load_data_button(xes_path, demo_mode=False):
         
         # Call plot_chart_button with default config
         plot_chart_button(default_x_axis, default_y_axis, default_dots_config)
+        
+        # After auto-plotting, move to layers section
+        st.session_state.ui_step = "layers"
 
         st.success(f"Log loaded: {len(df):,} events - Chart plotted automatically")
         st.rerun()  # Refresh to show data info and chart
