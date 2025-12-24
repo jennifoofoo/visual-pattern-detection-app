@@ -593,8 +593,8 @@ hr {
   border-radius: var(--radius-lg) !important;
   padding: var(--space-md) !important;
   box-shadow: var(--shadow-sm) !important;
-  min-height: 750px !important;
-  height: 750px !important;
+  min-height: 1000px !important;
+  height: auto !important;
   width: 100% !important;
   overflow: visible !important;
 }
@@ -602,8 +602,8 @@ hr {
 /* Make chart container wider and optimal height - no scrolling */
 .stPlotlyChart > div {
   width: 100% !important;
-  height: 700px !important;
-  min-height: 700px !important;
+  height: 950px !important;
+  min-height: 950px !important;
   overflow: visible !important;
 }
 
