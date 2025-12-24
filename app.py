@@ -27,22 +27,27 @@ load_css()
 st.markdown(
     """
     <style>
-    /* Hide main header but keep sidebar toggle visible */
-    header[data-testid="stHeader"] { 
-        display: none; 
+    /* Keep header alive for sidebar toggle */
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+        box-shadow: none !important;
+        border-bottom: none !important;
+        height: 3rem !important;
     }
-    
-    /* Ensure sidebar nav button is always visible */
-    section[data-testid="stSidebarNav"],
-    [data-testid="stSidebarNav"],
-    [data-testid="collapsedControl"],
-    button[aria-label*="navigation"] {
-        display: block !important;
+
+    /* Hide header content EXCEPT sidebar toggle */
+    header[data-testid="stHeader"] > div:not(:has(button)) {
+        display: none !important;
+    }
+
+    /* Make sure sidebar toggle is visible */
+    header[data-testid="stHeader"] button {
         visibility: visible !important;
         opacity: 1 !important;
     }
-    
+
     .block-container { padding-top: 0rem !important; }
+
     html, body, [data-testid="stAppViewContainer"] {
         background-color: #111827 !important;
         margin: 0 !important;
@@ -52,6 +57,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 # -------------------------------------------------
 # MAIN APP
@@ -156,7 +162,7 @@ def main():
     # MAIN CONTENT
     # -------------------------------------------------
     if not st.session_state.get("data_loaded", False):
-        st.info("Load data from the sidebar to begin.")
+        # No message shown - clean empty state
         return
 
     # Plot immediately visible
