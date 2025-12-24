@@ -576,6 +576,17 @@ hr {
   border-radius: var(--radius-lg) !important;
   padding: var(--space-md) !important;
   box-shadow: var(--shadow-sm) !important;
+  min-height: 700px !important;
+}
+
+/* Make chart container full width */
+.stPlotlyChart > div {
+  width: 100% !important;
+}
+
+/* Increase plot height */
+.js-plotly-plot {
+  min-height: 650px !important;
 }
 
 /* ----------------------------------------------------------------
