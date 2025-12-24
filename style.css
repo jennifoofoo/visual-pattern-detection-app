@@ -593,13 +593,19 @@ hr {
    CAPTIONS & HELPER TEXT
    ---------------------------------------------------------------- */
 .stCaption {
-  color: var(--text-muted) !important;
+  color: var(--text-primary) !important;
   font-size: 0.75rem !important;
   line-height: 1.5 !important;
 }
 
 /* Sidebar captions - white */
 [data-testid="stSidebar"] .stCaption {
+  color: var(--text-primary) !important;
+}
+
+/* Main content captions - white */
+.main .stCaption,
+.main [data-testid="stCaptionContainer"] {
   color: var(--text-primary) !important;
 }
 
@@ -656,8 +662,22 @@ h3, .stApp h3 {
 }
 
 h4, h5, h6 {
-  color: var(--text-secondary) !important;
+  color: var(--text-primary) !important;
   font-weight: 500 !important;
+}
+
+/* Subheaders - White text */
+[data-testid="stSubheader"],
+.stApp [data-testid="stSubheader"],
+.stApp [data-testid="stSubheader"] * {
+  color: var(--text-primary) !important;
+}
+
+/* Pattern Summary specific */
+.main h2,
+.main h3,
+.main h4 {
+  color: var(--text-primary) !important;
 }
 
 /* ----------------------------------------------------------------
