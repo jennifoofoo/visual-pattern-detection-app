@@ -128,10 +128,19 @@ html, body {
 [data-testid="collapsedControl"],
 button[data-testid="collapsedControl"],
 .sidebar-collapsed button,
-section[data-testid="stSidebarCollapsedControl"] button {
+section[data-testid="stSidebarCollapsedControl"],
+section[data-testid="stSidebarCollapsedControl"] button,
+[data-testid="stSidebarNav"],
+[data-testid="stSidebarNav"] button {
   display: flex !important;
   visibility: visible !important;
   opacity: 1 !important;
+}
+
+[data-testid="collapsedControl"],
+button[data-testid="collapsedControl"],
+section[data-testid="stSidebarCollapsedControl"] button,
+[data-testid="stSidebarNav"] button {
   position: fixed !important;
   left: 0 !important;
   top: 0.75rem !important;
@@ -147,14 +156,18 @@ section[data-testid="stSidebarCollapsedControl"] button {
 }
 
 [data-testid="collapsedControl"]:hover,
-button[data-testid="collapsedControl"]:hover {
+button[data-testid="collapsedControl"]:hover,
+section[data-testid="stSidebarCollapsedControl"] button:hover,
+[data-testid="stSidebarNav"] button:hover {
   background: var(--bg-hover) !important;
   border-color: var(--border-strong) !important;
   box-shadow: var(--shadow-lg) !important;
 }
 
 [data-testid="collapsedControl"] svg,
-button[data-testid="collapsedControl"] svg {
+button[data-testid="collapsedControl"] svg,
+section[data-testid="stSidebarCollapsedControl"] svg,
+[data-testid="stSidebarNav"] svg {
   color: var(--text-primary) !important;
   fill: var(--text-primary) !important;
   width: 1.25rem !important;

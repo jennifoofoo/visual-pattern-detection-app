@@ -27,7 +27,21 @@ load_css()
 st.markdown(
     """
     <style>
-    header[data-testid="stHeader"] { display: none; }
+    /* Hide main header but keep sidebar toggle visible */
+    header[data-testid="stHeader"] { 
+        display: none; 
+    }
+    
+    /* Ensure sidebar nav button is always visible */
+    section[data-testid="stSidebarNav"],
+    [data-testid="stSidebarNav"],
+    [data-testid="collapsedControl"],
+    button[aria-label*="navigation"] {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    
     .block-container { padding-top: 0rem !important; }
     html, body, [data-testid="stAppViewContainer"] {
         background-color: #111827 !important;
