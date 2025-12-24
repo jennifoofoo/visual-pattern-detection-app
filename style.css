@@ -593,18 +593,18 @@ hr {
   border-radius: var(--radius-lg) !important;
   padding: var(--space-md) !important;
   box-shadow: var(--shadow-sm) !important;
-  min-height: 680px !important;
-  height: 680px !important;
+  min-height: 750px !important;
+  height: 750px !important;
   width: 100% !important;
-  overflow: hidden !important;
+  overflow: visible !important;
 }
 
 /* Make chart container wider and optimal height - no scrolling */
 .stPlotlyChart > div {
   width: 100% !important;
-  height: 640px !important;
-  min-height: 640px !important;
-  overflow: hidden !important;
+  height: 700px !important;
+  min-height: 700px !important;
+  overflow: visible !important;
 }
 
 /* Optimal plot height */
@@ -620,13 +620,17 @@ hr {
   width: 100% !important;
 }
 
-/* Remove any scrollbars from plot container */
+/* Ensure plot is fully visible without scrolling */
 .stPlotlyChart,
-.stPlotlyChart > div,
+.stPlotlyChart > div {
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+}
+
+/* Hide only iframe scrollbars if any */
 .stPlotlyChart iframe {
   overflow: hidden !important;
-  overflow-x: hidden !important;
-  overflow-y: hidden !important;
 }
 
 /* ----------------------------------------------------------------
