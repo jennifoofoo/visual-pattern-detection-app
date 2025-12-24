@@ -72,13 +72,20 @@ def load_data_button(xes_path, demo_mode=False):
         st.session_state.df = df
         st.session_state.loaded_file = xes_path
         st.session_state.data_loaded = True
-        st.session_state.chart_plotted = False  # Reset chart state
 
         # Generate summary (cached)
         st.session_state.summary = generate_summary(df)
 
-        st.success(f"Log loaded: {len(df):,} events")
-        st.rerun()  # Refresh to show data info
+        # Automatically plot chart with default configuration
+        default_x_axis = 'Actual time'
+        default_y_axis = 'Case ID'
+        default_dots_config = 'Activity'
+        
+        # Call plot_chart_button with default config
+        plot_chart_button(default_x_axis, default_y_axis, default_dots_config)
+
+        st.success(f"Log loaded: {len(df):,} events - Chart plotted automatically")
+        st.rerun()  # Refresh to show data info and chart
 
     except Exception as e:
         st.error(f"Error loading XES log: {e}")
