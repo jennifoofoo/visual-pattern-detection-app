@@ -172,7 +172,7 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
             hovermode='closest',
             template='plotly_white',
             yaxis=dict(autorange='reversed'),
-            height=600,  # Optimal height - not too tall
+            height=500,  # Reduced height to fit in container without scrolling
             autosize=True  # Allow width to adapt
         )
 
@@ -246,7 +246,7 @@ def display_chart():
         hovermode='closest',
         template='plotly_white',
         yaxis=dict(autorange='reversed'),
-        height=600,  # Optimal height - not too tall
+        height=500,  # Reduced height to fit in container without scrolling
         autosize=True  # Allow width to adapt
     )
     
