@@ -597,6 +597,7 @@ hr {
   height: auto !important;
   width: 100% !important;
   overflow: visible !important;
+  transition: all 0.3s ease !important;
 }
 
 /* Make chart container wider and optimal height - no scrolling */
@@ -605,6 +606,7 @@ hr {
   height: 650px !important;
   min-height: 650px !important;
   overflow: visible !important;
+  transition: all 0.3s ease !important;
 }
 
 /* Optimal plot height */
@@ -612,12 +614,52 @@ hr {
   min-height: 500px !important;
   height: 500px !important;
   width: 100% !important;
+  transition: all 0.3s ease !important;
 }
 
 /* Plotly container */
 .plotly {
   height: 500px !important;
   width: 100% !important;
+  transition: all 0.3s ease !important;
+}
+
+/* ----------------------------------------------------------------
+   FULLSCREEN MODE - When Sidebar is Collapsed
+   ---------------------------------------------------------------- */
+/* When sidebar is collapsed, make plot fullscreen */
+[data-testid="stSidebar"][aria-expanded="false"] ~ .main .stPlotlyChart,
+.main:has(~ [data-testid="stSidebar"][aria-expanded="false"]) .stPlotlyChart,
+body:not(:has([data-testid="stSidebar"][aria-expanded="true"])) .stPlotlyChart {
+  min-height: 85vh !important;
+  height: 85vh !important;
+}
+
+body:not(:has([data-testid="stSidebar"][aria-expanded="true"])) .stPlotlyChart > div {
+  height: calc(85vh - 2rem) !important;
+  min-height: calc(85vh - 2rem) !important;
+}
+
+body:not(:has([data-testid="stSidebar"][aria-expanded="true"])) .js-plotly-plot {
+  height: calc(85vh - 4rem) !important;
+  min-height: calc(85vh - 4rem) !important;
+}
+
+body:not(:has([data-testid="stSidebar"][aria-expanded="true"])) .plotly {
+  height: calc(85vh - 4rem) !important;
+}
+
+/* Shift header to left when sidebar is closed */
+body:not(:has([data-testid="stSidebar"][aria-expanded="true"])) .main-header {
+  margin-left: 0 !important;
+  padding-left: var(--space-lg) !important;
+}
+
+/* Expand main content when sidebar is closed */
+body:not(:has([data-testid="stSidebar"][aria-expanded="true"])) .main .block-container {
+  max-width: 100% !important;
+  padding-left: var(--space-xl) !important;
+  padding-right: var(--space-xl) !important;
 }
 
 /* Ensure plot is fully visible without scrolling */
