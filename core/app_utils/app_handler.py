@@ -83,9 +83,6 @@ def load_data_button(xes_path, demo_mode=False):
         
         # Call plot_chart_button with default config
         plot_chart_button(default_x_axis, default_y_axis, default_dots_config)
-        
-        # After auto-plotting, move to layers section
-        st.session_state.ui_step = "layers"
 
         st.success(f"Log loaded: {len(df):,} events - Chart plotted automatically")
         st.rerun()  # Refresh to show data info and chart
@@ -174,7 +171,8 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
                 color_col is not None and color_col != 'case_id'),
             hovermode='closest',
             template='plotly_white',
-            yaxis=dict(autorange='reversed')
+            yaxis=dict(autorange='reversed'),
+            height=850  # Set fixed height for better visibility
         )
 
         # Note: Visualization overlays will be added by display_chart()
@@ -246,7 +244,8 @@ def display_chart():
         showlegend=(color_col is not None and color_col != 'case_id'),
         hovermode='closest',
         template='plotly_white',
-        yaxis=dict(autorange='reversed')
+        yaxis=dict(autorange='reversed'),
+        height=850  # Set fixed height for better visibility
     )
     
     # Add gap visualization if gaps were detected AND layer is visible
