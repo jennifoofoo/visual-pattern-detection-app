@@ -593,16 +593,18 @@ hr {
   border-radius: var(--radius-lg) !important;
   padding: var(--space-md) !important;
   box-shadow: var(--shadow-sm) !important;
-  min-height: 650px !important;
-  height: auto !important;
+  min-height: 680px !important;
+  height: 680px !important;
   width: 100% !important;
+  overflow: hidden !important;
 }
 
-/* Make chart container wider and optimal height */
+/* Make chart container wider and optimal height - no scrolling */
 .stPlotlyChart > div {
   width: 100% !important;
-  height: 600px !important;
-  min-height: 600px !important;
+  height: 640px !important;
+  min-height: 640px !important;
+  overflow: hidden !important;
 }
 
 /* Optimal plot height */
@@ -616,6 +618,15 @@ hr {
 .plotly {
   height: 600px !important;
   width: 100% !important;
+}
+
+/* Remove any scrollbars from plot container */
+.stPlotlyChart,
+.stPlotlyChart > div,
+.stPlotlyChart iframe {
+  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
 }
 
 /* ----------------------------------------------------------------
