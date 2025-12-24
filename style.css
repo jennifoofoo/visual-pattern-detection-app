@@ -386,6 +386,13 @@ html, body {
   color: var(--text-primary) !important;
 }
 
+/* Demo Mode - Purple bold text (no background) */
+[data-testid="stSidebar"] .stCheckbox:has(span:contains("🎬")) label span,
+[data-testid="stSidebar"] .stCheckbox label:has(span:contains("Demo")) span {
+  color: var(--accent-primary) !important;
+  font-weight: 600 !important;
+}
+
 .stCheckbox input[type="checkbox"] {
   width: 1rem !important;
   height: 1rem !important;
@@ -403,14 +410,14 @@ html, body {
   border-color: var(--accent-primary) !important;
 }
 
-/* Checked state */
+/* Checked state - No background, just purple border and checkmark */
 .stCheckbox input:checked + div {
-  background: var(--accent-primary) !important;
+  background: transparent !important;
   border-color: var(--accent-primary) !important;
 }
 
 .stCheckbox input:checked + div svg {
-  color: white !important;
+  color: var(--accent-primary) !important;
 }
 
 /* ----------------------------------------------------------------
