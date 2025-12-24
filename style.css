@@ -357,6 +357,32 @@ section[data-testid="stSidebarCollapsedControl"] svg path,
   box-shadow: var(--shadow-lg) !important;
 }
 
+/* Popover content - dark background */
+[data-baseweb="popover"] > div {
+  background: var(--bg-elevated) !important;
+}
+
+/* Text inside popover */
+[data-baseweb="popover"] p,
+[data-baseweb="popover"] span,
+[data-baseweb="popover"] label {
+  color: var(--text-primary) !important;
+}
+
+/* Number input inside popover */
+[data-baseweb="popover"] input[type="number"],
+[data-baseweb="popover"] .stNumberInput input {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+/* Buttons inside popover */
+[data-baseweb="popover"] button {
+  background: var(--accent-primary) !important;
+  color: white !important;
+}
+
 /* ----------------------------------------------------------------
    CHECKBOXES
    ---------------------------------------------------------------- */
@@ -598,6 +624,20 @@ hr {
 }
 
 [data-testid="stTooltipIcon"]:hover {
+  color: var(--text-secondary) !important;
+}
+
+/* Tooltip content - dark background */
+[role="tooltip"] {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-medium) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Help text - white color */
+.stNumberInput small,
+.stTextInput small,
+.stSelectbox small {
   color: var(--text-secondary) !important;
 }
 
