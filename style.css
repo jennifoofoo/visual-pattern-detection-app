@@ -176,6 +176,21 @@ section[data-testid="stSidebarCollapsedControl"] svg,
   height: 1.25rem !important;
 }
 
+/* Ensure SVG paths are white */
+[data-testid="collapsedControl"] svg path,
+button[data-testid="collapsedControl"] svg path,
+section[data-testid="stSidebarCollapsedControl"] svg path,
+[data-testid="stSidebarNav"] svg path {
+  fill: var(--text-primary) !important;
+  stroke: var(--text-primary) !important;
+}
+
+/* Force all sidebar navigation icons to be white */
+[data-testid="stSidebarNav"] *,
+section[data-testid="stSidebarCollapsedControl"] * {
+  color: var(--text-primary) !important;
+}
+
 /* Sidebar collapse button when sidebar is open */
 [data-testid="stSidebar"] button[kind="header"],
 [data-testid="stSidebar"] button[aria-label*="Close"],
