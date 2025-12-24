@@ -14,12 +14,12 @@ from core.app_utils.app_handler_pattern_detection import _is_any_pattern_detecte
 
 
 # Streamlit caching for performance
-@st.cache_data(ttl=3600)  # Cache for 1 hour
+@st.cache_data(ttl=3600, show_spinner=False)  # Cache for 1 hour, no spinner
 def cached_load_xes_log(xes_path):
     """Cached version of load_xes_log for better performance."""
     return load_xes_log(xes_path)
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=3600, show_spinner=False)
 def generate_summary(df):
     """Cached summary generation."""
     return summarize_event_log(df)
@@ -42,7 +42,7 @@ def init_state():
 
 def load_data_button(xes_path, demo_mode=False):
     try:
-        with st.spinner(f"Loading {xes_path}..."):
+        with st.spinner("Loading data..."):
             # Use cached loading
             df = cached_load_xes_log(xes_path)
 
