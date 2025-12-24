@@ -124,7 +124,11 @@ html, body {
 }
 
 /* Sidebar Toggle Button - Always Visible & White */
-[data-testid="collapsedControl"] {
+/* When sidebar is collapsed - show expand button */
+[data-testid="collapsedControl"],
+button[data-testid="collapsedControl"],
+.sidebar-collapsed button,
+section[data-testid="stSidebarCollapsedControl"] button {
   display: flex !important;
   visibility: visible !important;
   opacity: 1 !important;
@@ -135,18 +139,22 @@ html, body {
   background: var(--bg-elevated) !important;
   border: 1px solid var(--border-medium) !important;
   border-radius: 0 var(--radius-md) var(--radius-md) 0 !important;
+  border-left: none !important;
   padding: 0.5rem 0.75rem !important;
   transition: all 0.2s ease !important;
   box-shadow: var(--shadow-md) !important;
+  cursor: pointer !important;
 }
 
-[data-testid="collapsedControl"]:hover {
+[data-testid="collapsedControl"]:hover,
+button[data-testid="collapsedControl"]:hover {
   background: var(--bg-hover) !important;
   border-color: var(--border-strong) !important;
   box-shadow: var(--shadow-lg) !important;
 }
 
-[data-testid="collapsedControl"] svg {
+[data-testid="collapsedControl"] svg,
+button[data-testid="collapsedControl"] svg {
   color: var(--text-primary) !important;
   fill: var(--text-primary) !important;
   width: 1.25rem !important;
@@ -154,7 +162,9 @@ html, body {
 }
 
 /* Sidebar collapse button when sidebar is open */
-[data-testid="stSidebar"] button[kind="header"] {
+[data-testid="stSidebar"] button[kind="header"],
+[data-testid="stSidebar"] button[aria-label*="Close"],
+[data-testid="stSidebar"] button[aria-label*="collapse"] {
   display: flex !important;
   visibility: visible !important;
   opacity: 1 !important;
@@ -164,18 +174,28 @@ html, body {
   padding: 0.5rem !important;
   transition: all 0.2s ease !important;
   margin-bottom: var(--space-md) !important;
+  cursor: pointer !important;
 }
 
-[data-testid="stSidebar"] button[kind="header"]:hover {
+[data-testid="stSidebar"] button[kind="header"]:hover,
+[data-testid="stSidebar"] button[aria-label*="Close"]:hover {
   background: var(--bg-hover) !important;
   border-color: var(--border-strong) !important;
 }
 
-[data-testid="stSidebar"] button[kind="header"] svg {
+[data-testid="stSidebar"] button[kind="header"] svg,
+[data-testid="stSidebar"] button[aria-label*="Close"] svg {
   color: var(--text-primary) !important;
   fill: var(--text-primary) !important;
   width: 1.25rem !important;
   height: 1.25rem !important;
+}
+
+/* Ensure sidebar nav buttons are always visible */
+section[data-testid="stSidebar"] > div > button {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .sidebar-title {
