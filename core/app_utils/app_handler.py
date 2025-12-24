@@ -109,14 +109,10 @@ def show_xes_summary():
             st.write(f"**{k}:** {v}")
 
 def get_chart_config_with_selectboxes():
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        x_axis = st.selectbox('Select x-axis:', list(X_AXIS_COLUMN_MAP.keys()))
-    with col2:
-        y_axis = st.selectbox('Select y-axis:', list(Y_AXIS_COLUMN_MAP.keys()))
-    with col3:
-        dots_config_label = st.selectbox(
-            'Select Dot Color:', list(DOTS_COLOR_MAP.keys()))
+    # Selectboxes vertically stacked for better readability
+    x_axis = st.selectbox('Select x-axis:', list(X_AXIS_COLUMN_MAP.keys()))
+    y_axis = st.selectbox('Select y-axis:', list(Y_AXIS_COLUMN_MAP.keys()))
+    dots_config_label = st.selectbox('Select Dot Color:', list(DOTS_COLOR_MAP.keys()))
     return x_axis, y_axis, dots_config_label
 
 def plot_chart_button(x_axis, y_axis, dots_config_label):
