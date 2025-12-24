@@ -418,6 +418,18 @@ html, body {
 
 .stCheckbox input:checked + div svg {
   color: var(--accent-primary) !important;
+  fill: var(--accent-primary) !important;
+}
+
+/* Make sure checkmark icon is visible in purple */
+.stCheckbox input:checked ~ div svg path {
+  fill: var(--accent-primary) !important;
+  stroke: var(--accent-primary) !important;
+}
+
+[data-testid="stSidebar"] .stCheckbox input:checked + div svg {
+  color: var(--accent-primary) !important;
+  fill: var(--accent-primary) !important;
 }
 
 /* ----------------------------------------------------------------
