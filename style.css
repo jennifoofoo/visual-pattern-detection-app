@@ -90,7 +90,7 @@ html, body {
 .main-title {
   font-size: 2rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--accent-primary);
   letter-spacing: -0.025em;
   line-height: 1.2;
   margin-bottom: var(--space-sm);
