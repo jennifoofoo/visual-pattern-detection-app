@@ -137,9 +137,7 @@ section[data-testid="stSidebar"][aria-expanded="false"] {
   padding: var(--space-lg) var(--space-md) !important;
 }
 
-/* Hide any close/collapse buttons in sidebar header area */
-[data-testid="stSidebar"] > div > div:first-child button,
-[data-testid="stSidebar"] > div:first-child button,
+/* Hide only close/collapse buttons in sidebar header (not content buttons) */
 [data-testid="stSidebar"] button[aria-label*="×"],
 [data-testid="stSidebar"] button:has(svg[aria-label*="close"]),
 [data-testid="stSidebar"] button:has(svg[aria-label*="Close"]) {
@@ -242,6 +240,15 @@ header button[aria-label*="close"] {
 /* ----------------------------------------------------------------
    BUTTONS
    ---------------------------------------------------------------- */
+/* Ensure normal buttons are visible (including in sidebar) */
+.stButton button,
+[data-testid="stSidebar"] .stButton button {
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
 .stButton button {
   border-radius: var(--radius-md) !important;
   font-weight: 500 !important;
