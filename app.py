@@ -27,23 +27,10 @@ load_css()
 st.markdown(
     """
     <style>
-    /* Keep header alive for sidebar toggle */
+    /* Hide header completely - sidebar is fixed */
     header[data-testid="stHeader"] {
-        background: transparent !important;
-        box-shadow: none !important;
-        border-bottom: none !important;
-        height: 3rem !important;
-    }
-
-    /* Hide header content EXCEPT sidebar toggle */
-    header[data-testid="stHeader"] > div:not(:has(button)) {
         display: none !important;
-    }
-
-    /* Make sure sidebar toggle is visible */
-    header[data-testid="stHeader"] button {
-        visibility: visible !important;
-        opacity: 1 !important;
+        height: 0 !important;
     }
 
     .block-container { padding-top: 0rem !important; }
