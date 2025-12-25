@@ -137,6 +137,18 @@ section[data-testid="stSidebar"][aria-expanded="false"] {
   padding: var(--space-lg) var(--space-md) !important;
 }
 
+/* Hide any close/collapse buttons in sidebar header area */
+[data-testid="stSidebar"] > div > div:first-child button,
+[data-testid="stSidebar"] > div:first-child button,
+[data-testid="stSidebar"] button[aria-label*="×"],
+[data-testid="stSidebar"] button:has(svg[aria-label*="close"]),
+[data-testid="stSidebar"] button:has(svg[aria-label*="Close"]) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 [data-testid="stSidebar"] *:not(input):not(button):not(svg) {
   background-color: transparent !important;
 }
@@ -166,11 +178,21 @@ section[data-testid="stSidebarCollapsedControl"] button,
 [data-testid="stSidebarNav"] button,
 [data-testid="stSidebar"] button[kind="header"],
 [data-testid="stSidebar"] button[aria-label*="Close"],
-[data-testid="stSidebar"] button[aria-label*="close"] {
+[data-testid="stSidebar"] button[aria-label*="close"],
+[data-testid="stSidebar"] button[aria-label*="Close sidebar"],
+[data-testid="stSidebar"] button[aria-label*="close sidebar"],
+button[data-testid="baseButton-header"],
+[data-testid="stSidebar"] [data-testid="baseButton-header"],
+header button[aria-label*="Close"],
+header button[aria-label*="close"] {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
   pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 /* ----------------------------------------------------------------
