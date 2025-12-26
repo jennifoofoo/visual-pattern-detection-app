@@ -462,10 +462,31 @@ class OutlierDetectionPattern(Pattern):
 
         try:
             activity_counts = self.df[activity_col].value_counts()
-
-            # Much more strict - activities that occur less than 0.1% of total events
             total_events = len(self.df)
-            rare_threshold = max(1, total_events * 0.01)
+            num_activities = len(activity_counts)
+
+            # Adaptive threshold based on dataset size
+            # For large datasets (>50K): 1% threshold
+            # For medium datasets (10K-50K): 0.5% threshold
+            # For small datasets (<10K): 0.2% threshold OR must appear < 3 times
+            # Also require activity to be significantly rarer than average
+            if total_events > 50000:
+                rare_threshold = max(3, total_events * 0.01)
+            elif total_events > 10000:
+                rare_threshold = max(3, total_events * 0.005)
+            else:
+                # For small/sampled datasets, only flag truly rare activities
+                # Must appear less than 3 times AND be in bottom 5% of activities
+                rare_threshold = 3
+
+            # Additional constraint: only flag if activity is in the bottom 10% by frequency
+            # This prevents flagging activities that are just slightly below the threshold
+            freq_percentile_10 = activity_counts.quantile(0.10)
+            rare_threshold = min(rare_threshold, freq_percentile_10)
+
+            # If threshold is 0 or negative, no activities are rare enough
+            if rare_threshold <= 0:
+                return False
 
             rare_activities = activity_counts[activity_counts < rare_threshold].index.tolist(
             )
@@ -788,17 +809,30 @@ class OutlierDetectionPattern(Pattern):
         sorted_outliers = sorted(
             self.outlier_scores.items(), key=lambda x: x[1], reverse=True)
 
-        # Keep only top 5% of events or those detected by multiple methods
-        # At most 5% or minimum 10 events
-        max_outliers = max(10, len(self.df) * 0.05)
+        # Adaptive max outliers based on dataset size
+        # Large datasets (>100K): up to 3% can be outliers
+        # Medium datasets (50K-100K): up to 2% can be outliers
+        # Small datasets (<50K): up to 1% can be outliers (stricter for demos)
+        total_events = len(self.df)
+        if total_events > 100000:
+            max_outlier_pct = 0.03
+        elif total_events > 50000:
+            max_outlier_pct = 0.02
+        else:
+            max_outlier_pct = 0.01  
+
+        max_outliers = max(5, int(total_events * max_outlier_pct))
 
         # Filter to keep only high-confidence outliers
+        # For small datasets, require detection by multiple methods
+        min_score_required = 2 if total_events < 10000 else 1
+
         filtered_outliers = []
         for idx, score in sorted_outliers:
             if len(filtered_outliers) >= max_outliers:
                 break
-            # Keep if detected by multiple methods or in top outliers
-            if score > 1 or len(filtered_outliers) < max_outliers / 2:
+            # For small datasets, require higher confidence (multiple detection methods)
+            if score >= min_score_required or (score >= 1 and len(filtered_outliers) < max_outliers / 3):
                 filtered_outliers.append(idx)
 
         # Update all outlier collections
@@ -846,6 +880,81 @@ class OutlierDetectionPattern(Pattern):
             'detection_methods_used': detection_methods_used,
             'available_features': list(self.available_columns)
         }
+
+    def _get_relevant_features_for_view(self) -> set:
+        """
+        Determine which outlier explanation types are relevant for the current view.
+
+        Returns
+        -------
+        set
+            Set of feature names that are relevant to display for this view
+        """
+        x_axis = self.view_config.get('x', '')
+        y_axis = self.view_config.get('y', '')
+        color_axis = self.view_config.get('color', '')
+
+        relevant_features = set()
+
+        # X-axis relevance - check for any time-related column
+        if any(t in x_axis.lower() for t in ['time', 'timestamp', 'date', 'actual', 'relative', 'logical']):
+            relevant_features.update(
+                ['hour', 'day_of_week', 'time_since_start', 'isolation_forest', 'case_duration', 'sequence'])
+
+        # Y-axis relevance
+        if 'resource' in y_axis.lower():
+            relevant_features.add('resource')
+        if 'activity' in y_axis.lower():
+            relevant_features.add('activity_frequency')
+        if 'case' in y_axis.lower():
+            relevant_features.update(
+                ['case_event_count', 'event_position_in_case', 'case_duration', 'sequence'])
+
+        # Color axis relevance
+        if 'activity' in color_axis.lower():
+            relevant_features.add('activity_frequency')
+        if 'resource' in color_axis.lower():
+            relevant_features.add('resource')
+        if 'case' in color_axis.lower():
+            relevant_features.update(
+                ['case_event_count', 'event_position_in_case', 'case_duration'])
+
+        # If no relevant features identified, use time-based as default
+        if not relevant_features:
+            relevant_features.update(
+                ['hour', 'day_of_week', 'time_since_start', 'isolation_forest'])
+
+        return relevant_features
+
+    def get_view_relevant_outliers(self) -> list:
+        """
+        Get outlier indices that are relevant to the current view.
+
+        Returns
+        -------
+        list
+            List of outlier indices with explanations relevant to current view
+        """
+        all_outlier_indices = self.outliers.get('combined', [])
+        if not all_outlier_indices:
+            return []
+
+        relevant_features = self._get_relevant_features_for_view()
+
+        filtered_indices = []
+        for idx in all_outlier_indices:
+            all_explanations = self.outlier_explanations.get(idx, {})
+            has_relevant_explanation = any(
+                feat_name in relevant_features for feat_name in all_explanations.keys()
+            )
+            if has_relevant_explanation:
+                filtered_indices.append(idx)
+
+        return filtered_indices
+
+    def get_view_relevant_count(self) -> int:
+        """Get count of outliers relevant to current view."""
+        return len(self.get_view_relevant_outliers())
 
     def visualize(self, df: pd.DataFrame, fig: go.Figure) -> go.Figure:
         """Add outlier visualization to the existing figure.
@@ -923,42 +1032,11 @@ class OutlierDetectionPattern(Pattern):
         activity_col = self._has_column(
             'activity', 'concept:name', 'event_name', 'activity_name') or 'activity'
 
-        # Determine which explanation types are relevant for the current view
-        x_axis = self.view_config.get('x_axis', '')
-        y_axis = self.view_config.get('y_axis', '')
+        # Get relevant features for current view
+        relevant_features = self._get_relevant_features_for_view()
+        x_axis = self.view_config.get('x', '')
+        y_axis = self.view_config.get('y', '')
         color_axis = self.view_config.get('color', '')
-
-        relevant_features = set()
-
-        # X-axis relevance
-        if 'time' in x_axis.lower():
-            relevant_features.update(
-                ['hour', 'day_of_week', 'time_since_start'])
-
-        # Y-axis relevance
-        if 'resource' in y_axis.lower():
-            # Resource features would go here (not implemented yet)
-            pass
-        elif 'activity' in y_axis.lower():
-            relevant_features.add('activity_frequency')
-        elif 'case' in y_axis.lower():
-            relevant_features.update(
-                ['case_event_count', 'event_position_in_case'])
-
-        # Color axis relevance
-        if 'activity' in color_axis.lower():
-            relevant_features.add('activity_frequency')
-        elif 'resource' in color_axis.lower():
-            # Resource features would go here
-            pass
-        elif 'case' in color_axis.lower():
-            relevant_features.update(
-                ['case_event_count', 'event_position_in_case'])
-
-        # If no relevant features identified, show time-based ones as default
-        if not relevant_features:
-            relevant_features.update(
-                ['hour', 'day_of_week', 'time_since_start'])
 
         # Filter outliers to only show those with relevant explanations
         filtered_outlier_indices = []
@@ -970,13 +1048,14 @@ class OutlierDetectionPattern(Pattern):
             if has_relevant_explanation:
                 filtered_outlier_indices.append(idx)
 
-        # If no outliers have relevant explanations for this view, don't show any
+        # If no outliers have relevant explanations for this view, return silently
+        # (outliers exist but are not relevant to this particular view configuration)
         if not filtered_outlier_indices:
-            print(
-                f"No outliers have relevant explanations for view x={x_axis}, y={y_axis}, color={color_axis}")
+            # Don't print anything - the outliers exist but are for other views
             return fig
 
-        print(f"Showing {len(filtered_outlier_indices)} outliers with relevant explanations (filtered from {len(outlier_indices_to_show)})")
+        print(
+            f"Visualizing {len(filtered_outlier_indices)} view-relevant outliers (x={x_axis}, y={y_axis})")
 
         # Update the data to show only filtered outliers
         outlier_data = self.df.loc[filtered_outlier_indices]
@@ -1114,9 +1193,19 @@ class OutlierDetectionPattern(Pattern):
         """
         outlier_summary = self.get_outlier_summary()
 
+        # Get view-relevant count
+        view_relevant_count = self.get_view_relevant_count()
+        total_count = outlier_summary.get(
+            'statistics', {}).get('total_outliers', 0)
+
+        # Add view-relevant info to summary
+        outlier_summary['view_relevant_count'] = view_relevant_count
+        outlier_summary['total_count'] = total_count
+
         return {
             'pattern_type': 'outlier',
             'detected': self.detected,
-            'count': outlier_summary.get('statistics', {}).get('total_outliers', 0),
+            'count': view_relevant_count,  # Return view-relevant count for display
+            'total_count': total_count,    # Keep total for reference
             'details': outlier_summary
         }
