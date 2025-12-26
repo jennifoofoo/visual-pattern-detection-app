@@ -1,5 +1,6 @@
 import streamlit as st
 import core.app_utils.app_handler as app_handler
+from core.utils.demo_sampling import SamplingMode, SAMPLING_CONFIGS
 
 # Configure page for better performance
 st.set_page_config(
@@ -33,11 +34,35 @@ def main():
         demo_mode = st.checkbox(
             "🎬 Demo Mode", 
             value=True,
-            help="Enable for fast gap detection (samples to 100 cases). Disable to analyze full dataset."
+            help="Enable sampling for faster analysis. Choose a sampling strategy below."
         )
         
+        # Sampling Strategy Selection (only shown when demo mode is enabled)
+        sampling_mode = SamplingMode.SQRT  # Default
+        if demo_mode:
+            sampling_options = {
+                "⚡ Minimal (fastest)": SamplingMode.MINIMAL,
+                "📊 Balanced (√n)": SamplingMode.SQRT,
+                "🎯 Optimized (~70%)": SamplingMode.OPTIMIZED,
+                "📁 Legacy (first-N)": SamplingMode.LEGACY,
+            }
+            
+            selected_strategy = st.selectbox(
+                "Sampling Strategy:",
+                options=list(sampling_options.keys()),
+                index=1,  # Default to Balanced
+                help="""
+                **Minimal**: 1-2 traces per variant - ultra fast demos
+                **Balanced (√n)**: Keeps √n traces for frequent variants, all rare variants - recommended
+                **Optimized**: ~70% of data, preserves variant distribution - gentle reduction  
+                **Legacy**: First 100 cases - original sampling method
+                """,
+                key='sampling_strategy'
+            )
+            sampling_mode = sampling_options[selected_strategy]
+        
         if st.button('Load Data', type="primary"):
-            app_handler.load_data_button(xes_path, demo_mode=demo_mode)
+            app_handler.load_data_button(xes_path, demo_mode=demo_mode, sampling_mode=sampling_mode)
 
     # Show data status
     with col2:

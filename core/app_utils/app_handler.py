@@ -5,7 +5,13 @@ from core.app_utils.mappings import X_AXIS_COLUMN_MAP, Y_AXIS_COLUMN_MAP, DOTS_C
 from core.visualization.visualizer import plot_dotted_chart as plot_chart
 
 from core.evaluation.ollama import OllamaEvaluator
-from core.utils.demo_sampling import sample_small_eventlog
+from core.utils.demo_sampling import (
+    sample_small_eventlog,
+    sample_eventlog_variant_aware,
+    get_sampling_mode_options,
+    SamplingMode,
+    SAMPLING_CONFIGS
+)
 from config.extended_pattern_matrix import is_pattern_meaningful, get_pattern_info
 
 from core.app_utils.app_handler_pattern_detection import _detect_temporal_clusters, _detect_outliers, _detect_gaps, _detect_sequences
@@ -40,7 +46,7 @@ def init_state():
     if 'visible_temporal_cluster' not in st.session_state:
         st.session_state.visible_temporal_cluster = True
 
-def load_data_button(xes_path, demo_mode=False):
+def load_data_button(xes_path, demo_mode=False, sampling_mode: SamplingMode = SamplingMode.SQRT):
     try:
         with st.spinner(f"Loading {xes_path}..."):
             # Use cached loading
@@ -51,22 +57,37 @@ def load_data_button(xes_path, demo_mode=False):
                 "The log file was loaded but contains no events.")
             return
 
-        # Demo Mode: Sample event log for fast gap detection
-        if demo_mode and 'case_id' in df.columns:
+        # Demo Mode: Sample event log using variant-aware sampling
+        sampling_stats = None
+        if demo_mode and 'case_id' in df.columns and sampling_mode != SamplingMode.FULL:
             df_original = df
-            df = sample_small_eventlog(
+            df, sampling_stats = sample_eventlog_variant_aware(
                 df,
-                max_cases=100,
-                max_events_per_case=30,
+                mode=sampling_mode,
+                case_col='case_id',
+                activity_col='activity',
                 time_col='actual_time',
                 random_state=42
             )
-            # Show info in UI
+            
+            # Build info message based on sampling mode
+            config = SAMPLING_CONFIGS[sampling_mode]
+            reduction_pct = (1 - sampling_stats['reduction_ratio']) * 100
+            
+            variant_info = ""
+            if sampling_stats.get('variants_total'):
+                variant_info = f" | {sampling_stats['variants_total']} variants"
+            
             st.info(
-                f"🎬 **DEMO MODE Active:** Sampled to {len(df):,} events from {len(df_original):,} events "
-                f"({df['case_id'].nunique()} cases) for fast gap detection. "
-                f"Uncheck 'Demo Mode' to analyze full dataset."
+                f"🎬 **{config.name}:** {sampling_stats['sampled_events']:,} events "
+                f"({sampling_stats['sampled_traces']} traces{variant_info}) "
+                f"from {sampling_stats['original_events']:,} original "
+                f"({reduction_pct:.0f}% reduction). "
+                f"{config.description}"
             )
+            
+            # Store sampling stats for later reference
+            st.session_state.sampling_stats = sampling_stats
 
         # Store in session state
         st.session_state.df = df
