@@ -3,7 +3,7 @@ from core.data_processing import load_xes_log
 from core.evaluation.summary_generator import summarize_event_log
 from core.app_utils.mappings import X_AXIS_COLUMN_MAP, Y_AXIS_COLUMN_MAP, DOTS_COLOR_MAP
 from core.visualization.visualizer import plot_dotted_chart as plot_chart
-from core.detection import OutlierDetectionPattern, TemporalClusterPattern, TrendPattern
+from core.detection import OutlierDetectionPattern, TemporalClusterPattern, TrendPattern, CaseArrivalTrendPattern
 from core.detection.gap_pattern import GapPattern
 from core.evaluation.ollama import OllamaEvaluator
 from core.utils.demo_sampling import sample_small_eventlog
@@ -281,6 +281,25 @@ def _detect_trend(x_col, y_col, df_selected):
         print(f"Trend detection error: {traceback.format_exc()}")
 
 
+def _detect_case_arrival_trend(x_col, df_selected):
+    """Detect case arrival trends and store in session state."""
+    try:
+        detector = CaseArrivalTrendPattern(
+            view_config={'x': x_col},
+            aggregation_period='W',
+            min_periods=3
+        )
+        if detector.detect(df_selected):
+            st.session_state['case_arrival_trend_detector'] = detector
+            st.session_state.case_arrival_trend_detected = True
+        elif detector.trend_result is not None:
+            # Show in UI even if no significant trend
+            st.session_state['case_arrival_trend_detector'] = detector
+            st.session_state.case_arrival_trend_detected = True
+    except Exception as e:
+        st.warning(f"Case arrival trend detection skipped: {str(e)}")
+
+
 def _get_detection_cache_key(x_col, y_col, color_col, df_len):
     """Generate a cache key for pattern detection."""
     return f"{x_col}_{y_col}_{color_col}_{df_len}"
@@ -303,14 +322,15 @@ def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df
     st.session_state.temporal_detected = False
     st.session_state.outlier_detected = False
     st.session_state.trend_detected = False
+    st.session_state.case_arrival_trend_detected = False
     if 'gap_detector' in st.session_state:
         del st.session_state['gap_detector']
-    
+
     temporal_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'temporal_cluster_x')
     outlier_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'outlier')
     gap_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'gap')
     trend_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'trend')
-    
+
     with st.spinner("Auto-detecting patterns..."):
         if temporal_meaningful:
             _detect_temporal_clusters(x_col, y_col, df_selected)
@@ -320,6 +340,9 @@ def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df
             _detect_gaps(x_col, y_col, df_selected)
         if trend_meaningful:
             _detect_trend(x_col, y_col, df_selected)
+        # Case arrival trend: only requires actual_time on X-axis (case-level, Y-independent)
+        if x_col == 'actual_time':
+            _detect_case_arrival_trend(x_col, df_selected)
 
 
 def display_chart():
@@ -383,7 +406,7 @@ def display_chart():
     if st.session_state.get('visible_trend', True):
         if st.session_state.get('trend_detected', False) and 'trend_detector' in st.session_state:
             fig = st.session_state['trend_detector'].visualize(df_selected, fig)
-    
+
     st.plotly_chart(fig, use_container_width=True)
     
     # Update stored figure
@@ -393,9 +416,10 @@ def display_chart():
 def _is_any_pattern_detected() -> bool:
     """Check if any pattern has been detected."""
     return (
-        st.session_state.get('temporal_detected', False) or 
-        st.session_state.get('outlier_detected', False) or 
+        st.session_state.get('temporal_detected', False) or
+        st.session_state.get('outlier_detected', False) or
         st.session_state.get('trend_detected', False) or
+        st.session_state.get('case_arrival_trend_detected', False) or
         ('gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None)
     )
 
@@ -475,6 +499,7 @@ def sidebar_pattern_layer_controls():
         )
 
 
+
 # region Pattern Detection
 def handle_temporal_cluster_detection_logic(x_col, y_col, x_axis_label, y_axis_label, df_selected):
     """Execute temporal cluster detection logic."""
@@ -521,13 +546,13 @@ def handle_outlier_detection_logic():
 def _get_detected_pattern_tabs() -> tuple:
     """
     Get lists of detected pattern names and types for tab creation.
-    
+
     Returns:
         Tuple of (tab_names, tab_types) lists
     """
     tabs_names = []
     tabs_types = []
-    
+
     if st.session_state.get('temporal_detected', False):
         tabs_names.append("Temporal Clusters")
         tabs_types.append('temporal')
@@ -540,7 +565,10 @@ def _get_detected_pattern_tabs() -> tuple:
     if st.session_state.get('trend_detected', False):
         tabs_names.append("Trend Detection")
         tabs_types.append('trend')
-    
+    if st.session_state.get('case_arrival_trend_detected', False):
+        tabs_names.append("Case Arrival Trend")
+        tabs_types.append('case_arrival_trend')
+
     return tabs_names, tabs_types
 
 
@@ -554,6 +582,8 @@ def _display_pattern_tab(pattern_type: str):
         display_gap_tab()
     elif pattern_type == 'trend':
         display_trend_tab()
+    elif pattern_type == 'case_arrival_trend':
+        display_case_arrival_trend_tab()
 
 
 def handle_pattern_detection():
@@ -821,6 +851,44 @@ def display_trend_tab():
             else:
                 st.caption("Category trends only available for Activity or Resource axes")
 
+
+def display_case_arrival_trend_tab():
+    """Display Case Arrival Trend pattern details in tab."""
+    if not st.session_state.get('case_arrival_trend_detected', False):
+        return
+    if 'case_arrival_trend_detector' not in st.session_state:
+        return
+
+    detector = st.session_state['case_arrival_trend_detector']
+    summary = detector.get_summary()
+
+    direction = summary.get('direction', 'no_trend')
+    slope_pct = summary.get('slope_percent', 0)
+    p_value = summary.get('p_value', 1.0)
+    total_cases = summary.get('total_cases', 0)
+
+    # Format slope
+    slope_str = f"{slope_pct:+.1f}%" if abs(slope_pct) >= 0.1 else "~0%"
+
+    # Result summary
+    if direction == 'increasing':
+        st.success(f"↗ INCREASING: {slope_str} per week (p={p_value:.4f})")
+    elif direction == 'decreasing':
+        st.error(f"↘ DECREASING: {slope_str} per week (p={p_value:.4f})")
+    elif direction == 'stable':
+        st.info("→ STABLE: No practical trend (< 0.5% change per week)")
+    else:
+        st.warning("No significant trend detected")
+
+    # Explanation
+    st.markdown("---")
+    st.write("**What is Case Arrival Trend?**")
+    st.write("Measures whether new cases are arriving faster or slower over time.")
+    st.write(f"- **Definition:** Case arrival = min(actual_time) per case_id")
+    st.write(f"- **Total cases:** {total_cases}")
+    st.write(f"- **Statistical test:** Mann-Kendall (p = {p_value:.4f})")
+
+    st.caption("Unlike event-frequency trends, this focuses on CASE STARTS only.")
 
 
 # ========== HELPER FUNCTIONS FOR SUB-PATTERN SELECTION ==========
