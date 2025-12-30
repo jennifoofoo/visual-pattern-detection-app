@@ -35,6 +35,9 @@ def init_state():
         st.session_state.visible_outlier = True
     if 'visible_temporal_cluster' not in st.session_state:
         st.session_state.visible_temporal_cluster = True
+    # Selection-based Focus: focus_df=None means full view, not None means focused subset
+    if 'focus_df' not in st.session_state:
+        st.session_state.focus_df = None
 
 def load_data_button(xes_path, demo_mode=False):
     try:
@@ -188,6 +191,9 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
     }
     st.session_state['chart_plotted'] = True
 
+    # Reset focus when a new chart is plotted
+    st.session_state.focus_df = None
+
     st.success("Chart created successfully!")
 
     # Auto-detect all meaningful patterns after plotting
@@ -210,11 +216,17 @@ def _detect_temporal_clusters(x_col, y_col, df_selected):
         st.warning(f"Temporal cluster detection skipped: {str(e)}")
 
 
-def _detect_outliers():
-    """Detect outliers and store in session state."""
+def _detect_outliers(df=None):
+    """Detect outliers and store in session state.
+
+    Args:
+        df: DataFrame to analyze. If None, uses st.session_state.df (full dataset).
+    """
     try:
+        # Use provided df or fall back to full dataset
+        df_to_analyze = df if df is not None else st.session_state.df
         outlier_pattern = OutlierDetectionPattern(
-            df=st.session_state.df,
+            df=df_to_analyze,
             view_config=st.session_state.view_config
         )
         if outlier_pattern.detect():
@@ -335,7 +347,7 @@ def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df
         if temporal_meaningful:
             _detect_temporal_clusters(x_col, y_col, df_selected)
         if outlier_meaningful:
-            _detect_outliers()
+            _detect_outliers(df_selected)
         if gap_meaningful:
             _detect_gaps(x_col, y_col, df_selected)
         if trend_meaningful:
@@ -346,71 +358,174 @@ def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df
 
 
 def display_chart():
-    """Display the chart from session state (persistent across reruns)."""
+    """Display the chart from session state (persistent across reruns).
+
+    This simulates analytical zoom via explicit data selection.
+    Users can lasso/box select points, then click 'Focus on selection'
+    to analyze only that subset.
+    """
     if not st.session_state.get('chart_plotted', False):
         return
-        
+
     plot_config = st.session_state.get('current_plot_config', {})
     if not plot_config:
         return
-    
-    df_selected = plot_config['df_selected']
+
+    # Determine which dataframe to use: focus_df=None means full view
+    focus_df = st.session_state.get('focus_df')
+    if focus_df is not None:
+        df_display = focus_df
+        is_focus_view = True
+    else:
+        df_display = plot_config['df_selected']
+        is_focus_view = False
+
+    # Create _point_id for strict 1:1 mapping between plot points and dataframe rows
+    df_display = df_display.reset_index(drop=True)
+    df_display['_point_id'] = df_display.index
+
     x_col = plot_config['x_col']
     y_col = plot_config['y_col']
     dots_config_col = plot_config['dots_config_col']
     x_axis = plot_config['x_axis_label']
     y_axis = plot_config['y_axis_label']
     dots_config_label = plot_config['dots_config_label']
-    total_points = plot_config['total_points']
+    total_points = len(df_display)
     color_col = dots_config_col
     hover_cols = ['activity', 'event_index', 'actual_time']
-    
-    # Recreate the chart
+
+    # Build title with focus indicator
+    if is_focus_view:
+        full_count = len(plot_config['df_selected'])
+        title = f"Dotted Chart: {y_axis} vs {x_axis} ({total_points:,} of {full_count:,} points) [FOCUS VIEW]"
+    else:
+        title = f"Dotted Chart: {y_axis} vs {x_axis} ({total_points:,} points)"
+
+    # Recreate the chart with _point_id in customdata for selection
     fig = plot_chart(
-        df=df_selected,
+        df=df_display,
         x=x_col,
         y=y_col,
         color=color_col,
-        title=f"Dotted Chart: {y_axis} vs {x_axis} ({total_points:,} points)",
+        title=title,
         labels={x_col: x_axis, y_col: y_axis, color_col: dots_config_label},
-        hover_data=hover_cols
+        hover_data=hover_cols,
+        custom_data=['_point_id']
     )
-    
+
     # Improve visual appearance
     fig.update_traces(marker=dict(size=5, opacity=0.8))
-    
-    # Layout settings
+
+    # Layout settings - enable lasso and box select
     fig.update_layout(
         showlegend=(color_col is not None and color_col != 'case_id'),
         hovermode='closest',
         template='plotly_white',
-        yaxis=dict(autorange='reversed')
+        yaxis=dict(autorange='reversed'),
+        dragmode='lasso'  # Default to lasso selection
     )
-    
+
     # Add gap visualization if gaps were detected AND layer is visible
     if st.session_state.get('visible_gap', True):
         if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
-            fig = st.session_state['gap_detector'].visualize(df_selected, fig)
-    
+            fig = st.session_state['gap_detector'].visualize(df_display, fig)
+
     # Add outlier visualization if detected AND layer is visible
     if st.session_state.get('visible_outlier', True):
         if st.session_state.get('outlier_detected', False) and 'outlier_pattern' in st.session_state:
-            fig = st.session_state.outlier_pattern.visualize(df_selected, fig)
-    
+            fig = st.session_state.outlier_pattern.visualize(df_display, fig)
+
     # Add temporal cluster visualization if detected AND layer is visible
     if st.session_state.get('visible_temporal_cluster', True):
         if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
-            fig = st.session_state.temporal_clusters.visualize(df_selected, fig)
-    
+            fig = st.session_state.temporal_clusters.visualize(df_display, fig)
+
     # Add trend visualization if detected AND layer is visible
     if st.session_state.get('visible_trend', True):
         if st.session_state.get('trend_detected', False) and 'trend_detector' in st.session_state:
-            fig = st.session_state['trend_detector'].visualize(df_selected, fig)
+            fig = st.session_state['trend_detector'].visualize(df_display, fig)
 
-    st.plotly_chart(fig, use_container_width=True)
-    
+    # Display chart with selection callback
+    selection = st.plotly_chart(
+        fig,
+        use_container_width=True,
+        on_select="rerun",
+        key="main_chart"
+    )
+
     # Update stored figure
     st.session_state['fig'] = fig
+
+    # Selection-based Focus controls
+    _display_focus_controls(selection, plot_config, df_display, is_focus_view)
+
+
+def _reset_pattern_detection_state():
+    """Clear all pattern detection results to force re-detection."""
+    st.session_state.temporal_detected = False
+    st.session_state.outlier_detected = False
+    st.session_state.trend_detected = False
+    st.session_state.case_arrival_trend_detected = False
+    if 'gap_detector' in st.session_state:
+        del st.session_state['gap_detector']
+    st.session_state['_pattern_cache_key'] = ''
+
+
+def _display_focus_controls(selection, plot_config, df_display, is_focus_view):
+    """Display Selection-based Focus controls below the chart."""
+    # In focus view: focus_df is the single source of truth, ignore selection
+    # In full view: read selection to enable "Focus on selection" button
+    selected_indices = []
+    if not is_focus_view and selection and selection.selection:
+        for pt in selection.selection.get("points", []):
+            customdata = pt.get("customdata")
+            if customdata and len(customdata) > 0:
+                selected_indices.append(customdata[0])
+
+    col1, col2, col3 = st.columns([2, 1, 1])
+
+    with col1:
+        if is_focus_view:
+            full_count = len(plot_config['df_selected'])
+            st.info(f"Focus View: {len(df_display):,} of {full_count:,} points")
+        elif selected_indices:
+            st.caption(f"Selected {len(selected_indices):,} points. Click 'Focus on selection' to analyze subset.")
+        else:
+            st.caption("Use lasso or box select to choose points, then click 'Focus on selection'.")
+
+    with col2:
+        # Disabled in focus view OR when no selection
+        if st.button("Focus on selection", disabled=(is_focus_view or not selected_indices), type="primary", key="focus_btn"):
+            _apply_focus_selection(selected_indices, df_display, plot_config)
+
+    with col3:
+        if st.button("Reset to full view", disabled=not is_focus_view, key="reset_focus_btn"):
+            _reset_focus_view(plot_config)
+
+
+def _apply_focus_selection(selected_point_ids, df_display, plot_config):
+    """Filter to selected points and re-run pattern detection."""
+    # Filter by _point_id for strict 1:1 mapping (selected count == focus count)
+    st.session_state.focus_df = df_display[df_display['_point_id'].isin(selected_point_ids)].copy()
+    _reset_pattern_detection_state()
+    auto_detect_patterns(
+        plot_config['x_col'], plot_config['y_col'], plot_config['dots_config_col'],
+        plot_config['x_axis_label'], plot_config['y_axis_label'],
+        st.session_state.focus_df
+    )
+    st.rerun()
+
+
+def _reset_focus_view(plot_config):
+    """Reset to full view and re-run pattern detection."""
+    st.session_state.focus_df = None
+    _reset_pattern_detection_state()
+    auto_detect_patterns(
+        plot_config['x_col'], plot_config['y_col'], plot_config['dots_config_col'],
+        plot_config['x_axis_label'], plot_config['y_axis_label'],
+        plot_config['df_selected']
+    )
+    st.rerun()
 
 
 def _is_any_pattern_detected() -> bool:
