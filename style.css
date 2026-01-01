@@ -1,0 +1,173 @@
+/* ================================================================
+   VISUAL PATTERN DETECTION – LIGHT B2B SAAS THEME (FIXED)
+   ================================================================ */
+
+   :root {
+    --bg-primary: #f7f7fb;
+    --bg-secondary: #ffffff;
+    --bg-hover: #f0f1f7;
+  
+    --border-subtle: rgba(0,0,0,.06);
+    --border-medium: rgba(0,0,0,.12);
+  
+    --text-primary: #111827;
+    --text-secondary: #4b5563;
+  
+    --accent: #6366f1;
+    --accent-hover: #4f46e5;
+  
+    --radius-md: .5rem;
+    --radius-lg: .75rem;
+  
+    --space-xs: .4rem;
+    --space-sm: .6rem;
+    --space-md: .9rem;
+    --space-lg: 1.25rem;
+  }
+  
+  /* ----------------------------------------------------------------
+     GLOBAL RESET
+     ---------------------------------------------------------------- */
+  html, body, [data-testid="stAppViewContainer"] {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: var(--bg-primary) !important;
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  
+  /* ----------------------------------------------------------------
+     MAIN – NO TOP GAP
+     ---------------------------------------------------------------- */
+  section[data-testid="stMain"] {
+    padding-top: 0 !important;
+  }
+  
+  div[data-testid="stMainBlockContainer"] {
+    padding-top: 0 !important;
+    padding-bottom: var(--space-lg) !important;
+  }
+  
+  /* kill Streamlit vertical auto-gap */
+  div[data-testid="stVerticalBlock"] {
+    gap: 0 !important;
+  }
+  
+  /* ----------------------------------------------------------------
+     HEADER
+     ---------------------------------------------------------------- */
+  .main-header {
+    margin-top: var(--space-xs);
+    margin-bottom: var(--space-md);
+  }
+  
+  .main-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--accent) !important; /* ✅ LILA */
+  }
+  
+  .main-subtitle {
+    font-size: .85rem;
+    color: var(--text-secondary);
+    margin-top: .25rem;
+  }
+  
+  .main-description {
+    max-width: 720px;
+    color: var(--text-secondary);
+    margin-top: .5rem;
+    line-height: 1.6;
+  }
+  
+  /* ----------------------------------------------------------------
+     SIDEBAR – ALWAYS OPEN
+     ---------------------------------------------------------------- */
+  section[data-testid="stSidebar"] {
+    width: 380px !important;
+    min-width: 380px !important;
+    background: var(--bg-secondary) !important;
+    border-right: 1px solid var(--border-subtle);
+    padding-top: var(--space-sm) !important;
+  }
+  
+  section[data-testid="stSidebar"][aria-expanded="false"] {
+    display: block !important;
+  }
+  
+  [data-testid="stSidebar"] .block-container {
+    padding: 0 var(--space-md) var(--space-md);
+  }
+  
+  /* Hide collapse arrow */
+  [data-testid="collapsedControl"] {
+    display: none !important;
+  }
+  /* ----------------------------------------------------------------
+   FORCE SIDEBAR ALWAYS EXPANDED (CRITICAL FIX)
+   ---------------------------------------------------------------- */
+  section[data-testid="stSidebar"] {
+    transform: translateX(0) !important;
+    visibility: visible !important;
+    position: relative !important;
+  }
+
+  section[data-testid="stSidebar"][aria-expanded="false"] {
+    transform: translateX(0) !important;
+    visibility: visible !important;
+  }
+  /* ----------------------------------------------------------------
+     ✅ SIDEBAR SPACING – THIS IS THE FIX
+     ---------------------------------------------------------------- */
+  [data-testid="stSidebar"] [data-testid="stExpander"] {
+    margin-bottom: var(--space-lg) !important;
+  }
+  
+  [data-testid="stSidebar"] [data-testid="stExpander"]:last-child {
+    margin-bottom: 0 !important;
+  }
+  
+  /* ----------------------------------------------------------------
+     EXPANDERS
+     ---------------------------------------------------------------- */
+  .streamlit-expanderHeader {
+    padding: var(--space-sm) 0;
+    font-weight: 500;
+  }
+  
+  /* ----------------------------------------------------------------
+     BUTTONS – WHITE TEXT
+     ---------------------------------------------------------------- */
+  .stButton button[kind="primary"] {
+    background: var(--accent) !important;
+    color: #ffffff !important;
+  }
+  
+  .stButton button[kind="primary"] * {
+    color: #ffffff !important;
+  }
+  
+  .stButton button[kind="primary"]:hover {
+    background: var(--accent-hover) !important;
+  }
+  
+  /* ----------------------------------------------------------------
+     INPUTS
+     ---------------------------------------------------------------- */
+  .stTextInput input,
+  .stSelectbox [data-baseweb="select"] > div {
+    background: var(--bg-secondary) !important;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-medium);
+  }
+  
+  /* ----------------------------------------------------------------
+     PLOTLY
+     ---------------------------------------------------------------- */
+  .stPlotlyChart {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+    border: 1px solid var(--border-subtle);
+  }
+  
