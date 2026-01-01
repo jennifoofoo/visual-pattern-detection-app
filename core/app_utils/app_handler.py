@@ -3,7 +3,7 @@ from core.data_processing import load_xes_log
 from core.evaluation.summary_generator import summarize_event_log
 from core.app_utils.mappings import X_AXIS_COLUMN_MAP, Y_AXIS_COLUMN_MAP, DOTS_COLOR_MAP
 from core.visualization.visualizer import plot_dotted_chart as plot_chart
-from core.detection import OutlierDetectionPattern, TemporalClusterPattern, TrendPattern, CaseArrivalTrendPattern
+from core.detection import OutlierDetectionPattern, TemporalClusterPattern, CaseArrivalTrendPattern
 from core.detection.gap_pattern import GapPattern
 from core.evaluation.ollama import OllamaEvaluator
 from core.utils.demo_sampling import sample_small_eventlog
@@ -67,7 +67,7 @@ def load_data_button(xes_path, demo_mode=False):
                 f"Uncheck 'Demo Mode' to analyze full dataset."
             )
 
-        # Store in session state
+        # Raw loaded log - never use for pattern detection (use get_active_view_df instead)
         st.session_state.df = df
         st.session_state.loaded_file = xes_path
         st.session_state.data_loaded = True
@@ -197,7 +197,10 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
     st.success("Chart created successfully!")
 
     # Auto-detect all meaningful patterns after plotting
-    auto_detect_patterns(x_col, y_col, dots_config_col, x_axis, y_axis, df_plot)
+    auto_detect_patterns(
+        x_col, y_col, dots_config_col, x_axis, y_axis,
+        get_active_view_df(st.session_state['current_plot_config'])
+    )
 
 def _detect_temporal_clusters(x_col, y_col, df_selected):
     """Detect temporal clusters and store in session state."""
@@ -216,17 +219,11 @@ def _detect_temporal_clusters(x_col, y_col, df_selected):
         st.warning(f"Temporal cluster detection skipped: {str(e)}")
 
 
-def _detect_outliers(df=None):
-    """Detect outliers and store in session state.
-
-    Args:
-        df: DataFrame to analyze. If None, uses st.session_state.df (full dataset).
-    """
+def _detect_outliers(df):
+    """Detect outliers and store in session state."""
     try:
-        # Use provided df or fall back to full dataset
-        df_to_analyze = df if df is not None else st.session_state.df
         outlier_pattern = OutlierDetectionPattern(
-            df=df_to_analyze,
+            df=df,
             view_config=st.session_state.view_config
         )
         if outlier_pattern.detect():
@@ -267,32 +264,6 @@ def _detect_gaps(x_col, y_col, df_selected, min_samples=None):
         st.warning(f"Gap detection skipped: {str(e)}")
 
 
-def _detect_trend(x_col, y_col, df_selected):
-    """Detect trends and store in session state."""
-    try:
-        view_config = {'x': x_col, 'y': y_col}
-        trend_detector = TrendPattern(
-            view_config=view_config,
-            aggregation_period='D',  # Daily aggregation
-            min_periods=3,  # Lowered for demo data
-            analyze_per_category=True
-        )
-        if trend_detector.detect(df_selected):
-            st.session_state['trend_detector'] = trend_detector
-            st.session_state.trend_detected = True
-            st.session_state.visible_trend = True
-        else:
-            # Still show in UI even if no significant trend
-            if trend_detector.global_trend is not None:
-                st.session_state['trend_detector'] = trend_detector
-                st.session_state.trend_detected = True
-                st.session_state.visible_trend = True
-    except Exception as e:
-        st.warning(f"Trend detection skipped: {str(e)}")
-        import traceback
-        print(f"Trend detection error: {traceback.format_exc()}")
-
-
 def _detect_case_arrival_trend(x_col, df_selected):
     """Detect case arrival trends and store in session state."""
     try:
@@ -319,21 +290,19 @@ def _get_detection_cache_key(x_col, y_col, color_col, df_len):
 
 def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df_selected):
     """Automatically detect all meaningful patterns after chart is plotted."""
-    # Check if we already detected patterns for this exact configuration
-    cache_key = _get_detection_cache_key(x_col, y_col, color_col, len(df_selected))
-    last_cache_key = st.session_state.get('_pattern_cache_key', '')
-    
-    if cache_key == last_cache_key:
-        # Patterns already detected for this config, skip re-detection
-        return
-    
-    # Store new cache key
-    st.session_state['_pattern_cache_key'] = cache_key
+    is_focus_view = st.session_state.get('focus_df') is not None
+
+    # Skip cache when focus is active (selections of same size must recompute)
+    if not is_focus_view:
+        cache_key = _get_detection_cache_key(x_col, y_col, color_col, len(df_selected))
+        last_cache_key = st.session_state.get('_pattern_cache_key', '')
+        if cache_key == last_cache_key:
+            return
+        st.session_state['_pattern_cache_key'] = cache_key
     
     # Clear old pattern results
     st.session_state.temporal_detected = False
     st.session_state.outlier_detected = False
-    st.session_state.trend_detected = False
     st.session_state.case_arrival_trend_detected = False
     if 'gap_detector' in st.session_state:
         del st.session_state['gap_detector']
@@ -341,7 +310,6 @@ def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df
     temporal_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'temporal_cluster_x')
     outlier_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'outlier')
     gap_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'gap')
-    trend_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'trend')
 
     with st.spinner("Auto-detecting patterns..."):
         if temporal_meaningful:
@@ -350,20 +318,24 @@ def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df
             _detect_outliers(df_selected)
         if gap_meaningful:
             _detect_gaps(x_col, y_col, df_selected)
-        if trend_meaningful:
-            _detect_trend(x_col, y_col, df_selected)
-        # Case arrival trend: only requires actual_time on X-axis (case-level, Y-independent)
         if x_col == 'actual_time':
             _detect_case_arrival_trend(x_col, df_selected)
 
 
-def display_chart():
-    """Display the chart from session state (persistent across reruns).
-
-    This simulates analytical zoom via explicit data selection.
-    Users can lasso/box select points, then click 'Focus on selection'
-    to analyze only that subset.
+def get_active_view_df(plot_config: dict):
     """
+    The active view dataframe represents the explicitly selected
+    sub-event-log. All pattern detection is recomputed on this view.
+    This is not a visual zoom.
+    """
+    focus_df = st.session_state.get('focus_df')
+    if focus_df is not None:
+        return focus_df
+    return plot_config['df_selected']
+
+
+def display_chart():
+    """Display the chart from session state (persistent across reruns)."""
     if not st.session_state.get('chart_plotted', False):
         return
 
@@ -371,14 +343,8 @@ def display_chart():
     if not plot_config:
         return
 
-    # Determine which dataframe to use: focus_df=None means full view
-    focus_df = st.session_state.get('focus_df')
-    if focus_df is not None:
-        df_display = focus_df
-        is_focus_view = True
-    else:
-        df_display = plot_config['df_selected']
-        is_focus_view = False
+    df_display = get_active_view_df(plot_config)
+    is_focus_view = st.session_state.get('focus_df') is not None
 
     # Create _point_id for strict 1:1 mapping between plot points and dataframe rows
     df_display = df_display.reset_index(drop=True)
@@ -440,11 +406,6 @@ def display_chart():
         if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
             fig = st.session_state.temporal_clusters.visualize(df_display, fig)
 
-    # Add trend visualization if detected AND layer is visible
-    if st.session_state.get('visible_trend', True):
-        if st.session_state.get('trend_detected', False) and 'trend_detector' in st.session_state:
-            fig = st.session_state['trend_detector'].visualize(df_display, fig)
-
     # Display chart with selection callback
     selection = st.plotly_chart(
         fig,
@@ -464,7 +425,6 @@ def _reset_pattern_detection_state():
     """Clear all pattern detection results to force re-detection."""
     st.session_state.temporal_detected = False
     st.session_state.outlier_detected = False
-    st.session_state.trend_detected = False
     st.session_state.case_arrival_trend_detected = False
     if 'gap_detector' in st.session_state:
         del st.session_state['gap_detector']
@@ -473,8 +433,6 @@ def _reset_pattern_detection_state():
 
 def _display_focus_controls(selection, plot_config, df_display, is_focus_view):
     """Display Selection-based Focus controls below the chart."""
-    # In focus view: focus_df is the single source of truth, ignore selection
-    # In full view: read selection to enable "Focus on selection" button
     selected_indices = []
     if not is_focus_view and selection and selection.selection:
         for pt in selection.selection.get("points", []):
@@ -482,36 +440,34 @@ def _display_focus_controls(selection, plot_config, df_display, is_focus_view):
             if customdata and len(customdata) > 0:
                 selected_indices.append(customdata[0])
 
-    col1, col2, col3 = st.columns([2, 1, 1])
+    col1, col2, col3 = st.columns([3, 1, 1])
 
     with col1:
         if is_focus_view:
             full_count = len(plot_config['df_selected'])
-            st.info(f"Focus View: {len(df_display):,} of {full_count:,} points")
+            st.info(f"**Focus View** — Analyzing {len(df_display):,} of {full_count:,} points")
         elif selected_indices:
-            st.caption(f"Selected {len(selected_indices):,} points. Click 'Focus on selection' to analyze subset.")
+            st.caption(f"{len(selected_indices):,} points selected")
         else:
-            st.caption("Use lasso or box select to choose points, then click 'Focus on selection'.")
+            st.caption("Lasso or box select points to focus")
 
     with col2:
-        # Disabled in focus view OR when no selection
-        if st.button("Focus on selection", disabled=(is_focus_view or not selected_indices), type="primary", key="focus_btn"):
+        if st.button("Focus", disabled=(is_focus_view or not selected_indices), type="primary", key="focus_btn"):
             _apply_focus_selection(selected_indices, df_display, plot_config)
 
     with col3:
-        if st.button("Reset to full view", disabled=not is_focus_view, key="reset_focus_btn"):
+        if st.button("Reset", disabled=not is_focus_view, key="reset_focus_btn"):
             _reset_focus_view(plot_config)
 
 
 def _apply_focus_selection(selected_point_ids, df_display, plot_config):
     """Filter to selected points and re-run pattern detection."""
-    # Filter by _point_id for strict 1:1 mapping (selected count == focus count)
     st.session_state.focus_df = df_display[df_display['_point_id'].isin(selected_point_ids)].copy()
     _reset_pattern_detection_state()
     auto_detect_patterns(
         plot_config['x_col'], plot_config['y_col'], plot_config['dots_config_col'],
         plot_config['x_axis_label'], plot_config['y_axis_label'],
-        st.session_state.focus_df
+        get_active_view_df(plot_config)
     )
     st.rerun()
 
@@ -523,7 +479,7 @@ def _reset_focus_view(plot_config):
     auto_detect_patterns(
         plot_config['x_col'], plot_config['y_col'], plot_config['dots_config_col'],
         plot_config['x_axis_label'], plot_config['y_axis_label'],
-        plot_config['df_selected']
+        get_active_view_df(plot_config)
     )
     st.rerun()
 
@@ -533,7 +489,6 @@ def _is_any_pattern_detected() -> bool:
     return (
         st.session_state.get('temporal_detected', False) or
         st.session_state.get('outlier_detected', False) or
-        st.session_state.get('trend_detected', False) or
         st.session_state.get('case_arrival_trend_detected', False) or
         ('gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None)
     )
@@ -573,20 +528,17 @@ def sidebar_pattern_layer_controls():
     """Display pattern layer visibility controls in sidebar."""
     if not _is_any_pattern_detected():
         return
-    
-    st.subheader("Pattern Layers")
-    st.caption("Toggle pattern visualizations on the chart")
-    
-    # Temporal Clusters
+
+    st.markdown("##### Pattern Layers")
+
     if st.session_state.get('temporal_detected', False):
         _render_pattern_checkbox(
-            "Temporal Clusters", 
-            'visible_temporal_cluster', 
+            "Temporal Clusters",
+            'visible_temporal_cluster',
             'temporal_cluster_version',
             'checkbox_temporal_cluster_'
         )
 
-    # Outlier Detection
     if st.session_state.get('outlier_detected', False):
         _render_pattern_checkbox(
             "Outlier Detection",
@@ -594,8 +546,7 @@ def sidebar_pattern_layer_controls():
             'outlier_type_version',
             'checkbox_outlier_type_'
         )
-    
-    # Gap Detection
+
     if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
         _render_pattern_checkbox(
             "Gap Detection",
@@ -603,60 +554,9 @@ def sidebar_pattern_layer_controls():
             'gap_transition_version',
             'checkbox_gap_transition_'
         )
-    
-    # Trend Detection
-    if st.session_state.get('trend_detected', False):
-        _render_pattern_checkbox(
-            "Trend Detection",
-            'visible_trend',
-            'trend_version',
-            'checkbox_trend_'
-        )
-
 
 
 # region Pattern Detection
-def handle_temporal_cluster_detection_logic(x_col, y_col, x_axis_label, y_axis_label, df_selected):
-    """Execute temporal cluster detection logic."""
-    if x_col and y_col and df_selected is not None:
-        with st.spinner("Detecting temporal patterns..."):
-            detector = TemporalClusterPattern(
-                df=df_selected,
-                x_axis=x_col,
-                y_axis=y_col,
-                min_cluster_size=10
-            )
-
-            if detector.detect():
-                st.session_state.temporal_clusters = detector
-                st.session_state.temporal_detected = True
-            else:
-                st.session_state.temporal_detected = False
-                st.info(f"No meaningful temporal patterns for {y_axis_label} × {x_axis_label}")
-    else:
-        st.warning("Please plot a chart first")
-
-def handle_outlier_detection_logic():
-    """Execute outlier detection logic."""
-    with st.spinner("Analyzing outliers..."):
-        try:
-            # Use original data for outlier detection (not sampled data)
-            outlier_pattern = OutlierDetectionPattern(
-                df=st.session_state.df,  # Use full dataset
-                view_config=st.session_state.view_config
-            )
-            if outlier_pattern.detect():
-                # Store outlier results in session state
-                st.session_state.outlier_pattern = outlier_pattern
-                st.session_state.outlier_detected = True
-            else:
-                st.session_state.outlier_detected = False
-                st.info("No significant outliers detected!")
-        except Exception as e:
-            st.session_state.outlier_detected = False
-            st.error(f"Error during outlier detection: {str(e)}")
-
-# handle_gap_detection_logic REMOVED - use _detect_gaps instead (avoids code duplication)
 
 def _get_detected_pattern_tabs() -> tuple:
     """
@@ -677,9 +577,6 @@ def _get_detected_pattern_tabs() -> tuple:
     if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
         tabs_names.append("Gap Detection")
         tabs_types.append('gap')
-    if st.session_state.get('trend_detected', False):
-        tabs_names.append("Trend Detection")
-        tabs_types.append('trend')
     if st.session_state.get('case_arrival_trend_detected', False):
         tabs_names.append("Case Arrival Trend")
         tabs_types.append('case_arrival_trend')
@@ -695,8 +592,6 @@ def _display_pattern_tab(pattern_type: str):
         display_outlier_tab()
     elif pattern_type == 'gap':
         display_gap_tab()
-    elif pattern_type == 'trend':
-        display_trend_tab()
     elif pattern_type == 'case_arrival_trend':
         display_case_arrival_trend_tab()
 
@@ -704,267 +599,146 @@ def _display_pattern_tab(pattern_type: str):
 def handle_pattern_detection():
     """Display pattern summary with tabs for each detected pattern."""
     st.subheader("Pattern Summary")
-    st.caption("Patterns are automatically detected after plotting. Toggle visibility in sidebar.")
-    
+
     if not _is_any_pattern_detected():
-        st.info("Patterns will appear here after chart is plotted.")
+        st.caption("Patterns will appear here after plotting")
         return
-    
+
     tabs_names, tabs_types = _get_detected_pattern_tabs()
     tabs = st.tabs(tabs_names)
-    
+
     for tab, pattern_type in zip(tabs, tabs_types):
         with tab:
             _display_pattern_tab(pattern_type)
 
 
 def display_temporal_cluster_tab():
-    """Display Temporal Cluster pattern details in tab with individual cluster selection."""
-    if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
-        detector = st.session_state.temporal_clusters
-        summary = detector.get_summary()
-        
-        # Layer visibility is now controlled by sidebar
-        layer_visible = st.session_state.get('visible_temporal_cluster', True)
-        
-        if not layer_visible:
-            st.info("Layer hidden - toggle in sidebar to show on chart")
-        
-        st.success(f"{summary['count']} clusters detected")
-        
-        # === NESTED TABS FOR OVERVIEW AND CLUSTER CONTROL ===
-        subtab1, subtab2 = st.tabs(["Overview", "Cluster Control"])
-        
-        with subtab1:
-            st.text(summary['details']['summary_text'])
-        
-        with subtab2:
-            # Individual cluster selection
-            # Get cluster data (assuming temporal_bursts exists in detector.clusters)
-            if hasattr(detector, 'clusters') and 'temporal_bursts' in detector.clusters:
-                cluster_list = detector.clusters['temporal_bursts']
-                selected_clusters = list_to_multicheckbox(
-                    cluster_list, 
-                    title="Select Clusters to Display",
-                    key_prefix="temporal_cluster"
-                )
-                
-                # Store selected clusters in session state for visualization
-                st.session_state['selected_temporal_clusters'] = selected_clusters
-                
-                if selected_clusters:
-                    st.success(f"✅ {len(selected_clusters)} of {len(cluster_list)} clusters selected")
+    """Display Temporal Cluster pattern details in tab."""
+    if not (st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state):
+        return
+
+    detector = st.session_state.temporal_clusters
+    summary = detector.get_summary()
+    layer_visible = st.session_state.get('visible_temporal_cluster', True)
+
+    if not layer_visible:
+        st.caption("Hidden — enable in sidebar")
+
+    st.metric("Clusters", summary['count'])
+
+    subtab1, subtab2 = st.tabs(["Overview", "Selection"])
+
+    with subtab1:
+        st.text(summary['details']['summary_text'])
+
+    with subtab2:
+        if hasattr(detector, 'clusters') and 'temporal_bursts' in detector.clusters:
+            cluster_list = detector.clusters['temporal_bursts']
+            selected_clusters = list_to_multicheckbox(
+                cluster_list,
+                title="Select Clusters",
+                key_prefix="temporal_cluster"
+            )
+            st.session_state['selected_temporal_clusters'] = selected_clusters
 
 
 def display_outlier_tab():
-    """Display Outlier Detection pattern details in tab with individual outlier type selection."""
-    if st.session_state.get('outlier_detected', False) and 'outlier_pattern' in st.session_state:
-        outlier_pattern = st.session_state.outlier_pattern
-        summary = outlier_pattern.get_summary()
-        
-        # Layer visibility is now controlled by sidebar
-        layer_visible = st.session_state.get('visible_outlier', True)
-        
-        if not layer_visible:
-            st.info("Layer hidden - toggle in sidebar to show on chart")
-        
-        stats = summary['details'].get('statistics', {})
-        st.success(f"{summary['count']} outliers detected ({stats.get('outlier_percentage', 0):.1f}%)")
-        
-        # === NESTED TABS FOR OVERVIEW AND OUTLIER TYPE CONTROL ===
-        subtab1, subtab2 = st.tabs(["Overview", "Outlier Type Control"])
-        
-        with subtab1:
-            if summary['details'].get('outlier_details'):
-                for outlier_type, details in summary['details']['outlier_details'].items():
-                    st.write(f"- {outlier_type.replace('_', ' ').title()}: {details['count']} ({details['percentage']:.1f}%)")
-        
-        with subtab2:
-            # Individual outlier type selection
-            # Get outlier types
-            outlier_details = summary['details'].get('outlier_details', {})
-            if outlier_details:
-                # Create a dict with outlier types and their counts
-                outlier_types_dict = {
-                    f"{otype.replace('_', ' ').title()} ({details['count']})": otype 
-                    for otype, details in outlier_details.items() 
-                    if details['count'] > 0
-                }
-                
-                selected_types = dict_to_multicheckbox(
-                    outlier_types_dict,
-                    title="Select Outlier Types to Display",
-                    key_prefix="outlier_type"
-                )
-                
-                # Store selected types in session state
-                st.session_state['selected_outlier_types'] = selected_types
-                
-                if selected_types:
-                    st.success(f"✅ {len(selected_types)} of {len(outlier_types_dict)} outlier types selected")
-            else:
-                st.info("No outlier type details available")
+    """Display Outlier Detection pattern details in tab."""
+    if not (st.session_state.get('outlier_detected', False) and 'outlier_pattern' in st.session_state):
+        return
+
+    outlier_pattern = st.session_state.outlier_pattern
+    summary = outlier_pattern.get_summary()
+    layer_visible = st.session_state.get('visible_outlier', True)
+
+    if not layer_visible:
+        st.caption("Hidden — enable in sidebar")
+
+    stats = summary['details'].get('statistics', {})
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Outliers", summary['count'])
+    with col2:
+        st.metric("Percentage", f"{stats.get('outlier_percentage', 0):.1f}%")
+
+    subtab1, subtab2 = st.tabs(["Overview", "Selection"])
+
+    with subtab1:
+        if summary['details'].get('outlier_details'):
+            for outlier_type, details in summary['details']['outlier_details'].items():
+                st.write(f"- {outlier_type.replace('_', ' ').title()}: {details['count']} ({details['percentage']:.1f}%)")
+
+    with subtab2:
+        outlier_details = summary['details'].get('outlier_details', {})
+        if outlier_details:
+            outlier_types_dict = {
+                f"{otype.replace('_', ' ').title()} ({details['count']})": otype
+                for otype, details in outlier_details.items()
+                if details['count'] > 0
+            }
+            selected_types = dict_to_multicheckbox(
+                outlier_types_dict,
+                title="Select Types",
+                key_prefix="outlier_type"
+            )
+            st.session_state['selected_outlier_types'] = selected_types
 
 
 def display_gap_tab():
-    """Display Gap Detection pattern details in tab with individual transition selection."""
-    if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
-        gap_detector = st.session_state['gap_detector']
-        summary = gap_detector.get_summary()
-        details = summary['details']
-        
-        # Settings and status in header
-        col_info, col_settings = st.columns([0.85, 0.15])
-        with col_info:
-            layer_visible = st.session_state.get('visible_gap', True)
-            if not layer_visible:
-                st.info("Layer hidden - toggle in sidebar to show on chart")
-            else:
-                st.success(f"{summary['count']} gaps detected across {details['transitions_with_anomalies']} transitions")
-        with col_settings:
-            with st.popover("⚙️"):
-                st.write("**Settings**")
-                current_min_samples = st.session_state.get('gap_min_samples', 5)
-                min_samples = st.number_input(
-                    "Min samples per transition",
-                    min_value=3,
-                    max_value=20,
-                    value=current_min_samples,
-                    step=1,
-                    key="gap_min_samples_tab_input",
-                    help="Transitions with fewer samples are skipped"
-                )
-                if min_samples != current_min_samples:
-                    if st.button("Apply & Re-detect", use_container_width=True, type="primary", key="gap_redetect_tab"):
-                        st.session_state['gap_min_samples'] = min_samples
-                        plot_config = st.session_state.get('current_plot_config', {})
-                        if plot_config:
-                            df_selected = plot_config['df_selected']
-                            x_col = plot_config['x_col']
-                            y_col = plot_config['y_col']
-                            _detect_gaps(x_col, y_col, df_selected, min_samples)
-                            st.rerun()
-        
-        # === NESTED TABS FOR OVERVIEW AND TRANSITION CONTROL ===
-        subtab1, subtab2 = st.tabs(["Overview", "Transition Control"])
-        
-        with subtab1:
-            st.write("**Top Transitions with Anomalies:**")
-            trans_stats = details.get('transition_stats', {})
-            for trans, stats in list(trans_stats.items())[:5]:
-                st.write(f"- {trans}: {stats['count']} occurrences, threshold: {stats['threshold']/86400:.1f} days")
-            
-            st.write("**Top 10 Abnormal Gaps by Severity:**")
-            abnormal_gaps = sorted(details['abnormal_gaps'], key=lambda x: x.get('severity', 0), reverse=True)[:10]
-            for i, gap in enumerate(abnormal_gaps, 1):
-                duration_days = gap['duration'] / 86400
-                threshold_days = gap['threshold'] / 86400
-                st.write(f"{i}. {gap['transition']} - Duration: {duration_days:.1f}d, Threshold: {threshold_days:.1f}d, Severity: {gap['severity']:.2f}x")
-        
-        with subtab2:
-            # Individual transition selection
-            # Get transitions with anomalies
-            trans_stats = details.get('transition_stats', {})
-            if trans_stats:
-                # Create a dict with transitions and their anomaly counts
-                transition_dict = {
-                    f"{trans} ({stats['count']} anomalies)": trans 
-                    for trans, stats in trans_stats.items()
-                }
-                
-                selected_transitions = dict_to_multicheckbox(
-                    transition_dict,
-                    title="Select Transitions to Display",
-                    key_prefix="gap_transition"
-                )
-                
-                # Store selected transitions in session state
-                st.session_state['selected_gap_transitions'] = selected_transitions
-                
-                if selected_transitions:
-                    st.success(f"{len(selected_transitions)} of {len(transition_dict)} transitions selected")
-            else:
-                st.info("No transition stats available")
+    """Display Gap Detection pattern details in tab."""
+    if not ('gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None):
+        return
 
+    gap_detector = st.session_state['gap_detector']
+    summary = gap_detector.get_summary()
+    details = summary['details']
+    layer_visible = st.session_state.get('visible_gap', True)
 
-def display_trend_tab():
-    """Display Trend Detection pattern details in tab."""
-    if st.session_state.get('trend_detected', False) and 'trend_detector' in st.session_state:
-        detector = st.session_state['trend_detector']
-        summary = detector.get_summary()
-        
-        # Layer visibility status
-        layer_visible = st.session_state.get('visible_trend', True)
-        if not layer_visible:
-            st.info("Layer hidden - toggle in sidebar to show on chart")
-        
-        # Global trend info
-        global_trend = summary.get('global_trend', 'no_trend')
-        global_change = summary.get('global_change', 0)
-        p_value = summary.get('p_value', 1.0)
-        
-        # Trend icon
-        if global_trend == 'increasing':
-            trend_icon = '↗'
-            trend_color = 'green'
-        elif global_trend == 'decreasing':
-            trend_icon = '↘'
-            trend_color = 'red'
-        elif global_trend == 'stable':
-            trend_icon = '→'
-            trend_color = 'blue'
-        else:  # no_trend
-            trend_icon = '−'
-            trend_color = 'gray'
-        
-        # Format slope - use more precision for small values
-        def format_slope(val):
-            if abs(val) < 0.1:
-                return f"{val:+.3f}%" if val != 0 else "~0%"
-            return f"{val:+.1f}%"
-        
-        # Display summary
-        if global_trend == 'increasing':
-            st.success(f"{trend_icon} {global_trend.upper()}: {format_slope(global_change)} per period (p={p_value:.4f})")
-        elif global_trend == 'decreasing':
-            st.error(f"{trend_icon} {global_trend.upper()}: {format_slope(global_change)} per period (p={p_value:.4f})")
-        elif global_trend == 'stable':
-            st.info(f"{trend_icon} STABLE: No practical trend (change < 0.5% per period)")
-        else:
-            st.warning("No significant trend detected")
-        
-        # Nested tabs for Overview and Details
-        subtab1, subtab2 = st.tabs(["Overview", "Category Trends"])
-        
-        with subtab1:
-            st.write("**Global Event Frequency Trend:**")
-            st.write(f"- Direction: {global_trend}")
-            st.write(f"- Change rate: {format_slope(global_change)} per period")
-            st.write(f"- Statistical significance: p = {p_value:.4f}")
-            
-            if p_value <= 0.05:
-                st.write("- Trend is **statistically significant** (p ≤ 0.05)")
-            else:
-                st.write("- Trend is **not statistically significant** (p > 0.05)")
-        
-        with subtab2:
-            # Show per-category trends (only for meaningful categories like activity/resource)
-            details = summary.get('details', {})
-            category_trends = details.get('category_trends', [])
-            
-            if category_trends:
-                st.write("**Significant Category Trends:**")
-                for cat, info in category_trends:
-                    trend_dir = info.get('trend', 'no_trend')
-                    slope_pct = info.get('slope_percent', 0)
-                    cat_p_value = info.get('p_value', 1.0)
-                    
-                    if trend_dir == 'increasing':
-                        st.write(f"- ↗ **{cat}**: {format_slope(slope_pct)} (p={cat_p_value:.4f})")
-                    elif trend_dir == 'decreasing':
-                        st.write(f"- ↘ **{cat}**: {format_slope(slope_pct)} (p={cat_p_value:.4f})")
-            else:
-                st.caption("Category trends only available for Activity or Resource axes")
+    # Header with metrics and settings
+    col1, col2, col3 = st.columns([1, 1, 0.3])
+    with col1:
+        st.metric("Gaps", summary['count'])
+    with col2:
+        st.metric("Transitions", details['transitions_with_anomalies'])
+    with col3:
+        with st.popover("⚙️"):
+            current_min_samples = st.session_state.get('gap_min_samples', 5)
+            min_samples = st.number_input(
+                "Min samples",
+                min_value=3, max_value=20, value=current_min_samples, step=1,
+                key="gap_min_samples_tab_input"
+            )
+            if min_samples != current_min_samples:
+                if st.button("Apply", use_container_width=True, type="primary", key="gap_redetect_tab"):
+                    st.session_state['gap_min_samples'] = min_samples
+                    plot_config = st.session_state.get('current_plot_config', {})
+                    if plot_config:
+                        _detect_gaps(plot_config['x_col'], plot_config['y_col'], get_active_view_df(plot_config), min_samples)
+                        st.rerun()
+
+    if not layer_visible:
+        st.caption("Hidden — enable in sidebar")
+
+    subtab1, subtab2 = st.tabs(["Overview", "Selection"])
+
+    with subtab1:
+        trans_stats = details.get('transition_stats', {})
+        for trans, stats in list(trans_stats.items())[:5]:
+            st.write(f"- {trans}: {stats['count']} gaps, threshold {stats['threshold']/86400:.1f}d")
+
+    with subtab2:
+        trans_stats = details.get('transition_stats', {})
+        if trans_stats:
+            transition_dict = {
+                f"{trans} ({stats['count']})": trans
+                for trans, stats in trans_stats.items()
+            }
+            selected_transitions = dict_to_multicheckbox(
+                transition_dict,
+                title="Select Transitions",
+                key_prefix="gap_transition"
+            )
+            st.session_state['selected_gap_transitions'] = selected_transitions
 
 
 def display_case_arrival_trend_tab():
@@ -982,28 +756,27 @@ def display_case_arrival_trend_tab():
     p_value = summary.get('p_value', 1.0)
     total_cases = summary.get('total_cases', 0)
 
-    # Format slope
-    slope_str = f"{slope_pct:+.1f}%" if abs(slope_pct) >= 0.1 else "~0%"
+    # Metrics
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Cases", total_cases)
+    with col2:
+        slope_str = f"{slope_pct:+.1f}%" if abs(slope_pct) >= 0.1 else "~0%"
+        st.metric("Change/week", slope_str)
+    with col3:
+        st.metric("p-value", f"{p_value:.4f}")
 
-    # Result summary
+    # Direction indicator
     if direction == 'increasing':
-        st.success(f"↗ INCREASING: {slope_str} per week (p={p_value:.4f})")
+        st.success(f"↗ Increasing trend")
     elif direction == 'decreasing':
-        st.error(f"↘ DECREASING: {slope_str} per week (p={p_value:.4f})")
+        st.error(f"↘ Decreasing trend")
     elif direction == 'stable':
-        st.info("→ STABLE: No practical trend (< 0.5% change per week)")
+        st.info("→ Stable")
     else:
-        st.warning("No significant trend detected")
+        st.caption("No significant trend")
 
-    # Explanation
-    st.markdown("---")
-    st.write("**What is Case Arrival Trend?**")
-    st.write("Measures whether new cases are arriving faster or slower over time.")
-    st.write(f"- **Definition:** Case arrival = min(actual_time) per case_id")
-    st.write(f"- **Total cases:** {total_cases}")
-    st.write(f"- **Statistical test:** Mann-Kendall (p = {p_value:.4f})")
-
-    st.caption("Unlike event-frequency trends, this focuses on CASE STARTS only.")
+    st.caption("Measures whether new cases are arriving faster or slower over time.")
 
 
 # ========== HELPER FUNCTIONS FOR SUB-PATTERN SELECTION ==========
@@ -1109,54 +882,35 @@ def list_to_multicheckbox(item_list: list, title: str = "Select Items", key_pref
         List containing only the items selected by the user.
     """
     if not item_list:
-        st.info("The input list is empty. No checkboxes to display.")
         return []
-    
+
     selected_items = []
-    
-    # Use a container for visual grouping
+    parent_visible = get_parent_visibility(key_prefix)
+
+    if not parent_visible:
+        st.caption("Enable in sidebar to configure")
+        return []
+
     with st.container(border=True):
-        st.write(f"**{title}**")
-        st.caption("⚠️ Changes will update the chart automatically")
-        
-        # Add "Select All" / "Deselect All" functionality
         col_a, col_b = st.columns(2)
         with col_a:
-            if st.button("Select All", key=f"{key_prefix}_select_all", use_container_width=True):
+            if st.button("All", key=f"{key_prefix}_select_all", use_container_width=True):
                 for index in range(len(item_list)):
                     st.session_state[f"list_checkbox_{key_prefix}_{index}"] = True
-                # Turn ON parent sidebar checkbox when selecting all
                 sync_sidebar_checkbox(key_prefix, True)
                 st.rerun()
         with col_b:
-            if st.button("Deselect All", key=f"{key_prefix}_deselect_all", use_container_width=True):
+            if st.button("None", key=f"{key_prefix}_deselect_all", use_container_width=True):
                 for index in range(len(item_list)):
                     st.session_state[f"list_checkbox_{key_prefix}_{index}"] = False
-                # Turn OFF parent sidebar checkbox when deselecting all
                 sync_sidebar_checkbox(key_prefix, False)
                 st.rerun()
-        
-        st.markdown("---")
-        
-        # Check if parent pattern is visible in sidebar
-        parent_visible = get_parent_visibility(key_prefix)
-        
-        # If parent is NOT visible, show message and don't render checkboxes
-        if not parent_visible:
-            st.info("Enable this pattern in the sidebar to select individual items.")
-            return []
-        
+
         for index, item in enumerate(item_list):
-            # Simple key without version - parent visible means all are active
             state_key = f"list_checkbox_{key_prefix}_{index}"
-            
-            # Initialize if needed
             if state_key not in st.session_state:
-                st.session_state[state_key] = True  # Default to checked when parent is visible
-            
-            # Render checkbox
+                st.session_state[state_key] = True
             checked = st.checkbox(str(item), key=state_key)
-            
             if checked:
                 selected_items.append(item)
 
@@ -1176,57 +930,35 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
         List containing only the selected dictionary values.
     """
     if not data_dict:
-        st.info("The input dictionary is empty.")
         return []
-    
+
     selected_items = []
-    
+    parent_visible = get_parent_visibility(key_prefix)
+
+    if not parent_visible:
+        st.caption("Enable in sidebar to configure")
+        return []
+
     with st.container(border=True):
-        st.write(f"**{title}**")
-        st.caption("⚠️ Changes will update the chart automatically")
-        
-        # Add "Select All" / "Deselect All" functionality
         col_a, col_b = st.columns(2)
         with col_a:
-            if st.button("Select All", key=f"{key_prefix}_select_all", use_container_width=True):
+            if st.button("All", key=f"{key_prefix}_select_all", use_container_width=True):
                 for key in data_dict.keys():
                     st.session_state[f"dict_checkbox_{key_prefix}_{key}"] = True
-                # Sync with sidebar checkbox
                 sync_sidebar_checkbox(key_prefix, True)
-                # Trigger chart redisplay
-                st.session_state['chart_needs_update'] = True
                 st.rerun()
         with col_b:
-            if st.button("Deselect All", key=f"{key_prefix}_deselect_all", use_container_width=True):
+            if st.button("None", key=f"{key_prefix}_deselect_all", use_container_width=True):
                 for key in data_dict.keys():
                     st.session_state[f"dict_checkbox_{key_prefix}_{key}"] = False
-                # Sync with sidebar checkbox
                 sync_sidebar_checkbox(key_prefix, False)
-                # Trigger chart redisplay
-                st.session_state['chart_needs_update'] = True
                 st.rerun()
-        
-        st.markdown("---")
-        
-        # Check if parent pattern is visible in sidebar
-        parent_visible = get_parent_visibility(key_prefix)
-        
-        # If parent is NOT visible, show message and don't render checkboxes
-        if not parent_visible:
-            st.info("Enable this pattern in the sidebar to select individual items.")
-            return []
-        
+
         for key, value in data_dict.items():
-            # Simple key without version - parent visible means all are active
             state_key = f"dict_checkbox_{key_prefix}_{key}"
-            
-            # Initialize if needed
             if state_key not in st.session_state:
-                st.session_state[state_key] = True  # Default to checked when parent is visible
-            
-            # Render checkbox
+                st.session_state[state_key] = True
             checked = st.checkbox(key, key=state_key)
-            
             if checked:
                 selected_items.append(value)
 
@@ -1235,16 +967,16 @@ def dict_to_multicheckbox(data_dict: dict, title: str = "Select Items", key_pref
                         
 def ollama_description_button():
     with st.spinner("Generating description..."):
-                try:
-                    evaluator = OllamaEvaluator(
-                        model="qwen2.5:3b-instruct-q4_0")
-                    df = st.session_state.df
-                    summary = st.session_state.summary
-
-                    summary_text = "\n".join(
-                        [f"{k}: {v}" for k, v in summary.items()])
-                    description = evaluator.describe_chart(summary_text, df)
-
-                    st.write(description)
-                except Exception as e:
-                    st.error(f"Error generating description: {e}")
+        try:
+            plot_config = st.session_state.get('current_plot_config', {})
+            if not plot_config:
+                st.warning("Please plot a chart first")
+                return
+            df = get_active_view_df(plot_config)
+            summary = summarize_event_log(df)
+            summary_text = "\n".join([f"{k}: {v}" for k, v in summary.items()])
+            evaluator = OllamaEvaluator(model="qwen2.5:3b-instruct-q4_0")
+            description = evaluator.describe_chart(summary_text, df)
+            st.write(description)
+        except Exception as e:
+            st.error(f"Error generating description: {e}")
