@@ -21,7 +21,7 @@ from core.utils.demo_sampling import sample_small_eventlog
 from config.extended_pattern_matrix import is_pattern_meaningful
 
 # Import pattern UI from separate module
-from core.app_utils.app_handler_pattern_detection import handle_pattern_detection
+from core.app_utils.pattern_ui import handle_pattern_detection
 
 
 # =============================================================================
