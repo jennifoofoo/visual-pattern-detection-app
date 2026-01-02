@@ -21,14 +21,14 @@ def load_css():
 load_css()
 
 # -------------------------------------------------
-# KEEP STREAMLIT HEADER FOR SIDEBAR MOUNT (INVISIBLE)
+# MINIMAL HEADER (KEEP SIDEBAR TOGGLE VISIBLE)
 # -------------------------------------------------
 st.markdown(
     """
     <style>
     header[data-testid="stHeader"] {
-        visibility: hidden !important;
-        height: 0 !important;
+        background: transparent !important;
+        height: 2.5rem !important;
     }
     </style>
     """,
@@ -51,10 +51,6 @@ def main():
                 Process Mining Praktikum WS 25/26 · LMU München ·
                 Tan Tai Bui, Jennifer Nikolovic, Anna Tsaan
             </p>
-            <p class="main-description">
-                Discover hidden patterns in your process data through interactive visualizations.
-                Automatically detect temporal clusters, outliers, and gaps in event logs.
-            </p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -72,26 +68,30 @@ def main():
     # -----------------------------
     with st.sidebar:
         with st.expander("Load Data", expanded=st.session_state.ui_step == "load"):
-            xes_path = st.text_input(
-                "Enter XES log file path",
-                value="data/Hospital_log.xes",
-            )
-
             demo_mode = st.checkbox(
-                "🎬 Demo Mode",
+                "Demo Mode",
                 value=True,
-                help="Enable for fast gap detection (samples to 100 cases).",
+            )
+            if demo_mode:
+                st.caption("Samples to 100 cases for faster detection")
+
+            xes_path = st.text_input(
+                "XES file path",
+                value="data/Hospital_log.xes",
+                disabled=demo_mode,
             )
 
+            st.markdown("<div style='height: 0.5rem'></div>", unsafe_allow_html=True)
             if st.button("Load Data", type="primary"):
                 app_handler.load_data_button(xes_path, demo_mode=demo_mode)
                 st.session_state.ui_step = "config"
                 st.rerun()
 
-        with st.expander("Chart Configuration", expanded=st.session_state.ui_step == "config"):
-            st.caption("Chart is auto-plotted on data load. Customize here if needed.")
-            x_axis, y_axis, dots_config_label = app_handler.get_chart_config_with_selectboxes()
+        st.divider()
 
+        with st.expander("Chart Configuration", expanded=st.session_state.ui_step == "config"):
+            x_axis, y_axis, dots_config_label = app_handler.get_chart_config_with_selectboxes()
+            st.markdown("<div style='height: 0.5rem'></div>", unsafe_allow_html=True)
             if st.button("Re-plot Chart", type="primary"):
                 if "df" in st.session_state:
                     app_handler.plot_chart_button(x_axis, y_axis, dots_config_label)
@@ -100,11 +100,15 @@ def main():
                 else:
                     st.warning("Load data first.")
 
+        st.divider()
+
         with st.expander("Pattern Layers", expanded=st.session_state.ui_step == "layers"):
             if st.session_state.get("chart_plotted", False):
                 app_handler.sidebar_pattern_layer_controls()
             else:
-                st.caption("Plot a chart to enable pattern layers.")
+                st.caption("Plot a chart first")
+
+        st.divider()
 
         with st.expander("AI Description"):
             if st.button(

@@ -10,8 +10,9 @@ from core.app_utils.app_handler_pattern_filtering import list_to_multicheckbox, 
 def _is_any_pattern_detected() -> bool:
     """Check if any pattern has been detected."""
     return (
-        st.session_state.get('temporal_detected', False) or 
-        st.session_state.get('outlier_detected', False) or 
+        st.session_state.get('temporal_detected', False) or
+        st.session_state.get('outlier_detected', False) or
+        st.session_state.get('case_arrival_trend_detected', False) or
         ('gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None)
     )
 
@@ -37,6 +38,9 @@ def _get_detected_pattern_tabs() -> tuple:
     if st.session_state.get('sequence_detected', False):
         tabs_names.append("Sequence Detection")
         tabs_types.append('sequence')
+    if st.session_state.get('case_arrival_trend_detected', False):
+        tabs_names.append("Case Arrival Trend")
+        tabs_types.append('case_arrival_trend')
 
     return tabs_names, tabs_types
 
@@ -50,7 +54,24 @@ def _display_pattern_tab(pattern_type: str):
         display_gap_tab()
     elif pattern_type == 'sequence':
         display_sequence_tab()
+    elif pattern_type == 'case_arrival_trend':
+        display_case_arrival_trend_tab()
 
+
+def handle_pattern_detection():
+    """Display pattern summary with tabs for each detected pattern."""
+    st.markdown("#### Pattern Summary")
+
+    if not _is_any_pattern_detected():
+        st.caption("No patterns detected")
+        return
+
+    tabs_names, tabs_types = _get_detected_pattern_tabs()
+    tabs = st.tabs(tabs_names)
+
+    for tab, pattern_type in zip(tabs, tabs_types):
+        with tab:
+            _display_pattern_tab(pattern_type)
 
 
 # region Temp Cluster
@@ -399,3 +420,42 @@ def display_sequence_tab():
                     st.success(f"✅ {len(selected_patterns)} of {len(sequence_dict)} sequences selected")
             else:
                 st.info("No sequence details available")
+
+# endregion
+
+# region Case Arrival Trend
+def display_case_arrival_trend_tab():
+    """Display Case Arrival Trend pattern details."""
+    if not (st.session_state.get('case_arrival_trend_detected', False) and 'case_arrival_trend_detector' in st.session_state):
+        return
+
+    detector = st.session_state['case_arrival_trend_detector']
+    summary = detector.get_summary()
+    layer_visible = st.session_state.get('visible_case_arrival_trend', True)
+
+    if not layer_visible:
+        st.caption("Hidden — enable in sidebar")
+
+    direction = summary.get('direction', 'no_trend')
+    slope_pct = summary.get('slope_percent', 0)
+    p_value = summary.get('p_value', 1.0)
+    total_cases = summary.get('total_cases', 0)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Cases", total_cases)
+    with col2:
+        slope_str = f"{slope_pct:+.1f}%" if abs(slope_pct) >= 0.1 else "~0%"
+        st.metric("Change/week", slope_str)
+    with col3:
+        st.metric("p-value", f"{p_value:.4f}")
+
+    # Trend direction indicator
+    direction_labels = {
+        'increasing': '↗ Increasing',
+        'decreasing': '↘ Decreasing',
+        'stable': '→ Stable',
+        'no_trend': 'No significant trend'
+    }
+    st.caption(direction_labels.get(direction, 'No significant trend'))
+# endregion
