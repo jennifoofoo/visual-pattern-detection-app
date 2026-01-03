@@ -205,7 +205,7 @@ class TrendPattern(Pattern):
             try:
                 beta = np.linalg.lstsq(W @ X_local, W @ y[indices], rcond=None)[0]
                 smoothed[i] = beta[0] + beta[1] * x[i]
-            except:
+            except Exception:
                 smoothed[i] = y[i]
         
         return smoothed
@@ -336,8 +336,7 @@ class TrendPattern(Pattern):
             
             return self.detected['has_significant_trend']
             
-        except Exception as e:
-            print(f"Trend detection error: {e}")
+        except Exception:
             self.detected = None
             return False
     

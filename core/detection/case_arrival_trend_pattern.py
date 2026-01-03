@@ -114,8 +114,7 @@ class CaseArrivalTrendPattern(Pattern):
             self.detected = self.trend_result
             return self.trend_result['direction'] != 'no_trend'
 
-        except Exception as e:
-            print(f"Case arrival trend detection error: {e}")
+        except Exception:
             self.detected = None
             return False
 

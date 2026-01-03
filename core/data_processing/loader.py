@@ -96,8 +96,6 @@ def load_xes_log(xes_path):
     )
     # print(df[['case:concept:name', 'concept:name',  'time:timestamp', 'logical_relative']].head(7))
     rename_df_columns(df)
-    print("Loader:")
-    print(df[['case_id', 'activity', 'resource', 'actual_time']].sort_values(by='case_id').head(7))
 
     return df
 

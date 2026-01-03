@@ -4,7 +4,6 @@ App Handler - Core application logic for Visual Pattern Detection.
 This module handles:
 - Data loading and caching
 - Chart configuration and plotting
-- Pattern detection orchestration
 - Focus selection and time filtering
 - Sidebar controls
 """
@@ -14,27 +13,29 @@ from core.data_processing import load_xes_log
 from core.evaluation.summary_generator import summarize_event_log
 from core.app_utils.mappings import X_AXIS_COLUMN_MAP, Y_AXIS_COLUMN_MAP, DOTS_COLOR_MAP
 from core.visualization.visualizer import plot_dotted_chart as plot_chart
-from core.detection import OutlierDetectionPattern, TemporalClusterPattern, CaseArrivalTrendPattern
-from core.detection.gap_pattern import GapPattern
 from core.evaluation.ollama import OllamaEvaluator
 from core.utils.demo_sampling import sample_small_eventlog
-from config.extended_pattern_matrix import is_pattern_meaningful
 
-# Import pattern UI from separate module
-from core.app_utils.pattern_ui import handle_pattern_detection
+# Import pattern detection and UI from separate modules
+from core.app_utils.pattern_detection import (
+    auto_detect_patterns,
+    _reset_pattern_detection_state,
+    _detect_gaps
+)
+from core.app_utils.pattern_ui import handle_pattern_detection, _is_any_pattern_detected
 
 
 # =============================================================================
 # === Caching ===
 # =============================================================================
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=3600, show_spinner=False)
 def cached_load_xes_log(xes_path):
     """Cached version of load_xes_log for better performance."""
     return load_xes_log(xes_path)
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=3600, show_spinner=False)
 def generate_summary(df):
     """Cached summary generation."""
     return summarize_event_log(df)
@@ -56,6 +57,9 @@ def init_state():
         st.session_state.visible_gap = True
         st.session_state.visible_outlier = True
         st.session_state.visible_temporal_cluster = True
+        st.session_state.visible_cluster = True
+        st.session_state.visible_sequence = True
+        st.session_state.visible_case_arrival_trend = True
         st.session_state['_reset_pattern_visibility'] = False
 
     # Layer visibility flags (initial defaults)
@@ -65,6 +69,12 @@ def init_state():
         st.session_state.visible_outlier = True
     if 'visible_temporal_cluster' not in st.session_state:
         st.session_state.visible_temporal_cluster = True
+    if 'visible_cluster' not in st.session_state:
+        st.session_state.visible_cluster = True
+    if 'visible_sequence' not in st.session_state:
+        st.session_state.visible_sequence = True
+    if 'visible_case_arrival_trend' not in st.session_state:
+        st.session_state.visible_case_arrival_trend = True
 
     # Selection-based Focus
     if 'focus_df' not in st.session_state:
@@ -210,116 +220,6 @@ def get_active_view_df(plot_config: dict):
 
 
 # =============================================================================
-# === Pattern Detection ===
-# =============================================================================
-
-def _get_detection_cache_key(x_col, y_col, color_col, df_len):
-    """Generate cache key for pattern detection."""
-    time_filter = st.session_state.get('time_filter_range')
-    time_key = f"{time_filter}" if time_filter else "none"
-    return f"{x_col}_{y_col}_{color_col}_{df_len}_{time_key}"
-
-
-def _reset_pattern_detection_state():
-    """Clear all pattern detection results."""
-    st.session_state.temporal_detected = False
-    st.session_state.outlier_detected = False
-    st.session_state.case_arrival_trend_detected = False
-    if 'gap_detector' in st.session_state:
-        del st.session_state['gap_detector']
-    st.session_state['_pattern_cache_key'] = ''
-
-
-def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df_selected):
-    """Automatically detect all meaningful patterns."""
-    is_focus_view = st.session_state.get('focus_df') is not None
-
-    if not is_focus_view:
-        cache_key = _get_detection_cache_key(x_col, y_col, color_col, len(df_selected))
-        if cache_key == st.session_state.get('_pattern_cache_key', ''):
-            return
-        st.session_state['_pattern_cache_key'] = cache_key
-
-    # Clear old results
-    st.session_state.temporal_detected = False
-    st.session_state.outlier_detected = False
-    st.session_state.case_arrival_trend_detected = False
-    if 'gap_detector' in st.session_state:
-        del st.session_state['gap_detector']
-
-    # Clear sub-pattern selections (they reference old data)
-    if 'selected_gap_transitions' in st.session_state:
-        del st.session_state['selected_gap_transitions']
-    if 'selected_outlier_types' in st.session_state:
-        del st.session_state['selected_outlier_types']
-    if 'selected_temporal_clusters' in st.session_state:
-        del st.session_state['selected_temporal_clusters']
-
-    # Flag to reset visibility on next rerun (before widgets render)
-    st.session_state['_reset_pattern_visibility'] = True
-
-    with st.spinner("Auto-detecting patterns..."):
-        if is_pattern_meaningful(x_col, y_col, color_col, 'temporal_cluster_x'):
-            _detect_temporal_clusters(x_col, y_col, df_selected)
-        if is_pattern_meaningful(x_col, y_col, color_col, 'outlier'):
-            _detect_outliers(df_selected)
-        if is_pattern_meaningful(x_col, y_col, color_col, 'gap'):
-            _detect_gaps(x_col, y_col, df_selected)
-        if x_col == 'actual_time':
-            _detect_case_arrival_trend(x_col, df_selected)
-
-
-def _detect_temporal_clusters(x_col, y_col, df_selected):
-    """Detect temporal clusters."""
-    try:
-        detector = TemporalClusterPattern(df=df_selected, x_axis=x_col, y_axis=y_col, min_cluster_size=10)
-        if detector.detect():
-            st.session_state.temporal_clusters = detector
-            st.session_state.temporal_detected = True
-    except Exception as e:
-        st.warning(f"Temporal cluster detection skipped: {str(e)}")
-
-
-def _detect_outliers(df):
-    """Detect outliers."""
-    try:
-        outlier_pattern = OutlierDetectionPattern(df=df, view_config=st.session_state.view_config)
-        if outlier_pattern.detect():
-            st.session_state.outlier_pattern = outlier_pattern
-            st.session_state.outlier_detected = True
-    except Exception as e:
-        st.warning(f"Outlier detection skipped: {str(e)}")
-
-
-def _detect_gaps(x_col, y_col, df_selected, min_samples=None):
-    """Detect gaps in transitions."""
-    try:
-        if min_samples is None:
-            min_samples = st.session_state.get('gap_min_samples', 5)
-
-        y_is_categorical = df_selected[y_col].nunique() <= 60
-        gap_detector = GapPattern(view_config={'x': x_col, 'y': y_col}, y_is_categorical=y_is_categorical)
-        gap_detector.MIN_SAMPLES_FOR_NORMALITY = min_samples
-        gap_detector.detect(df_selected)
-
-        if gap_detector.detected is not None and len(gap_detector.detected) > 0:
-            st.session_state['gap_detector'] = gap_detector
-    except Exception as e:
-        st.warning(f"Gap detection skipped: {str(e)}")
-
-
-def _detect_case_arrival_trend(x_col, df_selected):
-    """Detect case arrival trends."""
-    try:
-        detector = CaseArrivalTrendPattern(view_config={'x': x_col}, aggregation_period='W', min_periods=3)
-        if detector.detect(df_selected) or detector.trend_result is not None:
-            st.session_state['case_arrival_trend_detector'] = detector
-            st.session_state.case_arrival_trend_detected = True
-    except Exception as e:
-        st.warning(f"Case arrival trend detection skipped: {str(e)}")
-
-
-# =============================================================================
 # === Chart Display ===
 # =============================================================================
 
@@ -334,6 +234,9 @@ def display_chart():
 
     df_display = get_active_view_df(plot_config)
     is_focus_view = st.session_state.get('focus_df') is not None
+
+    # Keep original df for pattern visualization (preserves original indices)
+    df_for_patterns = df_display.copy()
 
     df_display = df_display.reset_index(drop=True)
     df_display['_point_id'] = df_display.index
@@ -374,18 +277,22 @@ def display_chart():
         dragmode='lasso'
     )
 
-    # Add pattern overlays
+    # Add pattern overlays (use df_for_patterns to preserve original indices)
     if st.session_state.get('visible_gap', True):
         if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
-            fig = st.session_state['gap_detector'].visualize(df_display, fig)
+            fig = st.session_state['gap_detector'].visualize(df_for_patterns, fig)
 
     if st.session_state.get('visible_outlier', True):
         if st.session_state.get('outlier_detected', False) and 'outlier_pattern' in st.session_state:
-            fig = st.session_state.outlier_pattern.visualize(df_display, fig)
+            fig = st.session_state.outlier_pattern.visualize(df_for_patterns, fig)
 
     if st.session_state.get('visible_temporal_cluster', True):
         if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
-            fig = st.session_state.temporal_clusters.visualize(df_display, fig)
+            fig = st.session_state.temporal_clusters.visualize(df_for_patterns, fig)
+
+    if st.session_state.get('visible_cluster', True):
+        if st.session_state.get('cluster_detected', False) and 'cluster_detector' in st.session_state:
+            fig = st.session_state.cluster_detector.visualize(df_for_patterns, fig)
 
     # Display chart
     selection = st.plotly_chart(fig, use_container_width=True, on_select="rerun", key="main_chart")
@@ -535,16 +442,6 @@ def _reset_focus_view(plot_config):
 # === Sidebar Controls ===
 # =============================================================================
 
-def _is_any_pattern_detected() -> bool:
-    """Check if any pattern has been detected."""
-    return (
-        st.session_state.get('temporal_detected', False) or
-        st.session_state.get('outlier_detected', False) or
-        st.session_state.get('case_arrival_trend_detected', False) or
-        ('gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None)
-    )
-
-
 def _render_pattern_checkbox(label: str, visibility_key: str, version_key: str, checkbox_key_pattern: str):
     """Render pattern visibility checkbox with sub-pattern sync."""
     if visibility_key not in st.session_state:
@@ -570,11 +467,20 @@ def sidebar_pattern_layer_controls():
     if st.session_state.get('temporal_detected', False):
         _render_pattern_checkbox("Temporal Clusters", 'visible_temporal_cluster', 'temporal_cluster_version', 'checkbox_temporal_cluster_')
 
+    if st.session_state.get('cluster_detected', False):
+        _render_pattern_checkbox("Clusters (OPTICS)", 'visible_cluster', 'cluster_version', 'checkbox_cluster_')
+
     if st.session_state.get('outlier_detected', False):
         _render_pattern_checkbox("Outlier Detection", 'visible_outlier', 'outlier_type_version', 'checkbox_outlier_type_')
 
     if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
         _render_pattern_checkbox("Gap Detection", 'visible_gap', 'gap_transition_version', 'checkbox_gap_transition_')
+
+    if st.session_state.get('sequence_detected', False):
+        _render_pattern_checkbox("Sequence Detection", 'visible_sequence', 'sequence_version', 'checkbox_sequence_')
+
+    if st.session_state.get('case_arrival_trend_detected', False):
+        _render_pattern_checkbox("Case Arrival Trend", 'visible_case_arrival_trend', 'case_arrival_trend_version', 'checkbox_case_arrival_trend_')
 
 
 # =============================================================================

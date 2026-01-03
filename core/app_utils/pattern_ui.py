@@ -121,6 +121,8 @@ def _is_any_pattern_detected() -> bool:
         st.session_state.get('temporal_detected', False) or
         st.session_state.get('outlier_detected', False) or
         st.session_state.get('case_arrival_trend_detected', False) or
+        st.session_state.get('cluster_detected', False) or
+        st.session_state.get('sequence_detected', False) or
         ('gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None)
     )
 
@@ -133,6 +135,9 @@ def _get_detected_pattern_tabs() -> tuple:
     if st.session_state.get('temporal_detected', False):
         tabs_names.append("Temporal Clusters")
         tabs_types.append('temporal')
+    if st.session_state.get('cluster_detected', False):
+        tabs_names.append("Clusters (OPTICS)")
+        tabs_types.append('cluster')
     if st.session_state.get('outlier_detected', False):
         tabs_names.append("Outlier Detection")
         tabs_types.append('outlier')
@@ -169,6 +174,8 @@ def _display_pattern_tab(pattern_type: str):
     """Route to appropriate pattern tab renderer."""
     if pattern_type == 'temporal':
         _display_temporal_cluster_tab()
+    elif pattern_type == 'cluster':
+        _display_cluster_tab()
     elif pattern_type == 'outlier':
         _display_outlier_tab()
     elif pattern_type == 'gap':
@@ -207,6 +214,28 @@ def _display_temporal_cluster_tab():
             cluster_list = detector.clusters['temporal_bursts']
             selected = list_to_multicheckbox(cluster_list, "Select Clusters", "temporal_cluster")
             st.session_state['selected_temporal_clusters'] = selected
+
+
+def _display_cluster_tab():
+    """Display OPTICS Cluster pattern details."""
+    if not (st.session_state.get('cluster_detected', False) and 'cluster_detector' in st.session_state):
+        return
+
+    detector = st.session_state.cluster_detector
+    summary = detector.get_summary()
+    layer_visible = st.session_state.get('visible_cluster', True)
+
+    if not layer_visible:
+        st.caption("Hidden - enable in sidebar")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Clusters", summary.get('count', 0))
+    with col2:
+        noise_count = summary.get('details', {}).get('noise_count', 0)
+        st.metric("Noise Points", noise_count)
+
+    st.caption(f"Algorithm: {summary.get('details', {}).get('algorithm', 'OPTICS')}")
 
 
 def _display_outlier_tab():
