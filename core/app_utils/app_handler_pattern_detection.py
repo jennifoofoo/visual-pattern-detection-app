@@ -1,6 +1,6 @@
 import streamlit as st
 
-from core.detection import OutlierDetectionPattern, TemporalClusterPattern
+from core.detection import OutlierDetectionPattern, TemporalClusterPattern, ClusterPattern
 from core.detection.gap_pattern import GapPattern
 from core.detection.sequence_detection import HorizontalSequencePatternDetector
 
@@ -12,6 +12,7 @@ def _is_any_pattern_detected() -> bool:
     return (
         st.session_state.get('temporal_detected', False) or 
         st.session_state.get('outlier_detected', False) or 
+        st.session_state.get('cluster_detected', False) or
         ('gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None)
     )
 
@@ -28,6 +29,9 @@ def _get_detected_pattern_tabs() -> tuple:
     if st.session_state.get('temporal_detected', False):
         tabs_names.append("Temporal Clusters")
         tabs_types.append('temporal')
+    if st.session_state.get('cluster_detected', False):
+        tabs_names.append("Clusters")
+        tabs_types.append('cluster')
     if st.session_state.get('outlier_detected', False):
         tabs_names.append("Outlier Detection")
         tabs_types.append('outlier')
@@ -44,6 +48,8 @@ def _display_pattern_tab(pattern_type: str):
     """Render the appropriate pattern tab content."""
     if pattern_type == 'temporal':
         display_temporal_cluster_tab()
+    elif pattern_type == 'cluster':
+        display_cluster_tab()
     elif pattern_type == 'outlier':
         display_outlier_tab()
     elif pattern_type == 'gap':
@@ -126,6 +132,50 @@ def display_temporal_cluster_tab():
                 
                 if selected_clusters:
                     st.success(f"✅ {len(selected_clusters)} of {len(cluster_list)} clusters selected")
+# endregion
+
+# region Cluster (OPTICS/DBSCAN)
+def _detect_clusters(x_col, y_col, color_col, df_selected):
+    """Detect clusters using OPTICS/DBSCAN and store in session state."""
+    try:
+        view_config = {'x': x_col, 'y': y_col}
+        if color_col:
+            view_config['color'] = color_col
+        
+        detector = ClusterPattern(
+            view_config=view_config,
+            algorithm='optics'
+        )
+        if detector.detect(df_selected):
+            st.session_state.cluster_detector = detector
+            st.session_state.cluster_detected = True
+            st.session_state.visible_cluster = True
+    except Exception as e:
+        st.warning(f"Cluster detection skipped: {str(e)}")
+
+def display_cluster_tab():
+    """Display Cluster pattern details in tab."""
+    if st.session_state.get('cluster_detected', False) and 'cluster_detector' in st.session_state:
+        detector = st.session_state.cluster_detector
+        summary = detector.get_summary()
+        
+        layer_visible = st.session_state.get('visible_cluster', True)
+        
+        if not layer_visible:
+            st.info("Layer hidden - toggle in sidebar to show on chart")
+        
+        st.success(f"{summary['count']} clusters detected")
+        
+        # Display algorithm info
+        if 'algorithm' in summary:
+            algo_info = summary['algorithm']
+            st.caption(f"Algorithm: {algo_info.get('name', 'OPTICS')} | Grouped by: {algo_info.get('grouped_by', 'None')}")
+        
+        # Display cluster details
+        if 'details' in summary and 'cluster_summaries' in summary['details']:
+            with st.expander("Cluster Details", expanded=False):
+                for cluster_info in summary['details']['cluster_summaries'][:10]:  # Show first 10
+                    st.text(f"Cluster {cluster_info.get('cluster_id', '?')}: {cluster_info.get('size', 0)} points")
 # endregion
 
 # region Outlier

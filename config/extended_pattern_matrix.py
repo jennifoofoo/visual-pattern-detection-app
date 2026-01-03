@@ -15,7 +15,7 @@ from typing import Dict, Any, Optional, List, Tuple
 # ============================================================================
 
 EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] = {
-    
+
     # ========================================================================
     # ACTUAL_TIME × RESOURCE × CASE_ID
     # ========================================================================
@@ -43,6 +43,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects unusual events based on timing, resource behavior, and frequency patterns. Color-coded by case for case-level anomaly analysis.",
             "use_case": "Finding exceptional cases, data quality issues, resource violations",
             "output": "Outlier events with resource-specific and case-specific anomaly reasons"
+        }, "cluster": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Colored rectangles or highlights showing detected clusters of events based on resource and time. Case coloring shows which cases are in each cluster.",
+            "interpretation": "f you use case ID as color, you’ll get a unique color per case, which is visually overwhelming and not useful for pattern discovery.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+
         }
     },
 
@@ -73,6 +81,13 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects unusual events based on timing, resource behavior, and frequency patterns. Color-coded by activity for activity-level anomaly analysis.",
             "use_case": "Finding exceptional resource-activity combinations, rare activities",
             "output": "Outlier events with resource-activity-specific anomaly reasons"
+        }, "cluster": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored rectangles or highlights showing detected clusters of events based on resource and time. Activity coloring shows which activities are in each cluster.",
+            "interpretation": "Groups events that are similar in time and resource. Color-coded by activity to show activity distribution in clusters.",
+            "use_case": "Finding groups of activities that are processed similarly by resources over time.",
+            "output": "Cluster assignments for each event, colored by activity."
         }
     },
 
@@ -90,9 +105,9 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         },
         "temporal_cluster_x": {
             "can_be_found": True,
-            "makes_sense": True,
+            "makes_sense": False,
             "visual": "Colored circles around event dots, colored by resource. Resource coloring provides redundant but clear visual separation.",
-            "interpretation": "Detects time periods with high event concentration for resources. Color matches Y-axis for clear resource identification.",
+            "interpretation": "Does not make sense to cluster by resource when resource is both Y-axis and color. Color matches Y-axis for clear resource identification.",
             "use_case": "Finding peak workload periods per resource with clear visual separation",
             "output": "Temporal clusters with event density and time ranges per resource"
         },
@@ -103,6 +118,13 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects unusual events based on timing, resource behavior, and frequency patterns. Color matches Y-axis for clear resource identification.",
             "use_case": "Finding exceptional resource behavior with clear visual separation",
             "output": "Outlier events with resource-specific anomaly reasons"
+        }, "cluster": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Colored rectangles or highlights showing detected clusters of events based on resource and time. Resource coloring provides redundant but clear visual separation of resources.",
+            "interpretation": "Grouping by resource does not reveal new patterns, as each resource is its own group.",
+            "use_case": "Finding groups of resources that are processed similarly over time.",
+            "output": "Cluster assignments for each event, colored by resource."
         }
     },
 
@@ -133,6 +155,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects activities that happen at unusual times or with unusual frequency. Color-coded by case for case-level analysis.",
             "use_case": "Finding rare activities, off-hours events, frequency anomalies per case",
             "output": "Outlier events with activity-specific and case-specific anomaly reasons"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Colored rectangles or highlights showing detected clusters of events based on activity and time. Case coloring shows which cases are in each cluster.",
+            "interpretation": "If you use case ID as color, you’ll get a unique color per case, which is visually overwhelming and not useful for pattern discovery.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
         }
     },
 
@@ -150,9 +180,9 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         },
         "temporal_cluster_x": {
             "can_be_found": True,
-            "makes_sense": True,
+            "makes_sense": False,
             "visual": "Colored circles around event dots, colored by activity. Activity coloring provides redundant but clear visual separation.",
-            "interpretation": "Detects time periods with high event concentration for activities. Color matches Y-axis for clear activity identification.",
+            "interpretation": "Does not make sense to cluster by activity when activity is both Y-axis and color. Color matches Y-axis for clear activity identification.",
             "use_case": "Finding peak workload periods per activity with clear visual separation",
             "output": "Temporal clusters with event density and time ranges per activity"
         },
@@ -163,6 +193,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects activities that happen at unusual times or with unusual frequency. Color matches Y-axis for clear activity identification.",
             "use_case": "Finding rare activities, off-hours events with clear visual separation",
             "output": "Outlier events with activity-specific anomaly reasons"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Colored rectangles or highlights showing detected clusters of events based on activity and time. Activity coloring provides redundant but clear visual separation of activities.",
+            "interpretation": "Grouping by activity does not reveal new patterns, as each activity is its own group.",
+            "use_case": "Finding groups of activities that are processed similarly over time.",
+            "output": "Cluster assignments for each event, colored by activity."
         }
     },
 
@@ -193,6 +231,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects activities that happen at unusual times or with unusual frequency. Color-coded by resource for resource-level analysis.",
             "use_case": "Finding rare activities, identifying which resources perform unusual activities",
             "output": "Outlier events with activity-resource-specific anomaly reasons"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored rectangles or highlights showing detected clusters of events based on activity and time. Resource coloring shows which resources are in each cluster.",
+            "interpretation": "Groups events that are similar in time and activity. Color-coded by resource to show resource distribution in clusters.",
+            "use_case": "Finding groups of resources that are processed similarly by activities over time.",
+            "output": "Cluster assignments for each event, colored by resource."
         }
     },
 
@@ -210,11 +256,19 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         },
         "temporal_cluster_x": {
             "can_be_found": True,
-            "makes_sense": True,
+            "makes_sense": False,
             "visual": "Colored circles around event dots, colored by case. Case coloring provides redundant but clear visual separation.",
             "interpretation": "Detects time periods with high event concentration across cases. Color matches Y-axis for clear case identification.",
-            "use_case": "Finding peak workload periods, batch processing times with clear case separation",
+            "use_case": "Not recommended.",
             "output": "Temporal clusters with event density and time ranges per case"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Clusters are not meaningful when using case_id as axis or color, since each case is unique.",
+            "interpretation": "Clustering by case_id does not reveal process patterns, as each case is its own group.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
         },
         "outlier": {
             "can_be_found": True,
@@ -240,11 +294,19 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         },
         "temporal_cluster_x": {
             "can_be_found": True,
-            "makes_sense": True,
+            "makes_sense": False,
             "visual": "Colored circles around event dots, colored by activity. Activity coloring shows which activities dominate busy periods across cases.",
-            "interpretation": "Detects time periods with high event concentration across cases. Color-coded by activity to see activity distribution.",
-            "use_case": "Finding peak workload periods, identifying which activities cluster across cases",
-            "output": "Temporal clusters with event density, time ranges, and activity distribution"
+            "interpretation": "Clustering by case_id does not reveal process patterns, as each case is its own group.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Clusters are not meaningful when using case_id as axis or color, since each case is unique. It separates data by instance, not by any meaningful pattern.",
+            "interpretation": "Clustering by case_id does not reveal process patterns, as each case is its own group.",
+            "use_case": "Not recommended.The core issue: When case_id is on an axis, you're viewing individual case trajectories. Clustering is designed to find groups of similar behavior, which conflicts with the case-by-case perspective.",
+            "output": "N/A"
         },
         "outlier": {
             "can_be_found": True,
@@ -270,11 +332,19 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         },
         "temporal_cluster_x": {
             "can_be_found": True,
-            "makes_sense": True,
+            "makes_sense": False,
             "visual": "Colored circles around event dots, colored by resource. Resource coloring shows which resources are active during busy periods.",
-            "interpretation": "Detects time periods with high event concentration across cases. Color-coded by resource to see resource distribution.",
-            "use_case": "Finding peak workload periods, identifying which resources are active across cases",
-            "output": "Temporal clusters with event density, time ranges, and resource distribution"
+            "interpretation": "Using case ID as color will only separate data by instance, not by any meaningful temporal pattern.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Clusters are not meaningful when using case_id as axis or color, since each case is unique.",
+            "interpretation": "Clustering by case_id does not reveal process patterns, as each case is its own group.",
+            "use_case": "Not recommended.The core issue: When case_id is on an axis, you're viewing individual case trajectories. Clustering is designed to find groups of similar behavior, which conflicts with the case-by-case perspective.",
+            "output": "N/A"
         },
         "outlier": {
             "can_be_found": True,
@@ -289,7 +359,7 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # ========================================================================
     # NON-MEANINGFUL COMBINATIONS (Examples)
     # ========================================================================
-    
+
     ("logical_time", "resource", "case_id"): {
         "gap": {
             "can_be_found": False,
@@ -314,6 +384,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Limited meaning: detects events out of typical sequence order, but not time-based.",
             "use_case": "Better to use actual_time for meaningful outlier detection",
             "output": "Sequential position outliers"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "CaseID as color does not provide useful clustering information.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
         }
     },
 
@@ -341,6 +419,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Current implementation detects outliers based on actual_time, not relative_ratio. Results don't match visualization.",
             "use_case": "Use actual_time or relative_time views for meaningful outlier detection",
             "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: case_id as color does not provide useful clustering information.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
         }
     },
 }
@@ -351,9 +437,9 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
 # ============================================================================
 
 def get_pattern_info(
-    x_axis: str, 
-    y_axis: str, 
-    color: str, 
+    x_axis: str,
+    y_axis: str,
+    color: str,
     pattern_name: str
 ) -> Optional[Dict[str, Any]]:
     """
@@ -380,9 +466,9 @@ def get_pattern_info(
 
 
 def is_pattern_meaningful(
-    x_axis: str, 
-    y_axis: str, 
-    color: str, 
+    x_axis: str,
+    y_axis: str,
+    color: str,
     pattern_name: str
 ) -> bool:
     """
@@ -411,8 +497,8 @@ def is_pattern_meaningful(
 
 
 def get_meaningful_patterns(
-    x_axis: str, 
-    y_axis: str, 
+    x_axis: str,
+    y_axis: str,
     color: str
 ) -> List[str]:
     """
