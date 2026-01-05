@@ -232,7 +232,7 @@ class VariantAwareSampler:
         # Compute weight (for potential weighted analysis)
         safe_sample_size = variant_stats['sample_size'].replace(0, np.nan)
         variant_stats['weight'] = (
-            variant_stats['trace_count'] / safe_sample_size['sample_size']
+            variant_stats['trace_count'] / safe_sample_size
         )
 
         return variant_stats
