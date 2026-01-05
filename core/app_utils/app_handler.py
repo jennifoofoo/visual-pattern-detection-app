@@ -12,9 +12,8 @@ from core.utils.demo_sampling import (
 )
 from config.extended_pattern_matrix import is_pattern_meaningful
 
-from core.app_utils.app_handler_pattern_detection import _detect_temporal_clusters, _detect_outliers, _detect_gaps, _detect_sequences
+from core.app_utils.app_handler_pattern_detection import _detect_temporal_clusters, _detect_outliers, _detect_gaps, _detect_sequences, _detect_clusters
 from core.app_utils.app_handler_pattern_detection import _is_any_pattern_detected, _get_detected_pattern_tabs, _display_pattern_tab
-
 
 
 # Streamlit caching for performance
@@ -43,6 +42,9 @@ def init_state():
         st.session_state.visible_outlier = True
     if 'visible_temporal_cluster' not in st.session_state:
         st.session_state.visible_temporal_cluster = True
+    if 'visible_cluster' not in st.session_state:
+        st.session_state.visible_cluster = True
+
 
 def load_data_button(xes_path, demo_mode=False, sampling_mode: SamplingMode = SamplingMode.SQRT):
     try:
@@ -214,7 +216,9 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
     st.success("Chart created successfully!")
 
     # Auto-detect all meaningful patterns after plotting
-    auto_detect_patterns(x_col, y_col, dots_config_col, x_axis, y_axis, df_plot)
+    auto_detect_patterns(x_col, y_col, dots_config_col,
+                         x_axis, y_axis, df_plot)
+
 
 def display_chart():
     """Display the chart from session state (persistent across reruns)."""
@@ -271,14 +275,22 @@ def display_chart():
     # Add temporal cluster visualization if detected AND layer is visible
     if st.session_state.get('visible_temporal_cluster', True):
         if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
-            fig = st.session_state.temporal_clusters.visualize(df_selected, fig)
-    
+            fig = st.session_state.temporal_clusters.visualize(
+                df_selected, fig)
+
+    # Add cluster (OPTICS/DBSCAN) visualization if detected AND layer is visible
+    if st.session_state.get('visible_cluster', True):
+        if st.session_state.get('cluster_detected', False) and 'cluster_detector' in st.session_state:
+            fig = st.session_state.cluster_detector.visualize(
+                df_selected, fig)
+
     # Add sequence visualization if detected AND layer is visible
     if st.session_state.get('visible_sequence', True):
         if st.session_state.get('sequence_detected', False) and 'sequence_detector' in st.session_state:
             selected = st.session_state.get('selected_seq_patterns', [])
-            fig = st.session_state.sequence_detector.visualize(df_selected, fig, selected_patterns=selected)
-    
+            fig = st.session_state.sequence_detector.visualize(
+                df_selected, fig, selected_patterns=selected)
+
     st.plotly_chart(fig, use_container_width=True)
     
     # Update stored figure
@@ -287,8 +299,9 @@ def display_chart():
 def handle_pattern_detection():
     """Display pattern summary with tabs for each detected pattern."""
     st.subheader("Pattern Summary")
-    st.caption("Patterns are automatically detected after plotting. Toggle visibility in sidebar.")
-    
+    st.caption(
+        "Patterns are automatically detected after plotting. Toggle visibility in sidebar.")
+
     if not _is_any_pattern_detected():
         st.info("Patterns will appear here after chart is plotted.")
         return
@@ -311,10 +324,19 @@ def sidebar_pattern_layer_controls():
     # Temporal Clusters
     if st.session_state.get('temporal_detected', False):
         _render_pattern_checkbox(
-            "Temporal Clusters", 
-            'visible_temporal_cluster', 
+            "Temporal Clusters",
+            'visible_temporal_cluster',
             'temporal_cluster_version',
             'checkbox_temporal_cluster_'
+        )
+
+    # Clusters (OPTICS/DBSCAN)
+    if st.session_state.get('cluster_detected', False):
+        _render_pattern_checkbox(
+            "Clusters",
+            'visible_cluster',
+            'cluster_version',
+            'checkbox_cluster_'
         )
 
     # Outlier Detection
@@ -370,22 +392,31 @@ def _render_pattern_checkbox(label: str, visibility_key: str, version_key: str, 
     
     # Detect change and sync sub-patterns
     if st.session_state[visibility_key] != prev_state:
-        st.session_state[version_key] = st.session_state.get(version_key, 0) + 1
-        keys_to_delete = [k for k in list(st.session_state.keys()) if checkbox_key_pattern in k]
+        st.session_state[version_key] = st.session_state.get(
+            version_key, 0) + 1
+        keys_to_delete = [k for k in list(
+            st.session_state.keys()) if checkbox_key_pattern in k]
         for key in keys_to_delete:
             del st.session_state[key]
         st.rerun()
 
 def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df_selected):
     """Automatically detect all meaningful patterns after chart is plotted."""
-    temporal_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'temporal_cluster_x')
-    outlier_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'outlier')
+    temporal_meaningful = is_pattern_meaningful(
+        x_col, y_col, color_col, 'temporal_cluster_x')
+    outlier_meaningful = is_pattern_meaningful(
+        x_col, y_col, color_col, 'outlier')
     gap_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'gap')
-    sequence_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'horizontal_sequence')
+    sequence_meaningful = is_pattern_meaningful(
+        x_col, y_col, color_col, 'horizontal_sequence')
+    cluster_meaningful = is_pattern_meaningful(
+        x_col, y_col, color_col, 'cluster')
 
     with st.spinner("Auto-detecting patterns..."):
         if temporal_meaningful:
             _detect_temporal_clusters(x_col, y_col, df_selected)
+        if cluster_meaningful or color_col:
+            _detect_clusters(x_col, y_col, color_col, df_selected)
         if outlier_meaningful:
             _detect_outliers()
         if gap_meaningful:
@@ -395,17 +426,17 @@ def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df
 
 def ollama_description_button():
     with st.spinner("Generating description..."):
-                try:
-                    evaluator = OllamaEvaluator(
-                        model="qwen2.5:3b-instruct-q4_0")
-                    df = st.session_state.df
-                    summary = st.session_state.summary
+        try:
+            evaluator = OllamaEvaluator(
+                model="qwen2.5:3b-instruct-q4_0")
+            df = st.session_state.df
+            summary = st.session_state.summary
 
-                    summary_text = "\n".join(
-                        [f"{k}: {v}" for k, v in summary.items()])
-                    description = evaluator.describe_chart(summary_text, df)
+            summary_text = "\n".join(
+                [f"{k}: {v}" for k, v in summary.items()])
+            description = evaluator.describe_chart(summary_text, df)
 
-                    st.write(description)
-                except Exception as e:
-                    st.error(f"Error generating description: {e}")
+            st.write(description)
+        except Exception as e:
+            st.error(f"Error generating description: {e}")
 # endregion
