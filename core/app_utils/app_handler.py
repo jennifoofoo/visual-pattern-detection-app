@@ -6,13 +6,11 @@ from core.visualization.visualizer import plot_dotted_chart as plot_chart
 
 from core.evaluation.ollama import OllamaEvaluator
 from core.utils.demo_sampling import (
-    sample_small_eventlog,
     sample_eventlog_variant_aware,
-    get_sampling_mode_options,
     SamplingMode,
     SAMPLING_CONFIGS
 )
-from config.extended_pattern_matrix import is_pattern_meaningful, get_pattern_info
+from config.extended_pattern_matrix import is_pattern_meaningful
 
 from core.app_utils.app_handler_pattern_detection import _detect_temporal_clusters, _detect_outliers, _detect_gaps, _detect_sequences
 from core.app_utils.app_handler_pattern_detection import _is_any_pattern_detected, _get_detected_pattern_tabs, _display_pattern_tab

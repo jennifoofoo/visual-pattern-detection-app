@@ -1,6 +1,6 @@
 import streamlit as st
 import core.app_utils.app_handler as app_handler
-from core.utils.demo_sampling import SamplingMode, SAMPLING_CONFIGS
+from core.utils.demo_sampling import SamplingMode
 
 # Configure page for better performance
 st.set_page_config(
@@ -38,7 +38,7 @@ def main():
         )
         
         # Sampling Strategy Selection (only shown when demo mode is enabled)
-        sampling_mode = SamplingMode.SQRT  # Default
+        sampling_mode = SamplingMode.FULL  # Default
         if demo_mode:
             sampling_options = {
                 "⚡ Minimal (fastest)": SamplingMode.MINIMAL,

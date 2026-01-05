@@ -58,25 +58,26 @@ SAMPLING_CONFIGS = {
         min_traces_per_variant=1,
         max_traces_per_variant=2,
         rare_variant_threshold=2,
-        max_total_traces=100,
+        max_total_traces=50,
         max_total_events=5000  # Hard cap on events for truly minimal sample
     ),
     SamplingMode.SQRT: SamplingConfig(
         mode=SamplingMode.SQRT,
         name="Balanced Sample (√n)",
-        description="Rare variants: keep all, Frequent: √n traces per variant",
+        description="Rare variants (≤5 traces): keep all, Frequent: √n traces per variant",
         min_traces_per_variant=1,
         max_traces_per_variant=None,  # sqrt determines this
-        rare_variant_threshold=5,
+        rare_variant_threshold=5,  # Keep all traces for variants with ≤5 occurrences
         max_total_traces=500,
         max_total_events=20000  # Cap at 20K events
     ),
     SamplingMode.OPTIMIZED: SamplingConfig(
         mode=SamplingMode.OPTIMIZED,
         name="Optimized Sample",
-        description="Gentle reduction (~70%) preserving variant distribution",
+        description="Gentle reduction (~70%) preserving variant distribution. Rare variants (≤10 traces): keep all",
         min_traces_per_variant=1,
         max_traces_per_variant=None,
+        # More generous for gentle reduction - keeps variants with ≤10 occurrences
         rare_variant_threshold=10,
         target_reduction_ratio=0.7,
         max_total_events=50000,  # Cap at 50K events
@@ -146,7 +147,7 @@ class VariantAwareSampler:
         """
         Compute statistics for each variant.
 
-        Returns DataFrame with columns: variant, trace_count, is_rare
+        Returns DataFrame with columns: variant, trace_count
         """
         stats = (
             variants_df.groupby('variant', sort=False)
@@ -173,7 +174,12 @@ class VariantAwareSampler:
         elif config.mode == SamplingMode.MINIMAL:
             # Keep 1-2 traces per variant
             variant_stats['sample_size'] = variant_stats['trace_count'].apply(
-                lambda n: min(n, config.max_traces_per_variant or 2)
+                lambda n: min(
+                    n,
+                    config.max_traces_per_variant
+                    if config.max_traces_per_variant is not None
+                    else config.min_traces_per_variant
+                )
             )
 
         elif config.mode == SamplingMode.SQRT:
@@ -224,8 +230,9 @@ class VariantAwareSampler:
                 ).apply(lambda x: max(1, int(x)))
 
         # Compute weight (for potential weighted analysis)
+        safe_sample_size = variant_stats['sample_size'].replace(0, np.nan)
         variant_stats['weight'] = (
-            variant_stats['trace_count'] / variant_stats['sample_size']
+            variant_stats['trace_count'] / safe_sample_size['sample_size']
         )
 
         return variant_stats
@@ -262,7 +269,11 @@ class VariantAwareSampler:
                 selected_cases.append(row[case_col])
                 total_events += row['event_count']
             elif not selected_cases:
-                # Always include at least one trace even if it exceeds cap
+                # Edge case: No traces fit within max_events cap
+                # Always include at least one trace (the shortest) to avoid empty results,
+                # even if it exceeds the cap significantly
+                print(f"WARNING: Shortest trace has {row['event_count']} events, "
+                      f"exceeds max_events cap of {max_events}. Including it anyway to avoid empty sample.")
                 selected_cases.append(row[case_col])
                 total_events += row['event_count']
                 break
@@ -298,8 +309,16 @@ class VariantAwareSampler:
             - Sampled event log (preserving complete traces)
             - Sampling statistics dictionary
         """
-        if df.empty or case_col not in df.columns:
-            return df.copy(), {"error": "Empty or missing case_id column"}
+        if df.empty:
+            return df.copy(), {"error": "Empty DataFrame"}
+
+        # Check for required columns upfront for clear error messages
+        required_cols = [case_col, activity_col, time_col]
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            return df.copy(), {
+                "error": f"Missing required column(s): {', '.join(missing_cols)}"
+            }
 
         # Get configuration
         if config is None:

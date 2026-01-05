@@ -45,18 +45,19 @@ class OutlierDetectionPattern(Pattern):
     def detect(self) -> bool:
         """Detect various types of outliers in the event log."""
         # Check if outlier detection is meaningful for this view
-        x_axis = self.view_config.get('x', '')
-        y_axis = self.view_config.get('y', '')
-        color = self.view_config.get('color', '')
+        x_col = self.view_config.get('x', '')
+        y_col = self.view_config.get('y', '')
+        color_col = self.view_config.get('color', '')
 
         print(f"=== OUTLIER DETECTION START ===")
         print(f"available view: {self.view_config}")
-        print(f"View config: x={x_axis}, y={y_axis}, color={color}")
+        print(f"View config: x={x_col}, y={y_col}, color={color_col}")
         print(f"DataFrame shape: {self.df.shape}")
 
-        is_meaningful = is_pattern_meaningful(x_axis, y_axis, color, 'outlier')
+        is_meaningful = is_pattern_meaningful(
+            x_col, y_col, color_col, 'outlier')
         print(f"Is pattern meaningful for outlier detection: {is_meaningful}")
-        print(f"Lookup key: ({x_axis}, {y_axis}, {color})")
+        print(f"Lookup key: ({x_col}, {y_col}, {color_col})")
 
         if not is_meaningful:
             print("Outlier detection skipped - not meaningful for this view")
@@ -463,8 +464,6 @@ class OutlierDetectionPattern(Pattern):
         try:
             activity_counts = self.df[activity_col].value_counts()
             total_events = len(self.df)
-            num_activities = len(activity_counts)
-
             # Adaptive threshold based on dataset size
             # For large datasets (>50K): 1% threshold
             # For medium datasets (10K-50K): 0.5% threshold
@@ -476,20 +475,33 @@ class OutlierDetectionPattern(Pattern):
                 rare_threshold = max(3, total_events * 0.005)
             else:
                 # For small/sampled datasets, only flag truly rare activities
-                # Must appear less than 3 times AND be in bottom 5% of activities
+                # Must appear less than 3 times AND uses quantile(0.10) of activities
                 rare_threshold = 3
+
+            # For small datasets, always flag activities with count < 3
+            # This ensures truly rare activities are detected even if percentile is 0
+            absolute_rare_activities = activity_counts[activity_counts < 3].index.tolist(
+            )
 
             # Additional constraint: only flag if activity is in the bottom 10% by frequency
             # This prevents flagging activities that are just slightly below the threshold
             freq_percentile_10 = activity_counts.quantile(0.10)
             rare_threshold = min(rare_threshold, freq_percentile_10)
 
-            # If threshold is 0 or negative, no activities are rare enough
-            if rare_threshold <= 0:
-                return False
+            # Get activities below the percentile threshold
+            if rare_threshold > 0:
+                percentile_rare_activities = activity_counts[activity_counts < rare_threshold].index.tolist(
+                )
+            else:
+                percentile_rare_activities = []
 
-            rare_activities = activity_counts[activity_counts < rare_threshold].index.tolist(
-            )
+            # Combine both criteria: absolute rare (< 3) OR percentile-based rare
+            rare_activities = list(
+                set(absolute_rare_activities) | set(percentile_rare_activities))
+
+            # If no rare activities found, return False
+            if not rare_activities:
+                return False
 
             if rare_activities:
                 activity_outlier_indices = self.df[self.df[activity_col].isin(
@@ -819,7 +831,7 @@ class OutlierDetectionPattern(Pattern):
         elif total_events > 50000:
             max_outlier_pct = 0.02
         else:
-            max_outlier_pct = 0.01  
+            max_outlier_pct = 0.01
 
         max_outliers = max(5, int(total_events * max_outlier_pct))
 
@@ -890,32 +902,32 @@ class OutlierDetectionPattern(Pattern):
         set
             Set of feature names that are relevant to display for this view
         """
-        x_axis = self.view_config.get('x', '')
-        y_axis = self.view_config.get('y', '')
-        color_axis = self.view_config.get('color', '')
+        x_col = self.view_config.get('x', '')
+        y_col = self.view_config.get('y', '')
+        color_col = self.view_config.get('color', '')
 
         relevant_features = set()
 
         # X-axis relevance - check for any time-related column
-        if any(t in x_axis.lower() for t in ['time', 'timestamp', 'date', 'actual', 'relative', 'logical']):
+        if any(t in x_col.lower() for t in ['time', 'timestamp', 'date', 'actual', 'relative', 'logical']):
             relevant_features.update(
                 ['hour', 'day_of_week', 'time_since_start', 'isolation_forest', 'case_duration', 'sequence'])
 
         # Y-axis relevance
-        if 'resource' in y_axis.lower():
+        if 'resource' in y_col.lower():
             relevant_features.add('resource')
-        if 'activity' in y_axis.lower():
+        if 'activity' in y_col.lower():
             relevant_features.add('activity_frequency')
-        if 'case' in y_axis.lower():
+        if 'case' in y_col.lower():
             relevant_features.update(
                 ['case_event_count', 'event_position_in_case', 'case_duration', 'sequence'])
 
         # Color axis relevance
-        if 'activity' in color_axis.lower():
+        if 'activity' in color_col.lower():
             relevant_features.add('activity_frequency')
-        if 'resource' in color_axis.lower():
+        if 'resource' in color_col.lower():
             relevant_features.add('resource')
-        if 'case' in color_axis.lower():
+        if 'case' in color_col.lower():
             relevant_features.update(
                 ['case_event_count', 'event_position_in_case', 'case_duration'])
 
@@ -1034,9 +1046,9 @@ class OutlierDetectionPattern(Pattern):
 
         # Get relevant features for current view
         relevant_features = self._get_relevant_features_for_view()
-        x_axis = self.view_config.get('x', '')
-        y_axis = self.view_config.get('y', '')
-        color_axis = self.view_config.get('color', '')
+        x_col = self.view_config.get('x', '')
+        y_col = self.view_config.get('y', '')
+        color_col = self.view_config.get('color', '')
 
         # Filter outliers to only show those with relevant explanations
         filtered_outlier_indices = []
@@ -1055,7 +1067,7 @@ class OutlierDetectionPattern(Pattern):
             return fig
 
         print(
-            f"Visualizing {len(filtered_outlier_indices)} view-relevant outliers (x={x_axis}, y={y_axis})")
+            f"Visualizing {len(filtered_outlier_indices)} view-relevant outliers (x={x_col}, y={y_col})")
 
         # Update the data to show only filtered outliers
         outlier_data = self.df.loc[filtered_outlier_indices]
