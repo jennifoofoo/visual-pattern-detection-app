@@ -3,905 +3,524 @@ Extended Pattern Matrix for Paper Documentation and Frontend Filtering.
 
 This matrix defines which patterns are detectable and meaningful for each view configuration.
 Each pattern entry contains comprehensive metadata for documentation and UI purposes.
+
+Structure: Tuple-based keys (x_axis, y_axis, color) for explicit 3D view configuration.
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 
-EXTENDED_PATTERN_MATRIX: Dict[str, Dict[str, Dict[str, Any]]] = {
-    # ========== TIME-BASED VIEWS ==========
-    
-    "actual_time_resource": {
+# ============================================================================
+# EXTENDED PATTERN MATRIX
+# Key: (x_axis, y_axis, color)
+# ============================================================================
+
+EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] = {
+
+    # ========================================================================
+    # ACTUAL_TIME × RESOURCE × CASE_ID
+    # ========================================================================
+    ("actual_time", "resource", "case_id"): {
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "Red rectangles showing time spans of abnormal gaps",
-            "interpretation": "Detects abnormal waiting times between consecutive activities within cases. Shows which resources have process delays.",
-            "algorithm": "Transition-specific normality learning using IQR and P95 thresholds",
-            "use_case": "Finding process bottlenecks, resource unavailability, weekend delays",
-            "requirements": ["case_id", "activity", "actual_time"],
-            "output": "List of abnormal gaps with severity scores (duration/threshold)",
-            "x_axis": "actual_time",
-            "y_axis": "resource"
+            "visual": "Red rectangles showing time spans of abnormal gaps between activities. Case coloring helps identify which specific cases experience delays at each resource.",
+            "interpretation": "Detects abnormal waiting times between consecutive activities within cases. Shows which resources have process delays. Color-coded by case for case-specific analysis.",
+            "use_case": "Finding process bottlenecks, resource unavailability, weekend delays per case",
+            "output": "List of abnormal gaps with severity scores, grouped by resource and colored by case"
         },
-        "temporal_cluster": {
+        "temporal_cluster_x": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "Colored regions highlighting dense temporal periods",
-            "interpretation": "Identifies periods when resources are particularly busy or idle. Shows resource work patterns and shift structures.",
-            "algorithm": "DBSCAN/OPTICS clustering on temporal event distribution",
-            "use_case": "Understanding resource utilization, identifying shift patterns, workload analysis",
-            "requirements": ["actual_time", "resource"],
-            "output": "Temporal clusters with event density and time ranges",
-            "x_axis": "actual_time",
-            "y_axis": "resource"
+            "visual": "Colored circles around event dots showing temporal bursts of resource activity. Case coloring reveals whether busy periods are caused by many cases or few intensive cases.",
+            "interpretation": "Detects time periods with high event concentration for resources. Color-coded by case to see case distribution in busy periods.",
+            "use_case": "Finding peak workload periods per resource, identifying batch processing times",
+            "output": "Temporal clusters with event density, time ranges, and case distribution"
         },
         "outlier": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "Red highlighted dots on outlier events",
-            "interpretation": "Detects unusual events based on timing, resource behavior, and frequency patterns.",
-            "algorithm": "IQR-based statistical analysis for time, duration, frequency, and resource anomalies",
-            "use_case": "Finding exceptional cases, data quality issues, process violations",
-            "requirements": ["actual_time", "resource"],
-            "output": "List of outlier events with detection reasons and confidence scores",
-            "x_axis": "actual_time",
-            "y_axis": "resource"
-        }
-    },
-    
-    "actual_time_activity": {
-        "gap": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "Red rectangles showing time spans of abnormal gaps",
-            "interpretation": "Detects abnormal waiting times between specific activity transitions. Shows which activity sequences have delays.",
-            "algorithm": "Transition-specific normality learning using IQR and P95 thresholds",
-            "use_case": "Identifying bottlenecks in specific process steps, analyzing handover times",
-            "requirements": ["case_id", "activity", "actual_time"],
-            "output": "List of abnormal gaps per transition (Activity A → Activity B)",
-            "x_axis": "actual_time",
-            "y_axis": "activity"
-        },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "Colored regions highlighting when specific activities occur",
-            "interpretation": "Shows when specific activities typically happen (e.g., all payments happen in morning).",
-            "algorithm": "DBSCAN clustering per activity type",
-            "use_case": "Understanding activity timing patterns, seasonal effects on activities",
-            "requirements": ["actual_time", "activity"],
-            "output": "Temporal clusters grouped by activity",
-            "x_axis": "actual_time",
-            "y_axis": "activity"
-        },
-        "outlier": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "Red highlighted dots on outlier events",
-            "interpretation": "Detects activities that happen at unusual times or with unusual frequency.",
-            "algorithm": "IQR-based statistical analysis for time and frequency anomalies",
-            "use_case": "Finding rare activities, off-hours events, frequency anomalies",
-            "requirements": ["actual_time", "activity"],
-            "output": "Outlier events with activity-specific anomaly reasons",
-            "x_axis": "actual_time",
-            "y_axis": "activity"
-        }
-    },
-    
-    "actual_time_case_id": {
-        "gap": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "Red rectangles showing gaps within individual case timelines",
-            "interpretation": "Detects abnormal waiting times within specific cases. Each case is analyzed individually.",
-            "algorithm": "Transition-specific normality learning per case",
-            "use_case": "Finding case-specific delays, comparing case execution times",
-            "requirements": ["case_id", "activity", "actual_time"],
-            "output": "Abnormal gaps with case identification",
-            "x_axis": "actual_time",
-            "y_axis": "case_id"
-        },
-        "temporal_cluster": {
+            "visual": "Red highlighted circles over outlier events with anomaly reasons. Case coloring helps identify whether outliers are case-specific or resource-specific.",
+            "interpretation": "Detects unusual events based on timing, resource behavior, and frequency patterns. Color-coded by case for case-level anomaly analysis.",
+            "use_case": "Finding exceptional cases, data quality issues, resource violations",
+            "output": "Outlier events with resource-specific and case-specific anomaly reasons"
+        }, "cluster": {
             "can_be_found": True,
             "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: Each case is independent, temporal clustering across cases doesn't provide useful insights.",
-            "algorithm": "N/A",
-            "use_case": "Use actual_time × resource or actual_time × activity instead",
-            "requirements": [],
-            "output": "N/A",
-            "x_axis": "actual_time",
-            "y_axis": "case_id"
+            "visual": "Colored rectangles or highlights showing detected clusters of events based on resource and time. Case coloring shows which cases are in each cluster.",
+            "interpretation": "f you use case ID as color, you’ll get a unique color per case, which is visually overwhelming and not useful for pattern discovery.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+
+        }
+    },
+
+    # ========================================================================
+    # ACTUAL_TIME × RESOURCE × ACTIVITY
+    # ========================================================================
+    ("actual_time", "resource", "activity"): {
+        "gap": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Red rectangles showing time spans of abnormal gaps between activities. Activity coloring reveals which specific activities are delayed at each resource.",
+            "interpretation": "Detects abnormal waiting times between consecutive activities within cases. Shows which resources have process delays. Color-coded by activity to see which activities cause delays.",
+            "use_case": "Finding process bottlenecks per resource, identifying which activities cause delays",
+            "output": "List of abnormal gaps with severity scores, grouped by resource and colored by activity"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored circles around event dots showing temporal bursts, colored by activity. Activity coloring shows which activities dominate busy periods.",
+            "interpretation": "Detects time periods with high event concentration for resources. Color-coded by activity to see activity distribution in busy periods.",
+            "use_case": "Finding peak workload periods per resource, identifying which activities cluster",
+            "output": "Temporal clusters with event density, time ranges, and activity distribution"
         },
         "outlier": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "Red highlighted dots on outlier events within cases",
-            "interpretation": "Detects cases with unusual execution patterns or extreme durations.",
-            "algorithm": "IQR-based case duration and complexity analysis",
-            "use_case": "Finding exceptional cases, compliance violations",
-            "requirements": ["actual_time", "case_id"],
-            "output": "Outlier cases with anomaly reasons",
-            "x_axis": "actual_time",
-            "y_axis": "case_id"
+            "visual": "Red highlighted circles over outlier events, colored by activity. Activity coloring helps identify which activities are outliers at each resource.",
+            "interpretation": "Detects unusual events based on timing, resource behavior, and frequency patterns. Color-coded by activity for activity-level anomaly analysis.",
+            "use_case": "Finding exceptional resource-activity combinations, rare activities",
+            "output": "Outlier events with resource-activity-specific anomaly reasons"
+        }, "cluster": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored rectangles or highlights showing detected clusters of events based on resource and time. Activity coloring shows which activities are in each cluster.",
+            "interpretation": "Groups events that are similar in time and resource. Color-coded by activity to show activity distribution in clusters.",
+            "use_case": "Finding groups of activities that are processed similarly by resources over time.",
+            "output": "Cluster assignments for each event, colored by activity."
         }
     },
-    
-    "relative_time_resource": {
+
+    # ========================================================================
+    # ACTUAL_TIME × RESOURCE × RESOURCE (Same dimension on Y and Color)
+    # ========================================================================
+    ("actual_time", "resource", "resource"): {
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "Red rectangles showing gaps in process execution time",
-            "interpretation": "Detects delays at specific stages of the process, regardless of calendar time.",
-            "algorithm": "Transition-specific normality learning",
-            "use_case": "Finding process bottlenecks that occur at specific process stages",
-            "requirements": ["case_id", "activity", "relative_time"],
-            "output": "Abnormal gaps with process-relative timing",
-            "x_axis": "relative_time",
-            "y_axis": "resource"
+            "visual": "Red rectangles showing time spans of abnormal gaps, colored by resource. Resource coloring provides redundant but clear visual separation of resources.",
+            "interpretation": "Detects abnormal waiting times between consecutive activities within cases. Shows which resources have process delays. Color matches Y-axis for clear resource identification.",
+            "use_case": "Finding process bottlenecks per resource with clear visual resource separation",
+            "output": "List of abnormal gaps with severity scores, grouped and colored by resource"
         },
-        "temporal_cluster": {
+        "temporal_cluster_x": {
             "can_be_found": True,
-            "makes_sense": True,
-            "visual": "Colored regions showing when resources typically get involved",
-            "interpretation": "Shows at which process stage resources typically become active.",
-            "algorithm": "DBSCAN clustering on relative time per resource",
-            "use_case": "Understanding resource involvement patterns in process flow",
-            "requirements": ["relative_time", "resource"],
-            "output": "Clusters showing resource involvement timing",
-            "x_axis": "relative_time",
-            "y_axis": "resource"
-        },
-        "outlier": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "Red highlighted dots",
-            "interpretation": "Detects unusual resource behavior at specific process stages.",
-            "algorithm": "IQR-based analysis",
-            "use_case": "Finding resource anomalies in process execution",
-            "requirements": ["relative_time", "resource"],
-            "output": "Outlier events with resource behavior anomalies",
-            "x_axis": "relative_time",
-            "y_axis": "resource"
-        }
-    },
-    
-    "relative_time_activity": {
-        "gap": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "Red rectangles showing gaps between activities",
-            "interpretation": "Detects abnormal delays between activities in process flow, independent of calendar time.",
-            "algorithm": "Transition-specific normality learning",
-            "use_case": "Analyzing process flow efficiency, finding bottlenecks in activity sequences",
-            "requirements": ["case_id", "activity", "relative_time"],
-            "output": "Abnormal transition gaps",
-            "x_axis": "relative_time",
-            "y_axis": "activity"
-        },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "Colored regions showing typical activity timing in process",
-            "interpretation": "Shows when in the process flow specific activities typically occur.",
-            "algorithm": "DBSCAN clustering per activity",
-            "use_case": "Understanding activity sequencing patterns",
-            "requirements": ["relative_time", "activity"],
-            "output": "Activity timing clusters in process flow",
-            "x_axis": "relative_time",
-            "y_axis": "activity"
-        },
-        "outlier": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "Red highlighted dots",
-            "interpretation": "Detects activities happening at unusual process stages.",
-            "algorithm": "IQR-based analysis",
-            "use_case": "Finding process violations, unusual activity order",
-            "requirements": ["relative_time", "activity"],
-            "output": "Outlier activities in process flow",
-            "x_axis": "relative_time",
-            "y_axis": "activity"
-        }
-    },
-    
-    "relative_time_case_id": {
-        "gap": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "Red rectangles showing gaps within individual case timelines",
-            "interpretation": "Detects abnormal delays at specific stages of process execution within each case.",
-            "algorithm": "Transition-specific normality learning per case",
-            "use_case": "Finding process bottlenecks at specific execution stages, comparing case flow efficiency",
-            "requirements": ["case_id", "activity", "relative_time"],
-            "output": "Abnormal gaps with process-relative timing per case",
-            "x_axis": "relative_time",
-            "y_axis": "case_id"
-        },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "relative_time",
-            "y_axis": "case_id"
-        },
-        "outlier": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "relative_time",
-            "y_axis": "case_id"
-        }
-    },
-    
-    "relative_ratio_resource": {
-        "gap": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "Red rectangles showing normalized gaps in resource activity",
-            "interpretation": "Detects abnormal waiting times between activities, normalized by case duration. Shows which resources have delays relative to total case time.",
-            "algorithm": "Transition-specific normality learning using normalized time ratios",
-            "use_case": "Comparing delays across cases of different lengths, identifying resource bottlenecks independent of case duration",
-            "requirements": ["case_id", "activity", "relative_ratio"],
-            "output": "Abnormal gaps with normalized time ratios",
-            "x_axis": "relative_ratio",
-            "y_axis": "resource"
-        },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "relative_ratio",
-            "y_axis": "resource"
-        },
-        "outlier": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "relative_ratio",
-            "y_axis": "resource"
-        }
-    },
-    
-    "relative_ratio_activity": {
-        "gap": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "Red rectangles showing normalized gaps between activities",
-            "interpretation": "Detects abnormal delays between activity transitions, normalized by case duration. Enables comparison across cases of different lengths.",
-            "algorithm": "Transition-specific normality learning using normalized time ratios",
-            "use_case": "Finding relative bottlenecks in activity sequences, comparing process efficiency across fast and slow cases",
-            "requirements": ["case_id", "activity", "relative_ratio"],
-            "output": "Abnormal gaps with normalized time ratios per transition",
-            "x_axis": "relative_ratio",
-            "y_axis": "activity"
-        },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "relative_ratio",
-            "y_axis": "activity"
-        },
-        "outlier": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "relative_ratio",
-            "y_axis": "activity"
-        }
-    },
-    
-    "relative_ratio_case_id": {
-        "gap": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "Red rectangles showing normalized gaps within individual cases",
-            "interpretation": "Detects abnormal delays within cases on a normalized scale [0,1]. Useful for comparing delay patterns across cases of vastly different durations.",
-            "algorithm": "Transition-specific normality learning using normalized time ratios",
-            "use_case": "Identifying relative bottlenecks within cases, detecting structural delays independent of absolute time",
-            "requirements": ["case_id", "activity", "relative_ratio"],
-            "output": "Abnormal gaps with normalized positions within case timeline",
-            "x_axis": "relative_ratio",
-            "y_axis": "case_id"
-        },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "relative_ratio",
-            "y_axis": "case_id"
-        },
-        "outlier": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "relative_ratio",
-            "y_axis": "case_id"
-        }
-    },
-    
-    "logical_relative_resource": {
-        "gap": {
-            "can_be_found": False,
             "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: logical_relative is a sequential index, not temporal data. Gap detection requires actual time measurements.",
-            "algorithm": "N/A",
-            "use_case": "Use relative_time or relative_ratio for meaningful time-based gap detection",
-            "requirements": [],
-            "output": "N/A",
-            "x_axis": "logical_relative",
-            "y_axis": "resource"
-        },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "logical_relative",
-            "y_axis": "resource"
+            "visual": "Colored circles around event dots, colored by resource. Resource coloring provides redundant but clear visual separation.",
+            "interpretation": "Does not make sense to cluster by resource when resource is both Y-axis and color. Color matches Y-axis for clear resource identification.",
+            "use_case": "Finding peak workload periods per resource with clear visual separation",
+            "output": "Temporal clusters with event density and time ranges per resource"
         },
         "outlier": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "logical_relative",
-            "y_axis": "resource"
-        }
-    },
-    
-    "logical_relative_activity": {
-        "gap": {
-            "can_be_found": False,
+            "visual": "Red highlighted circles over outlier events, colored by resource. Resource coloring provides redundant but clear visual separation.",
+            "interpretation": "Detects unusual events based on timing, resource behavior, and frequency patterns. Color matches Y-axis for clear resource identification.",
+            "use_case": "Finding exceptional resource behavior with clear visual separation",
+            "output": "Outlier events with resource-specific anomaly reasons"
+        }, "cluster": {
+            "can_be_found": True,
             "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: logical_relative is a sequential index without temporal meaning.",
-            "algorithm": "N/A",
-            "use_case": "Use relative_time or relative_ratio instead",
-            "requirements": [],
-            "output": "N/A",
-            "x_axis": "logical_relative",
-            "y_axis": "activity"
-        },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "logical_relative",
-            "y_axis": "activity"
-        },
-        "outlier": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "logical_relative",
-            "y_axis": "activity"
+            "visual": "Colored rectangles or highlights showing detected clusters of events based on resource and time. Resource coloring provides redundant but clear visual separation of resources.",
+            "interpretation": "Grouping by resource does not reveal new patterns, as each resource is its own group.",
+            "use_case": "Finding groups of resources that are processed similarly over time.",
+            "output": "Cluster assignments for each event, colored by resource."
         }
     },
-    
-    "logical_relative_case_id": {
+
+    # ========================================================================
+    # ACTUAL_TIME × ACTIVITY × CASE_ID
+    # ========================================================================
+    ("actual_time", "activity", "case_id"): {
         "gap": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: logical_relative is just event numbering, not time-based.",
-            "algorithm": "N/A",
-            "use_case": "Use relative_time or relative_ratio for temporal analysis",
-            "requirements": [],
-            "output": "N/A",
-            "x_axis": "logical_relative",
-            "y_axis": "case_id"
-        },
-        "temporal_cluster": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "logical_relative",
-            "y_axis": "case_id"
+            "visual": "Red rectangles showing time spans of abnormal gaps between activities. Case coloring reveals which cases experience delays in specific activity transitions.",
+            "interpretation": "Detects abnormal waiting times between specific activity transitions. Shows which activity sequences have delays. Color-coded by case for case-specific analysis.",
+            "use_case": "Identifying bottlenecks in specific process steps, analyzing handover times per case",
+            "output": "List of abnormal gaps per transition (Activity A → Activity B), colored by case"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored circles around event dots showing temporal bursts of activities. Case coloring shows whether activity bursts involve many cases or few intensive cases.",
+            "interpretation": "Detects time periods with high event concentration for activities. Color-coded by case to see case distribution.",
+            "use_case": "Finding peak workload periods per activity, batch processing detection",
+            "output": "Temporal clusters with event density, time ranges, and case distribution"
         },
         "outlier": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "logical_relative",
-            "y_axis": "case_id"
+            "visual": "Red highlighted dots on outlier events, colored by case. Case coloring helps identify whether activity outliers are case-specific.",
+            "interpretation": "Detects activities that happen at unusual times or with unusual frequency. Color-coded by case for case-level analysis.",
+            "use_case": "Finding rare activities, off-hours events, frequency anomalies per case",
+            "output": "Outlier events with activity-specific and case-specific anomaly reasons"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Colored rectangles or highlights showing detected clusters of events based on activity and time. Case coloring shows which cases are in each cluster.",
+            "interpretation": "If you use case ID as color, you’ll get a unique color per case, which is visually overwhelming and not useful for pattern discovery.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
         }
     },
-    
-    # ========== NON-TEMPORAL VIEWS ==========
-    
-    "logical_time_resource": {
+
+    # ========================================================================
+    # ACTUAL_TIME × ACTIVITY × ACTIVITY (Same dimension on Y and Color)
+    # ========================================================================
+    ("actual_time", "activity", "activity"): {
+        "gap": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Red rectangles showing time spans of abnormal gaps, colored by activity. Activity coloring provides redundant but clear visual separation of activities.",
+            "interpretation": "Detects abnormal waiting times between specific activity transitions. Color matches Y-axis for clear activity identification.",
+            "use_case": "Identifying bottlenecks in specific process steps with clear visual separation",
+            "output": "List of abnormal gaps per transition (Activity A → Activity B), colored by activity"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Colored circles around event dots, colored by activity. Activity coloring provides redundant but clear visual separation.",
+            "interpretation": "Does not make sense to cluster by activity when activity is both Y-axis and color. Color matches Y-axis for clear activity identification.",
+            "use_case": "Finding peak workload periods per activity with clear visual separation",
+            "output": "Temporal clusters with event density and time ranges per activity"
+        },
+        "outlier": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Red highlighted dots on outlier events, colored by activity. Activity coloring provides redundant but clear visual separation.",
+            "interpretation": "Detects activities that happen at unusual times or with unusual frequency. Color matches Y-axis for clear activity identification.",
+            "use_case": "Finding rare activities, off-hours events with clear visual separation",
+            "output": "Outlier events with activity-specific anomaly reasons"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Colored rectangles or highlights showing detected clusters of events based on activity and time. Activity coloring provides redundant but clear visual separation of activities.",
+            "interpretation": "Grouping by activity does not reveal new patterns, as each activity is its own group.",
+            "use_case": "Finding groups of activities that are processed similarly over time.",
+            "output": "Cluster assignments for each event, colored by activity."
+        }
+    },
+
+    # ========================================================================
+    # ACTUAL_TIME × ACTIVITY × RESOURCE
+    # ========================================================================
+    ("actual_time", "activity", "resource"): {
+        "gap": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Red rectangles showing time spans of abnormal gaps, colored by resource. Resource coloring reveals which resources are involved in activity transition delays.",
+            "interpretation": "Detects abnormal waiting times between specific activity transitions. Shows which activity sequences have delays. Color-coded by resource to see resource involvement.",
+            "use_case": "Identifying bottlenecks in specific process steps, analyzing which resources cause delays",
+            "output": "List of abnormal gaps per transition (Activity A → Activity B), colored by resource"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored circles around event dots, colored by resource. Resource coloring shows which resources are active during activity bursts.",
+            "interpretation": "Detects time periods with high event concentration for activities. Color-coded by resource to see resource distribution.",
+            "use_case": "Finding peak workload periods per activity, identifying resource involvement",
+            "output": "Temporal clusters with event density, time ranges, and resource distribution"
+        },
+        "outlier": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Red highlighted dots on outlier events, colored by resource. Resource coloring helps identify which resources are involved in activity outliers.",
+            "interpretation": "Detects activities that happen at unusual times or with unusual frequency. Color-coded by resource for resource-level analysis.",
+            "use_case": "Finding rare activities, identifying which resources perform unusual activities",
+            "output": "Outlier events with activity-resource-specific anomaly reasons"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored rectangles or highlights showing detected clusters of events based on activity and time. Resource coloring shows which resources are in each cluster.",
+            "interpretation": "Groups events that are similar in time and activity. Color-coded by resource to show resource distribution in clusters.",
+            "use_case": "Finding groups of resources that are processed similarly by activities over time.",
+            "output": "Cluster assignments for each event, colored by resource."
+        }
+    },
+
+    # ========================================================================
+    # ACTUAL_TIME × CASE_ID × CASE_ID (Same dimension on Y and Color)
+    # ========================================================================
+    ("actual_time", "case_id", "case_id"): {
+        "gap": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Red rectangles showing gaps within individual case timelines. Case coloring provides redundant but clear visual separation of cases.",
+            "interpretation": "Detects abnormal waiting times within specific cases. Each case is analyzed individually. Color matches Y-axis for clear case identification.",
+            "use_case": "Finding case-specific delays, comparing case execution times with clear visual separation",
+            "output": "Abnormal gaps with case identification, colored by case"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Colored circles around event dots, colored by case. Case coloring provides redundant but clear visual separation.",
+            "interpretation": "Detects time periods with high event concentration across cases. Color matches Y-axis for clear case identification.",
+            "use_case": "Not recommended.",
+            "output": "Temporal clusters with event density and time ranges per case"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Clusters are not meaningful when using case_id as axis or color, since each case is unique.",
+            "interpretation": "Clustering by case_id does not reveal process patterns, as each case is its own group.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Red highlighted dots on outlier events within cases. Case coloring provides redundant but clear visual separation.",
+            "interpretation": "Detects cases with unusual execution patterns or extreme durations. Color matches Y-axis for clear case identification.",
+            "use_case": "Finding exceptional cases, compliance violations with clear visual separation",
+            "output": "Outlier cases with anomaly reasons, colored by case"
+        }
+    },
+
+    # ========================================================================
+    # ACTUAL_TIME × CASE_ID × ACTIVITY
+    # ========================================================================
+    ("actual_time", "case_id", "activity"): {
+        "gap": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Red rectangles showing gaps within individual case timelines, colored by activity. Activity coloring reveals which activities are delayed within each case.",
+            "interpretation": "Detects abnormal waiting times within specific cases. Each case is analyzed individually. Color-coded by activity to see which activities cause delays.",
+            "use_case": "Finding case-specific delays, identifying which activities cause delays in each case",
+            "output": "Abnormal gaps with case identification, colored by activity"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Colored circles around event dots, colored by activity. Activity coloring shows which activities dominate busy periods across cases.",
+            "interpretation": "Clustering by case_id does not reveal process patterns, as each case is its own group.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Clusters are not meaningful when using case_id as axis or color, since each case is unique. It separates data by instance, not by any meaningful pattern.",
+            "interpretation": "Clustering by case_id does not reveal process patterns, as each case is its own group.",
+            "use_case": "Not recommended.The core issue: When case_id is on an axis, you're viewing individual case trajectories. Clustering is designed to find groups of similar behavior, which conflicts with the case-by-case perspective.",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Red highlighted dots on outlier events, colored by activity. Activity coloring helps identify which activities are outliers within cases.",
+            "interpretation": "Detects cases with unusual execution patterns or extreme durations. Color-coded by activity for activity-level analysis.",
+            "use_case": "Finding exceptional cases, identifying which activities are outliers in each case",
+            "output": "Outlier cases with activity-specific anomaly reasons"
+        }
+    },
+
+    # ========================================================================
+    # ACTUAL_TIME × CASE_ID × RESOURCE
+    # ========================================================================
+    ("actual_time", "case_id", "resource"): {
+        "gap": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Red rectangles showing gaps within individual case timelines, colored by resource. Resource coloring reveals which resources are involved in case-specific delays.",
+            "interpretation": "Detects abnormal waiting times within specific cases. Each case is analyzed individually. Color-coded by resource to see resource involvement in delays.",
+            "use_case": "Finding case-specific delays, identifying which resources cause delays in each case",
+            "output": "Abnormal gaps with case identification, colored by resource"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Colored circles around event dots, colored by resource. Resource coloring shows which resources are active during busy periods.",
+            "interpretation": "Using case ID as color will only separate data by instance, not by any meaningful temporal pattern.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Clusters are not meaningful when using case_id as axis or color, since each case is unique.",
+            "interpretation": "Clustering by case_id does not reveal process patterns, as each case is its own group.",
+            "use_case": "Not recommended.The core issue: When case_id is on an axis, you're viewing individual case trajectories. Clustering is designed to find groups of similar behavior, which conflicts with the case-by-case perspective.",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Red highlighted dots on outlier events, colored by resource. Resource coloring helps identify which resources are involved in case outliers.",
+            "interpretation": "Detects cases with unusual execution patterns or extreme durations. Color-coded by resource for resource-level analysis.",
+            "use_case": "Finding exceptional cases, identifying which resources are involved in outlier cases",
+            "output": "Outlier cases with resource-specific anomaly reasons"
+        }
+    },
+
+    # ========================================================================
+    # NON-MEANINGFUL COMBINATIONS (Examples)
+    # ========================================================================
+
+    ("logical_time", "resource", "case_id"): {
         "gap": {
             "can_be_found": False,
             "makes_sense": False,
             "visual": "N/A",
             "interpretation": "Not meaningful: logical_time is a sequential counter, not actual time. Gap detection requires temporal data.",
-            "algorithm": "N/A",
             "use_case": "Use actual_time or relative_time instead",
-            "requirements": [],
-            "output": "N/A",
-            "x_axis": "logical_time",
-            "y_axis": "resource"
+            "output": "N/A"
         },
-        "temporal_cluster": {
+        "temporal_cluster_x": {
             "can_be_found": False,
             "makes_sense": False,
             "visual": "N/A",
             "interpretation": "Not meaningful: logical_time has no temporal meaning, just sequential order.",
-            "algorithm": "N/A",
             "use_case": "Use actual_time for temporal analysis",
-            "requirements": [],
-            "output": "N/A",
-            "x_axis": "logical_time",
-            "y_axis": "resource"
+            "output": "N/A"
         },
         "outlier": {
             "can_be_found": True,
             "makes_sense": False,
             "visual": "Red dots on sequential outliers",
             "interpretation": "Limited meaning: detects events out of typical sequence order, but not time-based.",
-            "algorithm": "Sequential position analysis",
             "use_case": "Better to use actual_time for meaningful outlier detection",
-            "requirements": ["logical_time"],
-            "output": "Sequential position outliers",
-            "x_axis": "logical_time",
-            "y_axis": "resource"
+            "output": "Sequential position outliers"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "CaseID as color does not provide useful clustering information.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
         }
     },
-    
-    "logical_time_activity": {
+
+    ("relative_ratio", "resource", "case_id"): {
         "gap": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Red rectangles showing normalized gaps in resource activity. Case coloring helps compare normalized delays across different cases.",
+            "interpretation": "Detects abnormal waiting times between activities, normalized by case duration. Shows which resources have delays relative to total case time. Color-coded by case.",
+            "use_case": "Comparing delays across cases of different lengths, identifying resource bottlenecks independent of case duration",
+            "output": "Abnormal gaps with normalized time ratios, colored by case"
+        },
+        "temporal_cluster_x": {
             "can_be_found": False,
             "makes_sense": False,
             "visual": "N/A",
-            "interpretation": "Not meaningful: logical_time lacks temporal information needed for gap detection.",
-            "algorithm": "N/A",
-            "use_case": "Use actual_time or relative_time instead",
-            "requirements": [],
-            "output": "N/A",
-            "x_axis": "logical_time",
-            "y_axis": "activity"
-        },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "logical_time",
-            "y_axis": "activity"
+            "interpretation": "Not meaningful: relative_ratio is not a time measurement.",
+            "use_case": "Use temporal axis for temporal analysis",
+            "output": "N/A"
         },
         "outlier": {
             "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "logical_time",
-            "y_axis": "activity"
-        }
-    },
-    
-    "logical_time_case_id": {
-        "gap": {
-            "can_be_found": False,
             "makes_sense": False,
             "visual": "N/A",
-            "interpretation": "Not meaningful: logical_time is just sequential ordering, no temporal data for gap analysis.",
-            "algorithm": "N/A",
-            "use_case": "Use actual_time or relative_time for meaningful gap detection",
-            "requirements": [],
-            "output": "N/A",
-            "x_axis": "logical_time",
-            "y_axis": "case_id"
+            "interpretation": "Current implementation detects outliers based on actual_time, not relative_ratio. Results don't match visualization.",
+            "use_case": "Use actual_time or relative_time views for meaningful outlier detection",
+            "output": "N/A"
         },
-        "temporal_cluster": {
+        "cluster": {
             "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "logical_time",
-            "y_axis": "case_id"
-        },
-        "outlier": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "logical_time",
-            "y_axis": "case_id"
-        }
-    },
-    
-    # ========== EVENT INDEX VIEWS ==========
-    
-    "actual_time_event_index": {
-        "gap": {
-            "can_be_found": False,
             "makes_sense": False,
             "visual": "N/A",
-            "interpretation": "Not meaningful: event_index is a counter within each case. Gap detection on Y-axis event numbers doesn't provide useful process insights.",
-            "algorithm": "N/A",
-            "use_case": "Use case_id or activity on Y-axis instead",
-            "requirements": [],
-            "output": "N/A",
-            "x_axis": "actual_time",
-            "y_axis": "event_index"
-        },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "actual_time",
-            "y_axis": "event_index"
-        },
-        "outlier": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "actual_time",
-            "y_axis": "event_index"
+            "interpretation": "Not meaningful: case_id as color does not provide useful clustering information.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
         }
     },
-    
-    "relative_time_event_index": {
-        "gap": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: event_index doesn't provide semantic grouping for gap analysis.",
-            "algorithm": "N/A",
-            "use_case": "Use activity or resource on Y-axis for meaningful patterns",
-            "requirements": [],
-            "output": "N/A",
-            "x_axis": "relative_time",
-            "y_axis": "event_index"
-        },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "relative_time",
-            "y_axis": "event_index"
-        },
-        "outlier": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "relative_time",
-            "y_axis": "event_index"
-        }
-    },
-    
-    "relative_ratio_event_index": {
-        "gap": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: event_index lacks semantic meaning for gap patterns.",
-            "algorithm": "N/A",
-            "use_case": "Choose activity or resource on Y-axis",
-            "requirements": [],
-            "output": "N/A",
-            "x_axis": "relative_ratio",
-            "y_axis": "event_index"
-        },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "relative_ratio",
-            "y_axis": "event_index"
-        },
-        "outlier": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "relative_ratio",
-            "y_axis": "event_index"
-        }
-    },
-    
-    # ========== VARIANT VIEWS ==========
-    
-    "actual_time_variant": {
-        "gap": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: Gap detection analyzes transitions WITHIN cases. Variants are case-level groupings and don't contain transition information.",
-            "algorithm": "N/A",
-            "use_case": "Use activity or case_id on Y-axis for transition-based gap detection",
-            "requirements": [],
-            "output": "N/A",
-            "x_axis": "actual_time",
-            "y_axis": "variant"
-        },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "actual_time",
-            "y_axis": "variant"
-        },
-        "outlier": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "actual_time",
-            "y_axis": "variant"
-        }
-    },
-    
-    "relative_time_variant": {
-        "gap": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: Variants don't provide event-level transitions needed for gap detection.",
-            "algorithm": "N/A",
-            "use_case": "Use activity or case_id on Y-axis",
-            "requirements": [],
-            "output": "N/A",
-            "x_axis": "relative_time",
-            "y_axis": "variant"
-        },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "relative_time",
-            "y_axis": "variant"
-        },
-        "outlier": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "relative_time",
-            "y_axis": "variant"
-        }
-    },
-    
-    "relative_ratio_variant": {
-        "gap": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: Variant is too high-level for gap detection.",
-            "algorithm": "N/A",
-            "use_case": "Use activity or case_id on Y-axis for detailed gap analysis",
-            "requirements": [],
-            "output": "N/A",
-            "x_axis": "relative_ratio",
-            "y_axis": "variant"
-        },
-        "temporal_cluster": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "relative_ratio",
-            "y_axis": "variant"
-        },
-        "outlier": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "TODO: To be filled by Tai/Anna",
-            "interpretation": "TODO: To be filled by Tai/Anna",
-            "algorithm": "TODO: To be filled by Tai/Anna",
-            "use_case": "TODO: To be filled by Tai/Anna",
-            "requirements": [],
-            "output": "TODO: To be filled by Tai/Anna",
-            "x_axis": "relative_ratio",
-            "y_axis": "variant"
-        }
-    }
 }
 
 
-def get_pattern_info(x_axis: str, y_axis: str, pattern_name: str) -> Optional[Dict[str, Any]]:
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+def get_pattern_info(
+    x_axis: str,
+    y_axis: str,
+    color: str,
+    pattern_name: str
+) -> Optional[Dict[str, Any]]:
     """
     Get detailed information about a pattern for a specific view configuration.
-    
+
     Parameters
     ----------
     x_axis : str
         X-axis column name (e.g., 'actual_time', 'relative_time')
     y_axis : str
         Y-axis column name (e.g., 'resource', 'activity', 'case_id')
+    color : str
+        Color/dot color column name (e.g., 'case_id', 'activity', 'resource')
     pattern_name : str
-        Pattern name (e.g., 'gap', 'temporal_cluster', 'outlier')
-        
+        Pattern name (e.g., 'gap', 'temporal_cluster_x', 'outlier')
+
     Returns
     -------
     Optional[Dict[str, Any]]
         Pattern information dictionary or None if not found
     """
-    view_key = f"{x_axis}_{y_axis}"
+    view_key = (x_axis, y_axis, color)
     return EXTENDED_PATTERN_MATRIX.get(view_key, {}).get(pattern_name.lower())
 
 
-def is_pattern_meaningful(x_axis: str, y_axis: str, pattern_name: str) -> bool:
+def is_pattern_meaningful(
+    x_axis: str,
+    y_axis: str,
+    color: str,
+    pattern_name: str
+) -> bool:
     """
     Check if a pattern is both technically possible AND semantically meaningful.
-    
+
     Parameters
     ----------
     x_axis : str
         X-axis column name
     y_axis : str
         Y-axis column name
+    color : str
+        Color/dot color column name
     pattern_name : str
         Pattern name
-        
+
     Returns
     -------
     bool
         True if pattern is meaningful for this view configuration
     """
-    info = get_pattern_info(x_axis, y_axis, pattern_name)
+    info = get_pattern_info(x_axis, y_axis, color, pattern_name)
     if not info:
         return False
     return info.get("can_be_found", False) and info.get("makes_sense", False)
 
 
-def get_meaningful_patterns(x_axis: str, y_axis: str) -> List[str]:
+def get_meaningful_patterns(
+    x_axis: str,
+    y_axis: str,
+    color: str
+) -> List[str]:
     """
     Get list of all meaningful patterns for a view configuration.
-    
+
     Parameters
     ----------
     x_axis : str
         X-axis column name
     y_axis : str
         Y-axis column name
-        
+    color : str
+        Color/dot color column name
+
     Returns
     -------
     list[str]
         List of meaningful pattern names
     """
-    view_key = f"{x_axis}_{y_axis}"
+    view_key = (x_axis, y_axis, color)
     view_patterns = EXTENDED_PATTERN_MATRIX.get(view_key, {})
-    
+
     return [
         pattern_name
         for pattern_name, info in view_patterns.items()
@@ -909,10 +528,22 @@ def get_meaningful_patterns(x_axis: str, y_axis: str) -> List[str]:
     ]
 
 
+def get_all_view_combinations() -> List[Tuple[str, str, str]]:
+    """
+    Get all defined view combinations (x, y, color) in the matrix.
+
+    Returns
+    -------
+    list[tuple]
+        List of (x_axis, y_axis, color) tuples
+    """
+    return list(EXTENDED_PATTERN_MATRIX.keys())
+
+
 __all__ = [
     "EXTENDED_PATTERN_MATRIX",
     "get_pattern_info",
     "is_pattern_meaningful",
-    "get_meaningful_patterns"
+    "get_meaningful_patterns",
+    "get_all_view_combinations"
 ]
-

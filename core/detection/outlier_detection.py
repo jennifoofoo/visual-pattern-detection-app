@@ -7,7 +7,11 @@ Handles missing columns gracefully.
 import pandas as pd
 from typing import Dict, Any, Optional
 import plotly.graph_objects as go
+import numpy as np
+from sklearn.ensemble import IsolationForest
+from sklearn.preprocessing import StandardScaler
 from .pattern_base import Pattern
+from config.extended_pattern_matrix import is_pattern_meaningful
 
 
 class OutlierDetectionPattern(Pattern):
@@ -23,6 +27,8 @@ class OutlierDetectionPattern(Pattern):
         self.df = df
         self.outliers = {}
         self.outlier_scores = {}
+        # Store explanations as {idx: {feature: {'text': '...', 'methods': [...]}}
+        self.outlier_explanations = {}
         self.statistics = {}
         self.available_columns = set(df.columns.str.lower())
 
@@ -38,32 +44,56 @@ class OutlierDetectionPattern(Pattern):
 
     def detect(self) -> bool:
         """Detect various types of outliers in the event log."""
+        # Check if outlier detection is meaningful for this view
+        x_axis = self.view_config.get('x', '')
+        y_axis = self.view_config.get('y', '')
+        color = self.view_config.get('color', '')
+
+        print(f"=== OUTLIER DETECTION START ===")
+        print(f"available view: {self.view_config}")
+        print(f"View config: x={x_axis}, y={y_axis}, color={color}")
+        print(f"DataFrame shape: {self.df.shape}")
+
+        is_meaningful = is_pattern_meaningful(x_axis, y_axis, color, 'outlier')
+        print(f"Is pattern meaningful for outlier detection: {is_meaningful}")
+        print(f"Lookup key: ({x_axis}, {y_axis}, {color})")
+
+        if not is_meaningful:
+            print("Outlier detection skipped - not meaningful for this view")
+            return False
+        else:
+            print("No specific view - proceeding with general outlier detection")
+
         try:
             detection_count = 0
 
-            # 1. Time-based outliers (if time data available)
+            # 1. Isolation Forest (algorithmic, multi-dimensional)
+            if self._detect_isolation_forest_outliers():
+                detection_count += 1
+
+            # 2. Time-based outliers (if time data available)
             if self._detect_time_outliers():
                 detection_count += 1
 
-            # 2. Case duration outliers (if time data available)
+            # 3. Case duration outliers (if time data available)
             if self._detect_case_duration_outliers():
                 detection_count += 1
 
-            # 3. Activity frequency outliers (always possible)
+            # 4. Activity frequency outliers (always possible)
             if self._detect_activity_frequency_outliers():
                 detection_count += 1
 
-            # 4. Resource behavior outliers (if resource column exists)
+            # 5. Resource behavior outliers (if resource column exists)
             if self._detect_resource_outliers():
                 detection_count += 1
 
-            # 5. Event sequence outliers (always possible with case_id + activity)
+            # 6. Event sequence outliers (always possible with case_id + activity)
             if self._detect_sequence_outliers():
                 detection_count += 1
 
-            # 6. Case complexity outliers (always possible with case_id)
-            if self._detect_case_complexity_outliers():
-                detection_count += 1
+            # # 7. Case complexity outliers (always possible with case_id)
+            # if self._detect_case_complexity_outliers():
+            #     detection_count += 1
 
             # Combine all outliers
             self._combine_outliers()
@@ -85,6 +115,193 @@ class OutlierDetectionPattern(Pattern):
         except Exception as e:
             print(f"Error in outlier detection: {e}")
             self.detected = False
+            return False
+
+    def _detect_isolation_forest_outliers(self) -> bool:
+        """Detect outliers using Isolation Forest - optimized for dotted chart visualization."""
+        print(">>> Entering _detect_isolation_forest_outliers")
+        try:
+            features = []
+            feature_names = []
+            feature_indices = []  # Track which rows have valid features
+
+            case_col = self._has_column(
+                'case_id', 'case:concept:name', 'caseid', 'trace_id')
+            time_col = self._has_column(
+                'actual_time', 'timestamp', 'time', 'start_time', 'complete_time')
+            activity_col = self._has_column(
+                'activity', 'concept:name', 'event_name', 'activity_name')
+
+            print(
+                f"Isolation Forest - Found columns: case={case_col}, time={time_col}, activity={activity_col}")
+            print(f"DataFrame shape: {self.df.shape}")
+
+            # Feature 1: Case-level features (event count per case)
+            if case_col:
+                case_event_counts = self.df.groupby(case_col).size()
+                case_position = self.df.groupby(case_col).cumcount()
+
+                features.append(self.df[case_col].map(
+                    case_event_counts).values)
+                features.append(case_position.values)
+                feature_names.extend(
+                    ['case_event_count', 'event_position_in_case'])
+
+            # Feature 2: Time-based features (crucial for dotted chart)
+            if time_col:
+                df_time = self.df.copy()
+                df_time[time_col] = pd.to_datetime(
+                    df_time[time_col], errors='coerce')
+
+                valid_mask = df_time[time_col].notna()
+                if valid_mask.sum() > 0:
+                    df_time = df_time[valid_mask]
+
+                    # Temporal features
+                    df_time['hour'] = df_time[time_col].dt.hour
+                    df_time['day_of_week'] = df_time[time_col].dt.dayofweek
+                    df_time['day_of_month'] = df_time[time_col].dt.day
+
+                    # Time since first event (normalized)
+                    min_time = df_time[time_col].min()
+                    df_time['time_since_start'] = (
+                        df_time[time_col] - min_time).dt.total_seconds() / 3600
+
+                    features.append(df_time['hour'].values)
+                    features.append(df_time['day_of_week'].values)
+                    features.append(df_time['time_since_start'].values)
+                    feature_names.extend(
+                        ['hour', 'day_of_week', 'time_since_start'])
+
+                    feature_indices = df_time.index.tolist()
+
+            # Feature 3: Activity encoding (if available)
+            if activity_col:
+                activity_freq = self.df[activity_col].value_counts()
+                activity_rarity = self.df[activity_col].map(
+                    activity_freq).values
+                features.append(activity_rarity)
+                feature_names.append('activity_frequency')
+
+            print(
+                f"Not enough features for Isolation Forest: {len(features)} features, need at least 3")
+            print(f"Feature names collected: {feature_names}")
+
+            # Need at least 3 features for meaningful detection
+            if len(features) < 3:
+                return False
+
+            # Stack features
+            X = np.column_stack(features)
+
+            # If we filtered by time, only use those indices
+            if feature_indices:
+                valid_indices = np.array(feature_indices)
+            else:
+                valid_indices = self.df.index.values
+
+            # Normalize features (critical for Isolation Forest)
+            scaler = StandardScaler()
+            X_scaled = scaler.fit_transform(X)
+
+            # Apply Isolation Forest with parameters tuned for event logs
+            iso_forest = IsolationForest(
+                # Expect 10% outliers for testing
+                contamination=0.1,
+                random_state=42,
+                n_estimators=100,
+                max_samples='auto',
+                max_features=1.0  # Use all features
+            )
+
+            predictions = iso_forest.fit_predict(X_scaled)
+            anomaly_scores = iso_forest.score_samples(
+                X_scaled)  # Get anomaly scores
+
+            # -1 indicates outliers
+            outlier_mask = predictions == -1
+
+            iso_outliers = valid_indices[outlier_mask].tolist()
+
+            print(
+                f"Isolation Forest: Total points={len(X_scaled)}, Outliers detected={len(iso_outliers)}, Features={feature_names}")
+
+            if iso_outliers:
+                self.outliers['isolation_forest'] = iso_outliers
+
+                # Store anomaly scores and explanations for visualization
+                for idx, score in zip(valid_indices[outlier_mask], anomaly_scores[outlier_mask]):
+                    if idx not in self.outlier_scores:
+                        self.outlier_scores[idx] = 0
+                    # Add weighted score based on how anomalous it is
+                    self.outlier_scores[idx] += abs(score) * 2
+
+                    # Generate ALL possible explanations (store for later filtering)
+                    # Dict of {feature_name: {'text': '...', 'methods': [...]}}
+                    all_explanations = {}
+                    row_idx = np.where(valid_indices == idx)[0][0]
+                    feature_values = X_scaled[row_idx]
+
+                    # Check which features are extreme (>2 std devs from mean)
+                    for feat_idx, (feat_val, feat_name) in enumerate(zip(feature_values, feature_names)):
+                        if abs(feat_val) > 2.0:  # More than 2 standard deviations
+                            if feat_name == 'hour':
+                                actual_hour = int(X[row_idx, feat_idx])
+                                all_explanations['hour'] = {
+                                    'text': f"⏰ Unusual time of day (hour: {actual_hour})",
+                                    'methods': ['isolation_forest']
+                                }
+                            elif feat_name == 'day_of_week':
+                                days = ['Monday', 'Tuesday', 'Wednesday',
+                                        'Thursday', 'Friday', 'Saturday', 'Sunday']
+                                day_idx = int(X[row_idx, feat_idx])
+                                all_explanations['day_of_week'] = {
+                                    'text': f"📅 Unusual day ({days[day_idx]})",
+                                    'methods': ['isolation_forest']
+                                }
+                            elif feat_name == 'case_event_count':
+                                count = int(X[row_idx, feat_idx])
+                                if feat_val > 2.0:
+                                    all_explanations[
+                                        'case_event_count'] = f"📊 Case has unusually many events ({count})"
+                                else:
+                                    all_explanations[
+                                        'case_event_count'] = f"📊 Case has unusually few events ({count})"
+                            elif feat_name == 'event_position_in_case':
+                                pos = int(X[row_idx, feat_idx])
+                                if feat_val > 2.0:
+                                    all_explanations[
+                                        'event_position_in_case'] = f"🔢 Late in case sequence (position {pos})"
+                                else:
+                                    all_explanations[
+                                        'event_position_in_case'] = f"🔢 Early in case sequence (position {pos})"
+                            elif feat_name == 'activity_frequency':
+                                freq = int(X[row_idx, feat_idx])
+                                if feat_val > 2.0:
+                                    all_explanations[
+                                        'activity_frequency'] = f"🔁 Very common activity (occurs {freq} times)"
+                                else:
+                                    all_explanations[
+                                        'activity_frequency'] = f"🔁 Rare activity (occurs only {freq} times)"
+                            elif feat_name == 'time_since_start':
+                                hours = X[row_idx, feat_idx]
+                                if feat_val > 2.0:
+                                    all_explanations[
+                                        'time_since_start'] = f"⏱️ Very late in process timeline ({hours:.1f} hours from start)"
+                                else:
+                                    all_explanations[
+                                        'time_since_start'] = f"⏱️ Very early in process timeline ({hours:.1f} hours from start)"
+
+                    # Store ALL explanations for later filtering based on view
+                    self.outlier_explanations[idx] = all_explanations
+
+                return True
+
+            print("No outliers found by Isolation Forest")
+            return False
+
+        except Exception as e:
+            print(f"Isolation Forest detection failed: {e}")
             return False
 
     def _detect_time_outliers(self) -> bool:
@@ -118,8 +335,35 @@ class OutlierDetectionPattern(Pattern):
                     rare_threshold = max(1, hour_counts.quantile(0.05))
                     rare_hours = hour_counts[hour_counts <=
                                              rare_threshold].index
-                    time_outliers.extend(
-                        df_time[df_time['hour'].isin(rare_hours)].index.tolist())
+                    rare_hour_indices = df_time[df_time['hour'].isin(
+                        rare_hours)].index.tolist()
+                    time_outliers.extend(rare_hour_indices)
+
+                    # Add explanations for time outliers
+                    for idx in rare_hour_indices:
+                        if idx not in self.outlier_explanations:
+                            self.outlier_explanations[idx] = {}
+                        if idx not in self.outlier_scores:
+                            self.outlier_scores[idx] = 0
+
+                        hour = df_time.loc[idx, 'hour']
+                        # Merge with existing explanation if present
+                        if 'hour' in self.outlier_explanations[idx]:
+                            if isinstance(self.outlier_explanations[idx]['hour'], dict):
+                                self.outlier_explanations[idx]['hour']['methods'].append(
+                                    'time_based')
+                            else:
+                                # Convert old format to new
+                                self.outlier_explanations[idx]['hour'] = {
+                                    'text': f"⏰ Rare time of day (hour: {hour})",
+                                    'methods': ['isolation_forest', 'time_based']
+                                }
+                        else:
+                            self.outlier_explanations[idx]['hour'] = {
+                                'text': f"⏰ Rare time of day (hour: {hour})",
+                                'methods': ['time_based']
+                            }
+                        self.outlier_scores[idx] += 1
 
             self.outliers['time'] = list(set(time_outliers))
             return len(time_outliers) > 0
@@ -172,14 +416,35 @@ class OutlierDetectionPattern(Pattern):
                 return False
 
             # Much more strict - use 3 * IQR instead of 1.5 * IQR
-            outlier_cases = case_stats[
+            outlier_case_stats = case_stats[
                 (case_stats['duration_seconds'] < Q1 - 3.0 * IQR) |
                 (case_stats['duration_seconds'] > Q3 + 3.0 * IQR)
-            ][case_col].tolist()
+            ]
 
-            if outlier_cases:
-                duration_outliers = self.df[self.df[case_col].isin(
-                    outlier_cases)].index.tolist()
+            if not outlier_case_stats.empty:
+                duration_outliers = []
+                for _, case_stat in outlier_case_stats.iterrows():
+                    case_id = case_stat[case_col]
+                    duration_hours = case_stat['duration_seconds'] / 3600
+                    case_indices = self.df[self.df[case_col]
+                                           == case_id].index.tolist()
+                    duration_outliers.extend(case_indices)
+
+                    # Add explanations
+                    for idx in case_indices:
+                        if idx not in self.outlier_explanations:
+                            self.outlier_explanations[idx] = {}
+                        if idx not in self.outlier_scores:
+                            self.outlier_scores[idx] = 0
+
+                        if case_stat['duration_seconds'] > Q3 + 3.0 * IQR:
+                            self.outlier_explanations[idx][
+                                'case_duration'] = f"📅 Case took unusually long ({duration_hours:.1f} hours)"
+                        else:
+                            self.outlier_explanations[idx][
+                                'case_duration'] = f"📅 Case completed unusually fast ({duration_hours:.1f} hours)"
+                        self.outlier_scores[idx] += 1
+
                 self.outliers['case_duration'] = duration_outliers
                 return True
 
@@ -206,9 +471,23 @@ class OutlierDetectionPattern(Pattern):
             )
 
             if rare_activities:
-                activity_outliers = self.df[self.df[activity_col].isin(
+                activity_outlier_indices = self.df[self.df[activity_col].isin(
                     rare_activities)].index.tolist()
-                self.outliers['activity_frequency'] = activity_outliers
+
+                # Add explanations
+                for idx in activity_outlier_indices:
+                    if idx not in self.outlier_explanations:
+                        self.outlier_explanations[idx] = {}
+                    if idx not in self.outlier_scores:
+                        self.outlier_scores[idx] = 0
+
+                    activity = self.df.loc[idx, activity_col]
+                    freq = activity_counts[activity]
+                    self.outlier_explanations[idx][
+                        'activity_frequency'] = f"🔁 Rare activity '{activity}' (occurs only {freq} times, <1%)"
+                    self.outlier_scores[idx] += 1
+
+                self.outliers['activity_frequency'] = activity_outlier_indices
                 return True
 
         except Exception as e:
@@ -245,9 +524,27 @@ class OutlierDetectionPattern(Pattern):
             ].index.tolist()
 
             if outlier_resources:
-                resource_outliers = self.df[self.df[resource_col].isin(
+                resource_outlier_indices = self.df[self.df[resource_col].isin(
                     outlier_resources)].index.tolist()
-                self.outliers['resource'] = resource_outliers
+
+                # Add explanations
+                for idx in resource_outlier_indices:
+                    if idx not in self.outlier_explanations:
+                        self.outlier_explanations[idx] = {}
+                    if idx not in self.outlier_scores:
+                        self.outlier_scores[idx] = 0
+
+                    resource = self.df.loc[idx, resource_col]
+                    workload = resource_counts[resource]
+                    if workload > Q3 + 3.0 * IQR:
+                        self.outlier_explanations[idx][
+                            'resource'] = f"👥 Resource '{resource}' has unusually high workload ({workload} events)"
+                    else:
+                        self.outlier_explanations[idx][
+                            'resource'] = f"👥 Resource '{resource}' has unusually low workload ({workload} events)"
+                    self.outlier_scores[idx] += 1
+
+                self.outliers['resource'] = resource_outlier_indices
                 return True
 
         except Exception as e:
@@ -311,8 +608,20 @@ class OutlierDetectionPattern(Pattern):
                     if transition in rare_transitions:
                         # Add both events in the rare transition
                         if i < len(case_events) - 1:
-                            sequence_outliers.extend(
-                                case_events.iloc[i:i+2].index.tolist())
+                            event_indices = case_events.iloc[i:i +
+                                                             2].index.tolist()
+                            sequence_outliers.extend(event_indices)
+
+                            # Add explanations
+                            for idx in event_indices:
+                                if idx not in self.outlier_explanations:
+                                    self.outlier_explanations[idx] = {}
+                                if idx not in self.outlier_scores:
+                                    self.outlier_scores[idx] = 0
+
+                                self.outlier_explanations[idx][
+                                    'sequence'] = f"🔀 Unusual activity sequence: '{transition[0]}' → '{transition[1]}'"
+                                self.outlier_scores[idx] += 1
 
             if sequence_outliers:
                 self.outliers['sequence'] = list(set(sequence_outliers))
@@ -464,9 +773,11 @@ class OutlierDetectionPattern(Pattern):
         self.outliers['combined'] = list(all_outliers)
         self.outlier_types = outlier_types
 
-        # Calculate outlier scores (number of different outlier types)
-        self.outlier_scores = {idx: len(types)
-                               for idx, types in outlier_types.items()}
+        # Don't overwrite outlier scores if they already exist from methods
+        # Only add scores for outliers that don't have scores yet
+        for idx, types in outlier_types.items():
+            if idx not in self.outlier_scores:
+                self.outlier_scores[idx] = len(types)
 
     def _filter_extreme_outliers(self):
         """Keep only the most extreme outliers when we have too many."""
@@ -536,30 +847,75 @@ class OutlierDetectionPattern(Pattern):
             'available_features': list(self.available_columns)
         }
 
-    def visualize(self, fig: go.Figure) -> go.Figure:
-        """Add outlier visualization to the existing figure."""
+    def visualize(self, df: pd.DataFrame, fig: go.Figure) -> go.Figure:
+        """Add outlier visualization to the existing figure.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Event log dataframe (for consistency with Pattern API, not used here)
+        fig : go.Figure
+            Plotly figure to annotate
+
+        Returns
+        -------
+        go.Figure
+            Figure with outlier overlays
+        """
         if not self.detected:
             return fig
 
-        # Get outlier data - filter to only maximum score outliers
+        # Get outlier data
         all_outlier_indices = self.outliers.get('combined', [])
         if not all_outlier_indices:
             return fig
 
-        # Find maximum score and filter to only those outliers
+        # Filter by selected outlier types if specified
+        import streamlit as st
+        selected_types = st.session_state.get('selected_outlier_types', None)
+        if selected_types is not None and len(selected_types) > 0:
+            # Only show outliers that match at least one selected type
+            filtered_indices = []
+            for idx in all_outlier_indices:
+                outlier_reasons = self.outlier_types.get(idx, [])
+                # Check if any of the outlier's types match the selected types
+                if any(otype in selected_types for otype in outlier_reasons):
+                    filtered_indices.append(idx)
+            all_outlier_indices = filtered_indices
+
+            if not all_outlier_indices:
+                return fig
+
+        print(f"Visualizing {len(all_outlier_indices)} outliers")
+
+        # If we have scores, use top outliers; otherwise use all
+        if self.outlier_scores:
+            # Get top outliers (e.g., top 10% by score, but max 1000 points for performance)
+            sorted_outliers = sorted(
+                all_outlier_indices,
+                key=lambda idx: self.outlier_scores.get(idx, 0),
+                reverse=True
+            )
+
+            # Limit to top 1000 outliers for visualization performance
+            max_viz_outliers = min(1000, len(sorted_outliers))
+            outlier_indices_to_show = sorted_outliers[:max_viz_outliers]
+            print(
+                f"Showing top {len(outlier_indices_to_show)} outliers by anomaly score")
+        else:
+            # No scores available, show all (up to limit)
+            outlier_indices_to_show = all_outlier_indices[:1000]
+            print(
+                f"No scores available, showing first {len(outlier_indices_to_show)} outliers")
+
+        if not outlier_indices_to_show:
+            return fig
+
+        outlier_data = self.df.loc[outlier_indices_to_show]
+
+        # Calculate max score for display
         max_score = max(self.outlier_scores.values()
-                        ) if self.outlier_scores else 0
-        if max_score <= 1:
-            return fig
-
-        # Only show outliers with maximum score (detected by most methods)
-        max_score_indices = [
-            idx for idx in all_outlier_indices if self.outlier_scores.get(idx, 0) == max_score]
-
-        if not max_score_indices:
-            return fig
-
-        outlier_data = self.df.loc[max_score_indices]
+                        ) if self.outlier_scores else 1
 
         # Get column names for display
         case_col = self._has_column(
@@ -567,66 +923,117 @@ class OutlierDetectionPattern(Pattern):
         activity_col = self._has_column(
             'activity', 'concept:name', 'event_name', 'activity_name') or 'activity'
 
-        # Create hover texts for maximum score outliers only
+        # Determine which explanation types are relevant for the current view
+        x_axis = self.view_config.get('x_axis', '')
+        y_axis = self.view_config.get('y_axis', '')
+        color_axis = self.view_config.get('color', '')
+
+        relevant_features = set()
+
+        # X-axis relevance
+        if 'time' in x_axis.lower():
+            relevant_features.update(
+                ['hour', 'day_of_week', 'time_since_start'])
+
+        # Y-axis relevance
+        if 'resource' in y_axis.lower():
+            # Resource features would go here (not implemented yet)
+            pass
+        elif 'activity' in y_axis.lower():
+            relevant_features.add('activity_frequency')
+        elif 'case' in y_axis.lower():
+            relevant_features.update(
+                ['case_event_count', 'event_position_in_case'])
+
+        # Color axis relevance
+        if 'activity' in color_axis.lower():
+            relevant_features.add('activity_frequency')
+        elif 'resource' in color_axis.lower():
+            # Resource features would go here
+            pass
+        elif 'case' in color_axis.lower():
+            relevant_features.update(
+                ['case_event_count', 'event_position_in_case'])
+
+        # If no relevant features identified, show time-based ones as default
+        if not relevant_features:
+            relevant_features.update(
+                ['hour', 'day_of_week', 'time_since_start'])
+
+        # Filter outliers to only show those with relevant explanations
+        filtered_outlier_indices = []
+        for idx in outlier_indices_to_show:
+            all_explanations = self.outlier_explanations.get(idx, {})
+            has_relevant_explanation = any(
+                feat_name in relevant_features for feat_name in all_explanations.keys()
+            )
+            if has_relevant_explanation:
+                filtered_outlier_indices.append(idx)
+
+        # If no outliers have relevant explanations for this view, don't show any
+        if not filtered_outlier_indices:
+            print(
+                f"No outliers have relevant explanations for view x={x_axis}, y={y_axis}, color={color_axis}")
+            return fig
+
+        print(f"Showing {len(filtered_outlier_indices)} outliers with relevant explanations (filtered from {len(outlier_indices_to_show)})")
+
+        # Update the data to show only filtered outliers
+        outlier_data = self.df.loc[filtered_outlier_indices]
+
+        # Create hover texts
         hover_texts = []
-        for idx in max_score_indices:
+        for idx in filtered_outlier_indices:
             score = self.outlier_scores.get(idx, 1)
-            detection_reasons = self.outlier_types.get(idx, ['unknown'])
             case_id = self.df.loc[idx,
                                   case_col] if case_col in self.df.columns else 'N/A'
             activity = self.df.loc[idx,
                                    activity_col] if activity_col in self.df.columns else 'N/A'
 
-            # Convert detection method codes to user-friendly explanations
-            reason_explanations = []
-            for reason in detection_reasons:
-                if reason == 'time':
-                    reason_explanations.append(
-                        "⏰ Unusual timing (off-hours/weekend)")
-                elif reason == 'case_duration':
-                    reason_explanations.append(
-                        "📅 Case duration anomaly (too long/short)")
-                elif reason == 'activity_frequency':
-                    reason_explanations.append(
-                        "📊 Rare activity (< 1% frequency)")
-                elif reason == 'resource':
-                    reason_explanations.append(
-                        "👩‍⚕️ Resource workload anomaly")
-                elif reason == 'sequence':
-                    reason_explanations.append("Unusual workflow sequence")
-                elif reason == 'case_complexity':
-                    reason_explanations.append("Case complexity anomaly")
-                else:
-                    reason_explanations.append(f"{reason}")
+            # Get explanations and filter to only relevant ones for this view
+            all_explanations = self.outlier_explanations.get(idx, {})
+            filtered_explanations = []
 
-            reasons_text = '<br>'.join(reason_explanations)
+            for feat_name, expl_data in all_explanations.items():
+                if feat_name in relevant_features:
+                    # Handle both old (string) and new (dict) format
+                    if isinstance(expl_data, dict):
+                        text = expl_data['text']
+                        methods = expl_data.get('methods', [])
+                        if len(methods) > 1:
+                            text += f" <i>(confirmed by {len(methods)} methods)</i>"
+                        filtered_explanations.append(text)
+                    else:
+                        # Old string format
+                        filtered_explanations.append(expl_data)
+
+            reasons_text = '<br>'.join(filtered_explanations)
+
             hover_texts.append(
-                f'HIGH-CONFIDENCE OUTLIER<br><br><b>Case:</b> {case_id}<br><b>Activity:</b> {activity}<br><b>Score:</b> {score}/{max_score}<br><br><b>Detection Reasons:</b><br>{reasons_text}')
+                f'<b>⚠️ OUTLIER DETECTED</b><br><br><b>Case:</b> {case_id}<br><b>Activity:</b> {activity}<br><b>Anomaly Score:</b> {score:.3f}<br><br><b>Why it\'s an outlier:</b><br>{reasons_text}')
 
-        # Add maximum score outlier points as a separate trace with enhanced highlighting
+        # Add outlier points as a separate trace with highlighting
         fig.add_trace(go.Scatter(
-            x=outlier_data[self.view_config['x_axis']],
-            y=outlier_data[self.view_config['y_axis']],
+            x=outlier_data[self.view_config['x']],
+            y=outlier_data[self.view_config['y']],
             mode='markers',
             marker=dict(
                 size=10,
-                # Slightly more visible for max score outliers
                 color='rgba(255, 0, 0, 0.2)',
                 symbol='circle',
-                # Thicker, darker border for emphasis
                 line=dict(width=4, color='darkred')
             ),
             text=hover_texts,
             hovertemplate='%{text}<extra></extra>',
-            name=f'Max Score Outliers ({max_score})',
+            name=f'Outliers (n={len(filtered_outlier_indices)})',
             showlegend=True
         ))
 
         # Add outlier statistics as annotation
         methods_used = self.statistics.get('detection_methods_used', 0)
         total_outliers = self.statistics['total_outliers']
-        max_score_count = len(max_score_indices)
-        stats_text = f"Max Score Outliers: {max_score_count}/{total_outliers} (Score: {max_score})<br>Detection Methods: {methods_used}/6"
+        shown_count = len(filtered_outlier_indices)
+        stats_text = f"Outliers Shown: {shown_count}/{total_outliers}<br>Max Anomaly Score: {max_score:.3f}<br>Detection Methods: {methods_used}"
         fig.add_annotation(
             x=0.02, y=0.98,
             xref='paper', yref='paper',
@@ -695,18 +1102,18 @@ class OutlierDetectionPattern(Pattern):
             ]
 
         return summary
-    
+
     def get_summary(self) -> Dict[str, Any]:
         """
         Get standardized pattern summary.
-        
+
         Returns
         -------
         Dict[str, Any]
             Standardized summary with pattern_type, detected, count, and details
         """
         outlier_summary = self.get_outlier_summary()
-        
+
         return {
             'pattern_type': 'outlier',
             'detected': self.detected,
