@@ -12,8 +12,6 @@ This ensures the entire detection workflow functions correctly end-to-end.
 
 import pytest
 import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
 import plotly.graph_objects as go
 
 from core.data_processing.loader import load_xes_log
@@ -21,7 +19,6 @@ from core.data_processing.preprocessor import DataPreprocessor
 from core.detection.temporal_cluster import TemporalClusterPattern
 from core.detection.outlier_detection import OutlierDetectionPattern
 from core.detection.gap_pattern import GapPattern
-from core.detection.cluster_pattern import ClusterPattern
 
 
 class TestLoaderToDetectorPipeline:
@@ -180,7 +177,7 @@ class TestDetectorToVisualizationPipeline:
         )
 
         detector.detect()
-        result_fig = detector.visualize(fig=empty_figure)
+        result_fig = detector.visualize(fig=empty_figure, df=df_with_temporal_bursts)
 
         assert isinstance(result_fig, go.Figure)
         # If patterns detected, should have added visual elements
@@ -199,7 +196,7 @@ class TestDetectorToVisualizationPipeline:
         )
 
         detector.detect()
-        result_fig = detector.visualize(empty_figure)
+        result_fig = detector.visualize(sample_event_log, empty_figure)
 
         assert isinstance(result_fig, go.Figure)
 
@@ -232,7 +229,7 @@ class TestDetectorToSummaryPipeline:
 
         # Verify standardized summary structure
         assert 'pattern_type' in summary
-        assert summary['pattern_type'] == 'temporal_cluster'
+        assert summary['pattern_type'] == 'temporal_cluster_x'
         assert 'detected' in summary
         assert 'count' in summary
         assert 'details' in summary
@@ -373,7 +370,7 @@ class TestEndToEndWorkflow:
         temporal_detector.detect()
 
         # Step 4: Visualize
-        fig = temporal_detector.visualize(fig=empty_figure)
+        fig = temporal_detector.visualize(df=sampled_df, fig=empty_figure)
         assert isinstance(fig, go.Figure)
 
         # Step 5: Get summary
@@ -524,3 +521,4 @@ class TestPatternCombinations:
             assert 'pattern_type' in pattern_summary
             assert 'detected' in pattern_summary
             assert 'count' in pattern_summary
+

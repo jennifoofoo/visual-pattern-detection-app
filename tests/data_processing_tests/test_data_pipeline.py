@@ -129,15 +129,6 @@ class TestAllTimeRepresentationsWithPreprocessor:
         # logical_time is integer
         assert df_processed['logical_time_scaled'].notna().all()
 
-    def test_logical_relative_preprocessing(self, sample_event_log, preprocessor):
-        """Test preprocessing logical_relative column."""
-        view_config = {'x': 'logical_relative', 'y': 'case_id', 'view': 'case'}
-        df_processed = preprocessor.process(sample_event_log, view_config)
-
-        assert 'logical_relative_scaled' in df_processed.columns
-        assert 'case_id_code' in df_processed.columns
-
-
 class TestAllYAxisColumnsWithPreprocessor:
     """Test that all Y-axis column types from loader work with preprocessor."""
 

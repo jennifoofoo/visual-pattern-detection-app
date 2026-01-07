@@ -47,6 +47,7 @@ class TemporalClusterPattern(Pattern):
         self.df = df
         self.x_axis = x_axis
         self.y_axis = y_axis
+        self.color = color
         self.min_cluster_size = max(5, int(np.sqrt(len(df))))
         self.temporal_eps = temporal_eps
         self.spatial_eps = spatial_eps
@@ -72,14 +73,17 @@ class TemporalClusterPattern(Pattern):
         Returns:
             True if any meaningful patterns are detected
         """
-        # Check if temporal_cluster_x is meaningful for this view
-        # Note: color is None for temporal cluster pattern (not used)
-        if not is_pattern_meaningful(self.x_axis, self.y_axis, None, 'temporal_cluster_x'):
-            return False
-
         # Use provided df or fall back to self.df
         if df is not None:
             self.df = df
+
+        # Validate DataFrame is not empty
+        if self.df is None or len(self.df) == 0:
+            return False
+
+        # Check if temporal_cluster_x is meaningful for this view
+        if not is_pattern_meaningful(self.x_axis, self.y_axis, self.color, 'temporal_cluster_x'):
+            return False
 
         detected_patterns = []
 

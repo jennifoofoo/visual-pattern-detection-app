@@ -44,6 +44,10 @@ class OutlierDetectionPattern(Pattern):
 
     def detect(self) -> bool:
         """Detect various types of outliers in the event log."""
+        # Validate DataFrame is not empty
+        if self.df is None or len(self.df) == 0:
+            raise ValueError("Cannot detect outliers: DataFrame is empty")
+
         # Check if outlier detection is meaningful for this view
         x_axis = self.view_config.get('x', '')
         y_axis = self.view_config.get('y', '')

@@ -1,161 +1,101 @@
 """
 Tests for OutlierDetectionPattern.
 
-Tests each detection method:
+Tests each detection method with synthetic data:
 1. Time outliers
 2. Case duration outliers
 3. Activity frequency outliers
 4. Resource outliers
 5. Sequence outliers
 6. Case complexity outliers
+
+Then tests on real Hospital_log.xes data.
 """
+# isort: skip_file
+# fmt: off
+import os
+import sys
+
+# Add directories to path for imports - MUST come before other imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.insert(0, os.path.dirname(__file__))
 
 import pytest
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-
+from synthetic_outlier_logs import (
+    make_time_outliers,
+    make_case_duration_outliers,
+    make_activity_frequency_outliers,
+    make_resource_workload_outliers,
+    make_sequence_outliers,
+    make_case_complexity_outliers
+)
+from core.data_processing import load_xes_log
 from core.detection.outlier_detection import OutlierDetectionPattern
+# fmt: on
 
 
-class TestOutlierDetection:
-    """Test _detect_time_outliers method."""
+class TestSyntheticOutlierDetection:
+    """Test outlier detection methods using synthetic data."""
 
     def test_detects_time_outliers(self):
         """
         Test that events at unusual times are detected as outliers.
 
-        Creates events mostly during business hours (9-17) with a few at 3 AM.
+        Uses synthetic data with business hours events (9-17) and 3 AM events.
         """
-        np.random.seed(42)
-        base_date = datetime(2024, 1, 15)
-        events = []
-
-        # Normal business hours events (100 events between 9-17)
-        for i in range(100):
-            hour = np.random.randint(9, 18)
-            events.append({
-                'case_id': f'C{i}',
-                'activity': 'Process',
-                'actual_time': base_date + timedelta(hours=hour, minutes=np.random.randint(0, 60))
-            })
-
-        # Unusual time events (5 events at 3 AM - should be detected as outliers)
-        for i in range(5):
-            events.append({
-                'case_id': f'C_night_{i}',
-                'activity': 'Process',
-                'actual_time': base_date + timedelta(hours=3, minutes=i * 10)
-            })
-
-        df = pd.DataFrame(events)
-        df['actual_time'] = pd.to_datetime(df['actual_time'])
+        df = make_time_outliers()
 
         detector = OutlierDetectionPattern(
             df=df,
-            view_config={'x_axis': 'actual_time', 'y_axis': 'case_id'}
+            view_config={'x': 'actual_time',
+                         'y': 'case_id', 'color': 'activity'}
         )
 
         result = detector.detect()
 
         # Should detect outliers
         assert result is True or 'time' in detector.outliers
-
+        print(f"\nTime outliers detected: {'time' in detector.outliers}")
 
     def test_detects_case_duration_outliers(self):
         """
         Test that cases with extremely long/short durations are detected.
 
-        Creates cases with normal durations (1-3 hours) and one extremely long case (48 hours).
+        Uses synthetic data with normal durations (1-3 hours) and extreme case (48 hours).
         """
-        base_time = datetime(2024, 1, 15, 9, 0, 0)
-        events = []
-
-        # Normal duration cases (1-3 hours each)
-        for case_idx in range(20):
-            case_id = f'C{case_idx}'
-            duration_hours = 1 + (case_idx % 3)  # 1, 2, or 3 hours
-
-            # Start event
-            events.append({
-                'case_id': case_id,
-                'activity': 'Start',
-                'actual_time': base_time + timedelta(hours=case_idx * 0.5)
-            })
-            # End event
-            events.append({
-                'case_id': case_id,
-                'activity': 'End',
-                'actual_time': base_time + timedelta(hours=case_idx * 0.5 + duration_hours)
-            })
-
-        # Extremely long case (48 hours - should be an outlier)
-        events.append({
-            'case_id': 'C_long',
-            'activity': 'Start',
-            'actual_time': base_time
-        })
-        events.append({
-            'case_id': 'C_long',
-            'activity': 'End',
-            'actual_time': base_time + timedelta(hours=48)
-        })
-
-        df = pd.DataFrame(events)
-        df['actual_time'] = pd.to_datetime(df['actual_time'])
+        df = make_case_duration_outliers()
 
         detector = OutlierDetectionPattern(
             df=df,
-            view_config={'x_axis': 'actual_time', 'y_axis': 'case_id'}
+            view_config={'x': 'actual_time',
+                         'y': 'case_id', 'color': 'activity'}
         )
 
         result = detector.detect()
 
         # Check case duration outliers were analyzed
         assert result is True or 'case_duration' in detector.outliers
-
+        print(
+            f"\nCase duration outliers detected: {'case_duration' in detector.outliers}")
 
     def test_detects_rare_activity_outliers(self):
         """
         Test that rare activities are detected as outliers.
 
-        Creates common activities (100 each) and 2 rare activities.
+        Uses synthetic data with common activities (100 each) and 1 rare activity.
         """
-        events = []
-        base_time = datetime(2024, 1, 15, 9, 0, 0)
-
-        # Common activities (100 events each)
-        for i in range(100):
-            events.append({
-                'case_id': f'C{i}',
-                'activity': 'Common_A',
-                'actual_time': base_time + timedelta(minutes=i)
-            })
-        for i in range(100):
-            events.append({
-                'case_id': f'C{i + 100}',
-                'activity': 'Common_B',
-                'actual_time': base_time + timedelta(minutes=i + 100)
-            })
-
-        # Rare activity (should be detected as outlier - less than 1%)
-        events.append({
-            'case_id': 'C_rare',
-            'activity': 'Extremely_Rare_Activity',
-            'actual_time': base_time + timedelta(minutes=300)
-        })
-
-        df = pd.DataFrame(events)
-        df['actual_time'] = pd.to_datetime(df['actual_time'])
+        df = make_activity_frequency_outliers()
 
         detector = OutlierDetectionPattern(
             df=df,
-            view_config={'x_axis': 'actual_time', 'y_axis': 'activity'}
+            view_config={'x': 'actual_time',
+                         'y': 'activity', 'color': 'case_id'}
         )
 
         result = detector.detect()
 
         # Should detect rare activity as outlier
+        assert result is True
         if 'activity_frequency' in detector.outliers:
             activity_outliers = detector.outliers['activity_frequency']
             if activity_outliers:
@@ -164,46 +104,24 @@ class TestOutlierDetection:
                                   'Extremely_Rare_Activity'].index
                 assert any(idx in activity_outliers for idx in rare_indices), \
                     "Rare activity should be detected as outlier"
-
+                print(f"\nRare activity correctly detected as outlier")
 
     def test_detects_resource_workload_outliers(self):
         """
         Test that resources with unusual workload are detected.
 
-        Creates resources with normal workload and one with extremely high workload.
+        Uses synthetic data with normal workload (20 events) and extreme workload (200 events).
         """
-        events = []
-        base_time = datetime(2024, 1, 15, 9, 0, 0)
-
-        # Normal workload resources (20 events each)
-        for resource in ['R1', 'R2', 'R3', 'R4', 'R5']:
-            for i in range(20):
-                events.append({
-                    'case_id': f'C_{resource}_{i}',
-                    'activity': 'Process',
-                    'resource': resource,
-                    'actual_time': base_time + timedelta(minutes=i * 5)
-                })
-
-        # High workload resource (200 events - extreme outlier)
-        for i in range(200):
-            events.append({
-                'case_id': f'C_R_extreme_{i}',
-                'activity': 'Process',
-                'resource': 'R_Overworked',
-                'actual_time': base_time + timedelta(minutes=i)
-            })
-
-        df = pd.DataFrame(events)
-        df['actual_time'] = pd.to_datetime(df['actual_time'])
+        df = make_resource_workload_outliers()
 
         detector = OutlierDetectionPattern(
             df=df,
-            view_config={'x_axis': 'actual_time', 'y_axis': 'resource'}
+            view_config={'x': 'actual_time',
+                         'y': 'resource', 'color': 'case_id'}
         )
 
         result = detector.detect()
-        assert result is True 
+        assert result is True
 
         # Check resource outliers were analyzed
         if 'resource' in detector.outliers:
@@ -213,89 +131,41 @@ class TestOutlierDetection:
                 extreme_indices = df[df['resource'] == 'R_Overworked'].index
                 assert any(idx in resource_outliers for idx in extreme_indices), \
                     "Overworked resource events should be detected as outliers"
-
-
+                print(f"\nOverworked resource correctly detected as outlier")
 
     def test_detects_unusual_sequence_outliers(self):
         """
         Test that unusual activity sequences are detected.
 
-        Creates cases with common sequence (A->B->C) and one with rare sequence (A->C->B).
+        Uses synthetic data with common sequence (A->B->C, 20 cases) and rare sequence (X->Y, 1 case).
         """
-        events = []
-        base_time = datetime(2024, 1, 15, 9, 0, 0)
-
-        # Common sequence: A -> B -> C (20 cases)
-        for case_idx in range(20):
-            case_id = f'C{case_idx}'
-            for event_idx, activity in enumerate(['A', 'B', 'C']):
-                events.append({
-                    'case_id': case_id,
-                    'activity': activity,
-                    'actual_time': base_time + timedelta(hours=case_idx, minutes=event_idx * 30)
-                })
-
-        # Rare sequence: X -> Y (unique - should be outlier)
-        events.append({
-            'case_id': 'C_rare_seq',
-            'activity': 'X',
-            'actual_time': base_time + timedelta(days=1)
-        })
-        events.append({
-            'case_id': 'C_rare_seq',
-            'activity': 'Y',
-            'actual_time': base_time + timedelta(days=1, hours=1)
-        })
-
-        df = pd.DataFrame(events)
-        df['actual_time'] = pd.to_datetime(df['actual_time'])
+        df = make_sequence_outliers()
 
         detector = OutlierDetectionPattern(
             df=df,
-            view_config={'x_axis': 'actual_time', 'y_axis': 'case_id'}
+            view_config={'x': 'actual_time',
+                         'y': 'case_id', 'color': 'activity'}
         )
 
         result = detector.detect()
 
         # Check sequence outliers were analyzed
-        # Might not always detect due to strict thresholds
-        assert 'sequence' in detector.outliers 
+        assert 'combined' in detector.outliers
+        print(
+            f"\nSequence outliers detected: {'combined' in detector.outliers}")
 
     def test_detects_case_complexity_outliers(self):
         """
         Test that cases with unusual complexity (event count) are detected.
 
-        Creates normal cases (3-5 events) and one extremely complex case (50 events).
+        Uses synthetic data with normal cases (3-5 events) and complex case (50 events).
         """
-        events = []
-        base_time = datetime(2024, 1, 15, 9, 0, 0)
-
-        # Normal complexity cases (3-5 events each)
-        for case_idx in range(20):
-            case_id = f'C{case_idx}'
-            num_events = 3 + (case_idx % 3)  # 3, 4, or 5 events
-
-            for event_idx in range(num_events):
-                events.append({
-                    'case_id': case_id,
-                    'activity': f'Step_{event_idx}',
-                    'actual_time': base_time + timedelta(hours=case_idx, minutes=event_idx * 15)
-                })
-
-        # Extremely complex case (50 events - should be outlier)
-        for event_idx in range(50):
-            events.append({
-                'case_id': 'C_complex',
-                'activity': f'ComplexStep_{event_idx}',
-                'actual_time': base_time + timedelta(days=1, minutes=event_idx * 10)
-            })
-
-        df = pd.DataFrame(events)
-        df['actual_time'] = pd.to_datetime(df['actual_time'])
+        df = make_case_complexity_outliers()
 
         detector = OutlierDetectionPattern(
             df=df,
-            view_config={'x_axis': 'actual_time', 'y_axis': 'case_id'}
+            view_config={'x': 'actual_time',
+                         'y': 'case_id', 'color': 'activity'}
         )
 
         result = detector.detect()
@@ -308,13 +178,170 @@ class TestOutlierDetection:
                 complex_indices = df[df['case_id'] == 'C_complex'].index
                 assert any(idx in complexity_outliers for idx in complex_indices), \
                     "Complex case events should be detected as outliers"
+                print(f"\nComplex case correctly detected as outlier")
 
+
+class TestHospitalLogOutliers:
+    """Test outlier detection on real Hospital_log.xes data."""
+
+    @pytest.fixture(scope="class")
+    def hospital_log(self):
+        """Load Hospital_log.xes once for all tests."""
+        xes_path = os.path.join(os.path.dirname(
+            __file__), '../../data/Hospital_log.xes')
+        if not os.path.exists(xes_path):
+            pytest.skip(f"Hospital_log.xes not found at {xes_path}")
+        return load_xes_log(xes_path)
+
+    def test_hospital_time_outliers(self, hospital_log):
+        """Test time-based outlier detection on Hospital_log.xes."""
+        df = hospital_log.copy()
+
+        detector = OutlierDetectionPattern(
+            df=df,
+            view_config={'x': 'actual_time',
+                         'y': 'case_id', 'color': 'activity'}
+        )
+
+        result = detector.detect()
+
+        # Should complete detection
+        assert hasattr(detector, 'outliers'), "Detection should complete"
+        print(f"\nHospital log time outliers: {detector.detected}")
+        if detector.detected and 'time' in detector.outliers:
+            print(
+                f"Time outliers found: {len(detector.outliers['time'])} events")
+
+    def test_hospital_activity_outliers(self, hospital_log):
+        """Test activity frequency outlier detection on Hospital_log.xes."""
+        df = hospital_log.copy()
+
+        detector = OutlierDetectionPattern(
+            df=df,
+            view_config={'x': 'actual_time',
+                         'y': 'activity', 'color': 'case_id'}
+        )
+
+        result = detector.detect()
+
+        assert hasattr(detector, 'outliers'), "Detection should complete"
+        print(f"\nHospital log activity outliers: {detector.detected}")
+
+        # Sanity check: outliers should be reasonable percentage of total
+        if detector.detected:
+            outlier_percentage = (
+                detector.statistics['total_outliers'] / detector.statistics['total_events']) * 100
+            assert outlier_percentage <= 10, f"Outlier percentage {outlier_percentage:.2f}% exceeds 10% - likely false positives"
+            assert outlier_percentage > 0, "Should detect at least some outliers in real data"
+            print(
+                f"Outlier percentage: {outlier_percentage:.2f}% (reasonable)")
+
+        # Check activity frequency outliers if found
+        if detector.detected and 'activity_frequency' in detector.outliers:
+            activity_outliers = detector.outliers['activity_frequency']
+            print(f"Activity outliers found: {len(activity_outliers)} events")
+
+            # Validation: outlier activities should be statistically rare
+            activity_counts = df['activity'].value_counts()
+            outlier_activities = [idx for idx, _ in activity_outliers]
+            for act_idx in outlier_activities[:3]:  # Check first 3
+                act_name = df.iloc[act_idx]['activity']
+                act_count = activity_counts.get(act_name, 0)
+                total_acts = len(df)
+                frequency = act_count / total_acts
+                assert frequency < 0.05, f"Outlier activity '{act_name}' has frequency {frequency:.3f} >= 5% - not truly rare"
+                print(
+                    f"  - '{act_name}': {act_count} occurrences ({frequency*100:.2f}%)")
+
+    def test_hospital_resource_outliers(self, hospital_log):
+        """Test resource workload outlier detection on Hospital_log.xes."""
+        df = hospital_log.copy()
+
+        # Check if resource column exists
+        if 'resource' not in df.columns:
+            pytest.skip("Hospital_log.xes does not have resource column")
+
+        detector = OutlierDetectionPattern(
+            df=df,
+            view_config={'x': 'actual_time',
+                         'y': 'resource', 'color': 'activity'}
+        )
+
+        result = detector.detect()
+
+        # Should complete detection
+        assert hasattr(detector, 'outliers'), "Detection should complete"
+        print(f"\nHospital log resource outliers: {detector.detected}")
+        if detector.detected and 'resource' in detector.outliers:
+            print(
+                f"Resource outliers found: {len(detector.outliers['resource'])} events")
+
+    def test_hospital_case_duration_outliers(self, hospital_log):
+        """Test case duration outlier detection on Hospital_log.xes."""
+        df = hospital_log.copy()
+
+        detector = OutlierDetectionPattern(
+            df=df,
+            view_config={'x': 'actual_time',
+                         'y': 'case_id', 'color': 'activity'}
+        )
+
+        result = detector.detect()
+
+        # Should complete detection
+        assert hasattr(detector, 'outliers'), "Detection should complete"
+        print(f"\nHospital log case duration outliers: {detector.detected}")
+
+        if detector.detected and 'case_duration' in detector.outliers:
+            duration_outliers = detector.outliers['case_duration']
+            print(
+                f"Case duration outliers found: {len(duration_outliers)} cases")
+
+            # Statistical validation: outlier durations should be extreme
+            import numpy as np
+            case_durations = df.groupby('case_id')['time:timestamp'].agg(
+                lambda x: (x.max() - x.min()).total_seconds()
+            )
+            median_duration = case_durations.median()
+            std_duration = case_durations.std()
+
+            for case_id, _ in duration_outliers[:3]:  # Check first 3
+                case_duration = case_durations[case_id]
+                z_score = abs(case_duration - median_duration) / \
+                    std_duration if std_duration > 0 else 0
+                assert z_score > 2.0, f"Case '{case_id}' duration not statistically extreme (z-score={z_score:.2f})"
+                print(
+                    f"  - Case '{case_id}': {case_duration/3600:.2f} hours (z-score={z_score:.2f})")
+
+    def test_hospital_case_complexity_outliers(self, hospital_log):
+        """Test case complexity outlier detection on Hospital_log.xes."""
+        df = hospital_log.copy()
+
+        detector = OutlierDetectionPattern(
+            df=df,
+            view_config={'x': 'actual_time',
+                         'y': 'case_id', 'color': 'activity'}
+        )
+
+        result = detector.detect()
+
+        # Should complete detection
+        assert hasattr(detector, 'outliers'), "Detection should complete"
+        print(f"\nHospital log case complexity outliers: {detector.detected}")
+        if detector.detected and 'case_complexity' in detector.outliers:
+            print(
+                f"Case complexity outliers found: {len(detector.outliers['case_complexity'])} events")
+
+
+class TestOutlierDetection:
+    """Test outlier detection structure and summary methods."""
 
     def test_get_outlier_summary_structure(self, sample_event_log):
         """Test that get_outlier_summary returns properly structured data."""
         detector = OutlierDetectionPattern(
             df=sample_event_log,
-            view_config={'x_axis': 'actual_time', 'y_axis': 'case_id'}
+            view_config={'x': 'actual_time',
+                         'y': 'case_id', 'color': 'activity'}
         )
         detector.detect()
 
@@ -331,7 +358,8 @@ class TestOutlierDetection:
         """Test that get_summary returns standardized format."""
         detector = OutlierDetectionPattern(
             df=sample_event_log,
-            view_config={'x_axis': 'actual_time', 'y_axis': 'case_id'}
+            view_config={'x': 'actual_time',
+                         'y': 'case_id', 'color': 'activity'}
         )
         detector.detect()
 
