@@ -212,7 +212,8 @@ def _display_temporal_cluster_tab():
     with subtab2:
         if hasattr(detector, 'clusters') and 'temporal_bursts' in detector.clusters:
             cluster_list = detector.clusters['temporal_bursts']
-            selected = list_to_multicheckbox(cluster_list, "Select Clusters", "temporal_cluster")
+            selected = list_to_multicheckbox(
+                cluster_list, "Select Clusters", "temporal_cluster")
             st.session_state['selected_temporal_clusters'] = selected
 
 
@@ -235,7 +236,8 @@ def _display_cluster_tab():
         noise_count = summary.get('details', {}).get('noise_count', 0)
         st.metric("Noise Points", noise_count)
 
-    st.caption(f"Algorithm: {summary.get('details', {}).get('algorithm', 'OPTICS')}")
+    st.caption(
+        f"Algorithm: {summary.get('details', {}).get('algorithm', 'OPTICS')}")
 
 
 def _display_outlier_tab():
@@ -262,23 +264,59 @@ def _display_outlier_tab():
     with subtab1:
         if summary['details'].get('outlier_details'):
             for otype, details in summary['details']['outlier_details'].items():
-                st.caption(f"- {otype.replace('_', ' ').title()}: {details['count']} ({details['percentage']:.1f}%)")
+                st.caption(
+                    f"- {otype.replace('_', ' ').title()}: {details['count']} ({details['percentage']:.1f}%)")
 
     with subtab2:
-        outlier_details = summary['details'].get('outlier_details', {})
-        if outlier_details:
-            types_dict = {
-                f"{otype.replace('_', ' ').title()} ({details['count']})": otype
-                for otype, details in outlier_details.items()
-                if details['count'] > 0
-            }
-            selected = dict_to_multicheckbox(types_dict, "Select Types", "outlier_type")
-            st.session_state['selected_outlier_types'] = selected
+        # --- Select individual outliers ---
+        outlier_pattern = st.session_state.outlier_pattern
+        all_indices = outlier_pattern.outliers.get('combined', [])
+
+        if all_indices:
+            df = outlier_pattern.df
+            case_col = outlier_pattern._has_column(
+                'case_id', 'case:concept:name', 'caseid', 'trace_id')
+            activity_col = outlier_pattern._has_column(
+                'activity', 'concept:name', 'event_name', 'activity_name')
+            score_dict = outlier_pattern.outlier_scores if hasattr(
+                outlier_pattern, 'outlier_scores') else {}
+            outlier_explanations = outlier_pattern.outlier_explanations if hasattr(
+                outlier_pattern, 'outlier_explanations') else {}
+
+            # Create dict for multi-checkbox selection
+            outlier_dict = {}
+            for idx in all_indices:
+                case_id = df.loc[idx,
+                                 case_col] if case_col and case_col in df.columns else 'N/A'
+                activity = df.loc[idx,
+                                  activity_col] if activity_col and activity_col in df.columns else 'N/A'
+                score = round(score_dict.get(idx, 0), 3)
+
+                # Get human-readable explanations
+                explanations = outlier_explanations.get(idx, {})
+                reasons = []
+                for feature, explanation in explanations.items():
+                    if isinstance(explanation, dict):
+                        reasons.append(explanation.get('text', ''))
+                    else:
+                        reasons.append(str(explanation))
+                reasons_str = ' | '.join(
+                    reasons) if reasons else 'No reason available'
+
+                # Create display label with case, activity, reasons, and score
+                label = f"Case {case_id}| {reasons_str} (Score: {score})"
+                outlier_dict[label] = idx
+
+            selected_indices = dict_to_multicheckbox(
+                outlier_dict, "Select Outliers", "outlier_individual")
+            st.session_state['selected_outlier_indices'] = selected_indices
+        else:
+            st.caption("No outliers found.")
 
 
 def _display_gap_tab():
     """Display Gap Detection pattern details."""
-    from core.app_utils.app_handler import _detect_gaps
+    from core.app_utils.pattern_detection import _detect_gaps
 
     if not ('gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None):
         return
@@ -296,12 +334,14 @@ def _display_gap_tab():
     with col3:
         with st.popover("..."):
             current = st.session_state.get('gap_min_samples', 5)
-            min_samples = st.number_input("Min samples", 3, 20, current, key="gap_min_samples_input")
+            min_samples = st.number_input(
+                "Min samples", 3, 20, current, key="gap_min_samples_input")
             if min_samples != current and st.button("Apply", key="gap_apply"):
                 st.session_state['gap_min_samples'] = min_samples
                 plot_config = st.session_state.get('current_plot_config', {})
                 if plot_config:
-                    _detect_gaps(plot_config['x_col'], plot_config['y_col'], plot_config['df_selected'], min_samples)
+                    _detect_gaps(
+                        plot_config['x_col'], plot_config['y_col'], plot_config['df_selected'], min_samples)
                     st.rerun()
 
     if not layer_visible:
@@ -312,13 +352,16 @@ def _display_gap_tab():
     with subtab1:
         trans_stats = details.get('transition_stats', {})
         for trans, stats in list(trans_stats.items())[:5]:
-            st.caption(f"- {trans}: {stats['count']} gaps, threshold {stats['threshold']/86400:.1f}d")
+            st.caption(
+                f"- {trans}: {stats['count']} gaps, threshold {stats['threshold']/86400:.1f}d")
 
     with subtab2:
         trans_stats = details.get('transition_stats', {})
         if trans_stats:
-            trans_dict = {f"{t} ({s['count']})": t for t, s in trans_stats.items()}
-            selected = dict_to_multicheckbox(trans_dict, "Select Transitions", "gap_transition")
+            trans_dict = {f"{t} ({s['count']})": t for t,
+                          s in trans_stats.items()}
+            selected = dict_to_multicheckbox(
+                trans_dict, "Select Transitions", "gap_transition")
             st.session_state['selected_gap_transitions'] = selected
 
 
@@ -345,8 +388,10 @@ def _display_sequence_tab():
     with subtab2:
         pattern_stats = details.get('pattern_stats', {})
         if pattern_stats:
-            seq_dict = {f"{p} ({s['count']} cases)": p for p, s in pattern_stats.items()}
-            selected = dict_to_multicheckbox(seq_dict, "Select Sequences", "seq_pattern")
+            seq_dict = {f"{p} ({s['count']} cases)": p for p,
+                        s in pattern_stats.items()}
+            selected = dict_to_multicheckbox(
+                seq_dict, "Select Sequences", "seq_pattern")
             st.session_state['selected_seq_patterns'] = selected
 
 

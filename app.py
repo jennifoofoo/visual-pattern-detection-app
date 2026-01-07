@@ -1,4 +1,5 @@
 import streamlit as st
+from core.app_utils import pattern_ui
 import core.app_utils.app_handler as app_handler
 from core.utils.demo_sampling import SamplingMode
 from pathlib import Path
@@ -154,7 +155,7 @@ def main():
 
     if st.session_state.get("chart_plotted", False):
         st.divider()
-        app_handler.handle_pattern_detection()
+        pattern_ui.handle_pattern_detection()
 
 
 # -------------------------------------------------

@@ -20,7 +20,7 @@ from core.utils.demo_sampling import (
     SamplingMode,
     SAMPLING_CONFIGS
 )
-from core.evaluation.ollama_evaluator import OllamaEvaluator
+from core.evaluation.ollama import OllamaEvaluator
 
 
 
