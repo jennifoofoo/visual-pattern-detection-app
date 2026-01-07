@@ -57,7 +57,7 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "can_be_found": True,
             "makes_sense": True,
             "visual": "Colored horizontal lines showing sequences of cases processed by each resource over time. Colors show different sequences.",
-            "interpretation": "Detects sequences of cases processed by resources over time. A resource often works in a specific order on cases.",
+            "interpretation": "Detects sequences of cases processed by resources over time. Resources often work in a specific order on cases.",
             "use_case": "Finding cases that are frequently processed after each other by the same resource.",
             "output": "List of detected sequences with frequency counts."
         }
@@ -103,7 +103,7 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "can_be_found": True,
             "makes_sense": True,
             "visual": "Colored horizontal lines showing sequences of activities executed by each resource over time. Colors show different sequences.",
-            "interpretation": "Detects sequences of activities executed by resources over time. A resource often performs activities in a specific order.",
+            "interpretation": "Detects sequences of activities executed by resources over time. Resources often perform activities in a specific order.",
             "use_case": "Finding activities that are frequently executed after each other by the same resource.",
             "output": "List of detected sequences with frequency counts."
         }
@@ -195,7 +195,7 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "can_be_found": True,
             "makes_sense": True,
             "visual": "Colored horizontal lines showing sequences of case ids worked on by each activity over time. Colors show different sequences.",
-            "interpretation": "Detects sequences of case ids worked on by activity over time. An activity often works in a specific order on cases.",
+            "interpretation": "Detects sequences of case ids worked on by activity over time. Activities are often handling case ids in a specific order.",
             "use_case": "Finding case ids that are frequently worked on after each other by the same activity.",
             "output": "List of detected sequences with frequency counts."
         }
@@ -287,7 +287,7 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "can_be_found": True,
             "makes_sense": True,
             "visual": "Colored horizontal lines showing sequences of resources that are used by an activity over time. Colors show different sequences.",
-            "interpretation": "Detects sequences of resources that are used by an activity over time.",
+            "interpretation": "Detects sequences of resources that are used by an activity over time. Activities often involve resources in a specific order.",
             "use_case": "Finding resources that are frequently used after each other by the same activity.",
             "output": "List of detected sequences with frequency counts."
         }
@@ -379,7 +379,7 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "can_be_found": True,
             "makes_sense": True,
             "visual": "Colored horizontal lines showing sequences of activities executed for each case id over time. Colors show different sequences.",
-            "interpretation": "Detects sequences of activities executed for each case id over time.",
+            "interpretation": "Detects sequences of activities executed for each case id over time. Cases often execute activities in a specific order.",
             "use_case": "Finding activities that are frequently executed after each other within cases.",
             "output": "List of detected sequences with frequency counts."
         }
@@ -426,7 +426,7 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "can_be_found": True,
             "makes_sense": True,
             "visual": "Colored horizontal lines showing sequences of resources working on each case id over time. Colors show different sequences.",
-            "interpretation": "Detects sequences of resources working on each case id over time.",
+            "interpretation": "Detects sequences of resources working on each case id over time. Cases often use resources in a specific order.",
             "use_case": "Finding resources that frequently work after each other within cases.",
             "output": "List of detected sequences with frequency counts."
         }
