@@ -1,0 +1,385 @@
+"""
+Pattern UI - Pattern Summary Tabs and Sub-pattern Selection Helpers.
+
+This module handles all pattern-related UI:
+- Pattern summary tabs (Temporal, Outlier, Gap, Sequence, Case Arrival Trend)
+- Multi-checkbox helpers for sub-pattern selection
+- Visibility sync between sidebar and tabs
+"""
+
+import streamlit as st
+
+
+# =============================================================================
+# === UI Helpers ===
+# =============================================================================
+
+def _get_parent_visibility(key_prefix: str) -> bool:
+    """Get visibility state of parent pattern from sidebar."""
+    prefix_to_sidebar = {
+        'temporal_cluster': 'visible_temporal_cluster',
+        'outlier_type': 'visible_outlier',
+        'gap_transition': 'visible_gap'
+    }
+    sidebar_key = prefix_to_sidebar.get(key_prefix)
+    return st.session_state.get(sidebar_key, True) if sidebar_key else True
+
+
+def _sync_sidebar_checkbox(key_prefix: str, value: bool):
+    """Sync sidebar checkbox with tab selection."""
+    prefix_to_sidebar = {
+        'temporal_cluster': 'visible_temporal_cluster',
+        'outlier_type': 'visible_outlier',
+        'gap_transition': 'visible_gap'
+    }
+    sidebar_key = prefix_to_sidebar.get(key_prefix)
+    if sidebar_key:
+        st.session_state[sidebar_key] = value
+
+
+def list_to_multicheckbox(item_list: list, title: str, key_prefix: str) -> list:
+    """Render multi-checkbox UI for a list of items."""
+    if not item_list:
+        return []
+
+    selected_items = []
+    parent_visible = _get_parent_visibility(key_prefix)
+
+    if not parent_visible:
+        st.caption("Enable in sidebar to configure")
+        return []
+
+    with st.container(border=True):
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if st.button("All", key=f"{key_prefix}_select_all", use_container_width=True):
+                for index in range(len(item_list)):
+                    st.session_state[f"list_checkbox_{key_prefix}_{index}"] = True
+                _sync_sidebar_checkbox(key_prefix, True)
+                st.rerun()
+        with col_b:
+            if st.button("None", key=f"{key_prefix}_deselect_all", use_container_width=True):
+                for index in range(len(item_list)):
+                    st.session_state[f"list_checkbox_{key_prefix}_{index}"] = False
+                _sync_sidebar_checkbox(key_prefix, False)
+                st.rerun()
+
+        for index, item in enumerate(item_list):
+            state_key = f"list_checkbox_{key_prefix}_{index}"
+            if state_key not in st.session_state:
+                st.session_state[state_key] = True
+            if st.checkbox(str(item), key=state_key):
+                selected_items.append(item)
+
+    return selected_items
+
+
+def dict_to_multicheckbox(data_dict: dict, title: str, key_prefix: str) -> list:
+    """Render multi-checkbox UI for a dictionary."""
+    if not data_dict:
+        return []
+
+    selected_items = []
+    parent_visible = _get_parent_visibility(key_prefix)
+
+    if not parent_visible:
+        st.caption("Enable in sidebar to configure")
+        return []
+
+    with st.container(border=True):
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if st.button("All", key=f"{key_prefix}_select_all", use_container_width=True):
+                for key in data_dict.keys():
+                    st.session_state[f"dict_checkbox_{key_prefix}_{key}"] = True
+                _sync_sidebar_checkbox(key_prefix, True)
+                st.rerun()
+        with col_b:
+            if st.button("None", key=f"{key_prefix}_deselect_all", use_container_width=True):
+                for key in data_dict.keys():
+                    st.session_state[f"dict_checkbox_{key_prefix}_{key}"] = False
+                _sync_sidebar_checkbox(key_prefix, False)
+                st.rerun()
+
+        for key, value in data_dict.items():
+            state_key = f"dict_checkbox_{key_prefix}_{key}"
+            if state_key not in st.session_state:
+                st.session_state[state_key] = True
+            if st.checkbox(key, key=state_key):
+                selected_items.append(value)
+
+    return selected_items
+
+
+# =============================================================================
+# === Pattern Summary ===
+# =============================================================================
+
+def _is_any_pattern_detected() -> bool:
+    """Check if any pattern has been detected."""
+    return (
+        st.session_state.get('temporal_detected', False) or
+        st.session_state.get('outlier_detected', False) or
+        st.session_state.get('case_arrival_trend_detected', False) or
+        st.session_state.get('cluster_detected', False) or
+        st.session_state.get('sequence_detected', False) or
+        ('gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None)
+    )
+
+
+def _get_detected_pattern_tabs() -> tuple:
+    """Get lists of detected pattern names and types for tab creation."""
+    tabs_names = []
+    tabs_types = []
+
+    if st.session_state.get('temporal_detected', False):
+        tabs_names.append("Temporal Clusters")
+        tabs_types.append('temporal')
+    if st.session_state.get('cluster_detected', False):
+        tabs_names.append("Clusters (OPTICS)")
+        tabs_types.append('cluster')
+    if st.session_state.get('outlier_detected', False):
+        tabs_names.append("Outlier Detection")
+        tabs_types.append('outlier')
+    if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
+        tabs_names.append("Gap Detection")
+        tabs_types.append('gap')
+    if st.session_state.get('sequence_detected', False):
+        tabs_names.append("Sequence Detection")
+        tabs_types.append('sequence')
+    if st.session_state.get('case_arrival_trend_detected', False):
+        tabs_names.append("Case Arrival Trend")
+        tabs_types.append('case_arrival_trend')
+
+    return tabs_names, tabs_types
+
+
+def handle_pattern_detection():
+    """Display pattern summary with tabs for each detected pattern."""
+    st.markdown("#### Pattern Summary")
+
+    if not _is_any_pattern_detected():
+        st.caption("No patterns detected")
+        return
+
+    tabs_names, tabs_types = _get_detected_pattern_tabs()
+    tabs = st.tabs(tabs_names)
+
+    for tab, pattern_type in zip(tabs, tabs_types):
+        with tab:
+            _display_pattern_tab(pattern_type)
+
+
+def _display_pattern_tab(pattern_type: str):
+    """Route to appropriate pattern tab renderer."""
+    if pattern_type == 'temporal':
+        _display_temporal_cluster_tab()
+    elif pattern_type == 'cluster':
+        _display_cluster_tab()
+    elif pattern_type == 'outlier':
+        _display_outlier_tab()
+    elif pattern_type == 'gap':
+        _display_gap_tab()
+    elif pattern_type == 'sequence':
+        _display_sequence_tab()
+    elif pattern_type == 'case_arrival_trend':
+        _display_case_arrival_trend_tab()
+
+
+# =============================================================================
+# === Pattern Tab Displays ===
+# =============================================================================
+
+def _display_temporal_cluster_tab():
+    """Display Temporal Cluster pattern details."""
+    if not (st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state):
+        return
+
+    detector = st.session_state.temporal_clusters
+    summary = detector.get_summary()
+    layer_visible = st.session_state.get('visible_temporal_cluster', True)
+
+    if not layer_visible:
+        st.caption("Hidden - enable in sidebar")
+
+    st.metric("Clusters", summary['count'])
+
+    subtab1, subtab2 = st.tabs(["Overview", "Selection"])
+
+    with subtab1:
+        st.caption(summary['details']['summary_text'])
+
+    with subtab2:
+        if hasattr(detector, 'clusters') and 'temporal_bursts' in detector.clusters:
+            cluster_list = detector.clusters['temporal_bursts']
+            selected = list_to_multicheckbox(cluster_list, "Select Clusters", "temporal_cluster")
+            st.session_state['selected_temporal_clusters'] = selected
+
+
+def _display_cluster_tab():
+    """Display OPTICS Cluster pattern details."""
+    if not (st.session_state.get('cluster_detected', False) and 'cluster_detector' in st.session_state):
+        return
+
+    detector = st.session_state.cluster_detector
+    summary = detector.get_summary()
+    layer_visible = st.session_state.get('visible_cluster', True)
+
+    if not layer_visible:
+        st.caption("Hidden - enable in sidebar")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Clusters", summary.get('count', 0))
+    with col2:
+        noise_count = summary.get('details', {}).get('noise_count', 0)
+        st.metric("Noise Points", noise_count)
+
+    st.caption(f"Algorithm: {summary.get('details', {}).get('algorithm', 'OPTICS')}")
+
+
+def _display_outlier_tab():
+    """Display Outlier Detection pattern details."""
+    if not (st.session_state.get('outlier_detected', False) and 'outlier_pattern' in st.session_state):
+        return
+
+    outlier_pattern = st.session_state.outlier_pattern
+    summary = outlier_pattern.get_summary()
+    layer_visible = st.session_state.get('visible_outlier', True)
+
+    if not layer_visible:
+        st.caption("Hidden - enable in sidebar")
+
+    stats = summary['details'].get('statistics', {})
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Outliers", summary['count'])
+    with col2:
+        st.metric("Percentage", f"{stats.get('outlier_percentage', 0):.1f}%")
+
+    subtab1, subtab2 = st.tabs(["Overview", "Selection"])
+
+    with subtab1:
+        if summary['details'].get('outlier_details'):
+            for otype, details in summary['details']['outlier_details'].items():
+                st.caption(f"- {otype.replace('_', ' ').title()}: {details['count']} ({details['percentage']:.1f}%)")
+
+    with subtab2:
+        outlier_details = summary['details'].get('outlier_details', {})
+        if outlier_details:
+            types_dict = {
+                f"{otype.replace('_', ' ').title()} ({details['count']})": otype
+                for otype, details in outlier_details.items()
+                if details['count'] > 0
+            }
+            selected = dict_to_multicheckbox(types_dict, "Select Types", "outlier_type")
+            st.session_state['selected_outlier_types'] = selected
+
+
+def _display_gap_tab():
+    """Display Gap Detection pattern details."""
+    from core.app_utils.app_handler import _detect_gaps
+
+    if not ('gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None):
+        return
+
+    gap_detector = st.session_state['gap_detector']
+    summary = gap_detector.get_summary()
+    details = summary['details']
+    layer_visible = st.session_state.get('visible_gap', True)
+
+    col1, col2, col3 = st.columns([1, 1, 0.3])
+    with col1:
+        st.metric("Gaps", summary['count'])
+    with col2:
+        st.metric("Transitions", details['transitions_with_anomalies'])
+    with col3:
+        with st.popover("..."):
+            current = st.session_state.get('gap_min_samples', 5)
+            min_samples = st.number_input("Min samples", 3, 20, current, key="gap_min_samples_input")
+            if min_samples != current and st.button("Apply", key="gap_apply"):
+                st.session_state['gap_min_samples'] = min_samples
+                plot_config = st.session_state.get('current_plot_config', {})
+                if plot_config:
+                    _detect_gaps(plot_config['x_col'], plot_config['y_col'], plot_config['df_selected'], min_samples)
+                    st.rerun()
+
+    if not layer_visible:
+        st.caption("Hidden - enable in sidebar")
+
+    subtab1, subtab2 = st.tabs(["Overview", "Selection"])
+
+    with subtab1:
+        trans_stats = details.get('transition_stats', {})
+        for trans, stats in list(trans_stats.items())[:5]:
+            st.caption(f"- {trans}: {stats['count']} gaps, threshold {stats['threshold']/86400:.1f}d")
+
+    with subtab2:
+        trans_stats = details.get('transition_stats', {})
+        if trans_stats:
+            trans_dict = {f"{t} ({s['count']})": t for t, s in trans_stats.items()}
+            selected = dict_to_multicheckbox(trans_dict, "Select Transitions", "gap_transition")
+            st.session_state['selected_gap_transitions'] = selected
+
+
+def _display_sequence_tab():
+    """Display Sequence Detection pattern details."""
+    if not (st.session_state.get('sequence_detected', False) and 'sequence_detector' in st.session_state):
+        return
+
+    detector = st.session_state.sequence_detector
+    summary = detector.get_summary()
+    details = summary['details']
+    layer_visible = st.session_state.get('visible_sequence', True)
+
+    if not layer_visible:
+        st.caption("Hidden - enable in sidebar")
+
+    st.metric("Sequences", summary['count'])
+
+    subtab1, subtab2 = st.tabs(["Overview", "Selection"])
+
+    with subtab1:
+        pass  # TODO: Add overview content
+
+    with subtab2:
+        pattern_stats = details.get('pattern_stats', {})
+        if pattern_stats:
+            seq_dict = {f"{p} ({s['count']} cases)": p for p, s in pattern_stats.items()}
+            selected = dict_to_multicheckbox(seq_dict, "Select Sequences", "seq_pattern")
+            st.session_state['selected_seq_patterns'] = selected
+
+
+def _display_case_arrival_trend_tab():
+    """Display Case Arrival Trend pattern details."""
+    if not (st.session_state.get('case_arrival_trend_detected', False) and 'case_arrival_trend_detector' in st.session_state):
+        return
+
+    detector = st.session_state['case_arrival_trend_detector']
+    summary = detector.get_summary()
+    layer_visible = st.session_state.get('visible_case_arrival_trend', True)
+
+    if not layer_visible:
+        st.caption("Hidden - enable in sidebar")
+
+    direction = summary.get('direction', 'no_trend')
+    slope_pct = summary.get('slope_percent', 0)
+    p_value = summary.get('p_value', 1.0)
+    total_cases = summary.get('total_cases', 0)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Cases", total_cases)
+    with col2:
+        slope_str = f"{slope_pct:+.1f}%" if abs(slope_pct) >= 0.1 else "~0%"
+        st.metric("Change/week", slope_str)
+    with col3:
+        st.metric("p-value", f"{p_value:.4f}")
+
+    direction_labels = {
+        'increasing': '↗ Increasing',
+        'decreasing': '↘ Decreasing',
+        'stable': '→ Stable',
+        'no_trend': 'No significant trend'
+    }
+    st.caption(direction_labels.get(direction, 'No significant trend'))
