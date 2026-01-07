@@ -10,7 +10,8 @@ def plot_dotted_chart(
     color: str,
     title: str,
     labels: dict,
-    hover_data: Optional[List[str]] = None
+    hover_data: Optional[List[str]] = None,
+    custom_data: Optional[List[str]] = None
 ) -> go.Figure:
     """
     Create a dotted chart for event log visualization.
@@ -23,6 +24,7 @@ def plot_dotted_chart(
         title: Chart title
         labels: Dictionary mapping column names to display labels
         hover_data: List of columns to include in hover tooltip
+        custom_data: List of columns to include as custom data (for selection)
 
     Returns:
         Plotly Figure object
@@ -34,6 +36,7 @@ def plot_dotted_chart(
         color=color,
         title=title,
         labels=labels,
-        hover_data=hover_data
+        hover_data=hover_data,
+        custom_data=custom_data
     )
     return fig
