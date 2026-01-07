@@ -43,7 +43,8 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects unusual events based on timing, resource behavior, and frequency patterns. Color-coded by case for case-level anomaly analysis.",
             "use_case": "Finding exceptional cases, data quality issues, resource violations",
             "output": "Outlier events with resource-specific and case-specific anomaly reasons"
-        }, "cluster": {
+        }, 
+        "cluster": {
             "can_be_found": True,
             "makes_sense": False,
             "visual": "Colored rectangles or highlights showing detected clusters of events based on resource and time. Case coloring shows which cases are in each cluster.",
@@ -51,6 +52,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "use_case": "Not recommended.",
             "output": "N/A"
 
+        },
+        "sequence": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of cases processed by each resource over time. Colors show different sequences.",
+            "interpretation": "Detects sequences of cases processed by resources over time. A resource often works in a specific order on cases.",
+            "use_case": "Finding cases that are frequently processed after each other by the same resource.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
 
@@ -81,13 +90,22 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects unusual events based on timing, resource behavior, and frequency patterns. Color-coded by activity for activity-level anomaly analysis.",
             "use_case": "Finding exceptional resource-activity combinations, rare activities",
             "output": "Outlier events with resource-activity-specific anomaly reasons"
-        }, "cluster": {
+        },
+        "cluster": {
             "can_be_found": True,
             "makes_sense": True,
             "visual": "Colored rectangles or highlights showing detected clusters of events based on resource and time. Activity coloring shows which activities are in each cluster.",
             "interpretation": "Groups events that are similar in time and resource. Color-coded by activity to show activity distribution in clusters.",
             "use_case": "Finding groups of activities that are processed similarly by resources over time.",
             "output": "Cluster assignments for each event, colored by activity."
+        },
+        "sequence": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of activities executed by each resource over time. Colors show different sequences.",
+            "interpretation": "Detects sequences of activities executed by resources over time. A resource often performs activities in a specific order.",
+            "use_case": "Finding activities that are frequently executed after each other by the same resource.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
 
@@ -118,13 +136,22 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects unusual events based on timing, resource behavior, and frequency patterns. Color matches Y-axis for clear resource identification.",
             "use_case": "Finding exceptional resource behavior with clear visual separation",
             "output": "Outlier events with resource-specific anomaly reasons"
-        }, "cluster": {
+        },
+        "cluster": {
             "can_be_found": True,
             "makes_sense": False,
             "visual": "Colored rectangles or highlights showing detected clusters of events based on resource and time. Resource coloring provides redundant but clear visual separation of resources.",
             "interpretation": "Grouping by resource does not reveal new patterns, as each resource is its own group.",
             "use_case": "Finding groups of resources that are processed similarly over time.",
             "output": "Cluster assignments for each event, colored by resource."
+        },
+        "sequence": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Colored horizontal lines showing sequences of resource used by each resource over time. Colors show different sequences.",
+            "interpretation": "Detects each resource as one sequence, which is redundant.",
+            "use_case": "N/A",
+            "output": "List of all resources."
         }
     },
 
@@ -163,6 +190,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "If you use case ID as color, you’ll get a unique color per case, which is visually overwhelming and not useful for pattern discovery.",
             "use_case": "Not recommended.",
             "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of case ids worked on by each activity over time. Colors show different sequences.",
+            "interpretation": "Detects sequences of case ids worked on by activity over time. An activity often works in a specific order on cases.",
+            "use_case": "Finding case ids that are frequently worked on after each other by the same activity.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
 
@@ -201,6 +236,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Grouping by activity does not reveal new patterns, as each activity is its own group.",
             "use_case": "Finding groups of activities that are processed similarly over time.",
             "output": "Cluster assignments for each event, colored by activity."
+        },
+        "sequence": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Colored horizontal lines showing sequences of activities used by each activity over time. Colors show different sequences.",
+            "interpretation": "Detects each activity as one sequence, which is redundant.",
+            "use_case": "N/A",
+            "output": "List of all activities."
         }
     },
 
@@ -239,6 +282,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Groups events that are similar in time and activity. Color-coded by resource to show resource distribution in clusters.",
             "use_case": "Finding groups of resources that are processed similarly by activities over time.",
             "output": "Cluster assignments for each event, colored by resource."
+        },
+        "sequence": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of resources that are used by an activity over time. Colors show different sequences.",
+            "interpretation": "Detects sequences of resources that are used by an activity over time.",
+            "use_case": "Finding resources that are frequently used after each other by the same activity.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
 
@@ -277,6 +328,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects cases with unusual execution patterns or extreme durations. Color matches Y-axis for clear case identification.",
             "use_case": "Finding exceptional cases, compliance violations with clear visual separation",
             "output": "Outlier cases with anomaly reasons, colored by case"
+        },
+        "sequence": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "Colored horizontal lines showing sequences of case ids processed by each case id over time. Colors show different sequences.",
+            "interpretation": "Detects each case id as one sequence, which is redundant.",
+            "use_case": "N/A",
+            "output": "List of all case ids."
         }
     },
 
@@ -315,7 +374,16 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects cases with unusual execution patterns or extreme durations. Color-coded by activity for activity-level analysis.",
             "use_case": "Finding exceptional cases, identifying which activities are outliers in each case",
             "output": "Outlier cases with activity-specific anomaly reasons"
+        },
+        "sequence": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of activities executed for each case id over time. Colors show different sequences.",
+            "interpretation": "Detects sequences of activities executed for each case id over time.",
+            "use_case": "Finding activities that are frequently executed after each other within cases.",
+            "output": "List of detected sequences with frequency counts."
         }
+
     },
 
     # ========================================================================
@@ -353,6 +421,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects cases with unusual execution patterns or extreme durations. Color-coded by resource for resource-level analysis.",
             "use_case": "Finding exceptional cases, identifying which resources are involved in outlier cases",
             "output": "Outlier cases with resource-specific anomaly reasons"
+        },
+        "sequence": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of resources working on each case id over time. Colors show different sequences.",
+            "interpretation": "Detects sequences of resources working on each case id over time.",
+            "use_case": "Finding resources that frequently work after each other within cases.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
 
@@ -392,6 +468,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "CaseID as color does not provide useful clustering information.",
             "use_case": "Not recommended.",
             "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of cases processed by each resource over logical time. Colors show different sequences. Sequences elements can be spaced further apart due to logical time.",
+            "interpretation": "Detects sequences of cases processed by resources over logical time. A resource often works in a specific order on cases.",
+            "use_case": "Finding cases that are frequently processed after each other by the same resource.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
 
@@ -427,6 +511,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Not meaningful: case_id as color does not provide useful clustering information.",
             "use_case": "Not recommended.",
             "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of cases processed by each resource over relative time. Colors show different sequences. Sequences elements can be spaced closer due to relative time.",
+            "interpretation": "Detects sequences of cases processed by resources over relative time. A resource often works in a specific order on cases.",
+            "use_case": "Finding cases that are frequently processed after each other by the same resource.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
 }
