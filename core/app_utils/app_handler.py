@@ -1,41 +1,68 @@
+"""
+App Handler - Core application logic for Visual Pattern Detection.
+
+This module handles:
+- Data loading and caching
+- Chart configuration and plotting
+- Focus selection and time filtering
+- Sidebar controls
+"""
+
 import streamlit as st
+from core.app_utils.pattern_detection import _reset_pattern_detection_state, auto_detect_patterns
+from core.app_utils.pattern_ui import _is_any_pattern_detected
 from core.data_processing import load_xes_log
 from core.evaluation.summary_generator import summarize_event_log
 from core.app_utils.mappings import X_AXIS_COLUMN_MAP, Y_AXIS_COLUMN_MAP, DOTS_COLOR_MAP
 from core.visualization.visualizer import plot_dotted_chart as plot_chart
-
-from core.evaluation.ollama import OllamaEvaluator
 from core.utils.demo_sampling import (
     sample_eventlog_variant_aware,
     SamplingMode,
     SAMPLING_CONFIGS
 )
-from config.extended_pattern_matrix import is_pattern_meaningful
-
-from core.app_utils.app_handler_pattern_detection import _detect_temporal_clusters, _detect_outliers, _detect_gaps, _detect_sequences, _detect_clusters
-from core.app_utils.app_handler_pattern_detection import _is_any_pattern_detected, _get_detected_pattern_tabs, _display_pattern_tab
+from core.evaluation.ollama_evaluator import OllamaEvaluator
 
 
-# Streamlit caching for performance
-@st.cache_data(ttl=3600)  # Cache for 1 hour
+
+
+# =============================================================================
+# === Caching ===
+# =============================================================================
+
+@st.cache_data(ttl=3600, show_spinner=False)
 def cached_load_xes_log(xes_path):
     """Cached version of load_xes_log for better performance."""
     return load_xes_log(xes_path)
 
-@st.cache_data(ttl=3600)
+
+@st.cache_data(ttl=3600, show_spinner=False)
 def generate_summary(df):
     """Cached summary generation."""
     return summarize_event_log(df)
 
 
-# region Main Utils
+# =============================================================================
+# === State Initialization ===
+# =============================================================================
+
 def init_state():
-    # Initialize session state
+    """Initialize session state variables."""
     if 'data_loaded' not in st.session_state:
         st.session_state.data_loaded = False
     if 'chart_plotted' not in st.session_state:
         st.session_state.chart_plotted = False
-    # Initialize layer visibility flags (all layers visible by default)
+
+    # Reset visibility flags if new patterns were detected (before widgets render)
+    if st.session_state.get('_reset_pattern_visibility', False):
+        st.session_state.visible_gap = True
+        st.session_state.visible_outlier = True
+        st.session_state.visible_temporal_cluster = True
+        st.session_state.visible_cluster = True
+        st.session_state.visible_sequence = True
+        st.session_state.visible_case_arrival_trend = True
+        st.session_state['_reset_pattern_visibility'] = False
+
+    # Layer visibility flags (initial defaults)
     if 'visible_gap' not in st.session_state:
         st.session_state.visible_gap = True
     if 'visible_outlier' not in st.session_state:
@@ -44,17 +71,31 @@ def init_state():
         st.session_state.visible_temporal_cluster = True
     if 'visible_cluster' not in st.session_state:
         st.session_state.visible_cluster = True
+    if 'visible_sequence' not in st.session_state:
+        st.session_state.visible_sequence = True
+    if 'visible_case_arrival_trend' not in st.session_state:
+        st.session_state.visible_case_arrival_trend = True
 
+    # Selection-based Focus
+    if 'focus_df' not in st.session_state:
+        st.session_state.focus_df = None
+
+    # Time filter
+    if 'time_filter_range' not in st.session_state:
+        st.session_state.time_filter_range = None
+
+
+# =============================================================================
+# === Data Loading ===
+# =============================================================================
 
 def load_data_button(xes_path, demo_mode=False, sampling_mode: SamplingMode = SamplingMode.SQRT):
     try:
         with st.spinner(f"Loading {xes_path}..."):
-            # Use cached loading
             df = cached_load_xes_log(xes_path)
 
         if df.empty:
-            st.warning(
-                "The log file was loaded but contains no events.")
+            st.warning("The log file was loaded but contains no events.")
             return
 
         # Demo Mode: Sample event log using variant-aware sampling
@@ -89,109 +130,70 @@ def load_data_button(xes_path, demo_mode=False, sampling_mode: SamplingMode = Sa
             # Store sampling stats for later reference
             st.session_state.sampling_stats = sampling_stats
 
-        # Store in session state
         st.session_state.df = df
         st.session_state.loaded_file = xes_path
         st.session_state.data_loaded = True
-        st.session_state.chart_plotted = False  # Reset chart state
-
-        # Generate summary (cached)
+        st.session_state.chart_plotted = False
         st.session_state.summary = generate_summary(df)
 
         st.success(f"Log loaded: {len(df):,} events")
-        st.rerun()  # Refresh to show data info
+
+        # Auto-plot with default config (Actual time, Case ID, Activity)
+        plot_chart_button("Actual time", "Case ID", "Activity")
 
     except Exception as e:
         st.error(f"Error loading XES log: {e}")
         st.session_state.data_loaded = False
 
-def show_xes_summary():
-    df_info = st.session_state.df
-    summary = st.session_state.summary
 
-    # Show key metrics
-    col2a, col2b, col2c, col2d = st.columns(4)
-    with col2a:
-        st.metric("Events", f"{len(df_info):,}")
-
-    with col2b:
-        st.metric("File", st.session_state.get(
-            'loaded_file', '').split('/')[-1])
-
-    with st.expander("Event Log Summary", expanded=False):
-        for k, v in summary.items():
-            st.write(f"**{k}:** {v}")
+# =============================================================================
+# === Chart Configuration ===
+# =============================================================================
 
 def get_chart_config_with_selectboxes():
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        x_axis = st.selectbox('Select x-axis:', list(X_AXIS_COLUMN_MAP.keys()))
-    with col2:
-        y_axis = st.selectbox('Select y-axis:', list(Y_AXIS_COLUMN_MAP.keys()))
-    with col3:
-        dots_config_label = st.selectbox(
-            'Select Dot Color:', list(DOTS_COLOR_MAP.keys()))
+    """Render chart configuration selectboxes."""
+    x_axis = st.selectbox('X-Axis', list(X_AXIS_COLUMN_MAP.keys()))
+    y_axis = st.selectbox('Y-Axis', list(Y_AXIS_COLUMN_MAP.keys()))
+    dots_config_label = st.selectbox('Dot Color', list(DOTS_COLOR_MAP.keys()))
     return x_axis, y_axis, dots_config_label
 
-def plot_chart_button(x_axis, y_axis, dots_config_label):
-    df_base = st.session_state['df']
 
-    # Determine the columns to plot
+def plot_chart_button(x_axis, y_axis, dots_config_label):
+    """Create and store chart based on configuration."""
+    df_base = st.session_state['df']
     x_col = X_AXIS_COLUMN_MAP[x_axis]
     y_col = Y_AXIS_COLUMN_MAP[y_axis]
     dots_config_col = DOTS_COLOR_MAP[dots_config_label]
 
-    # Performance optimization: work with view instead of copy when possible
     df_selected = df_base
-
-    # Check for missing values in the selected columns
     if df_selected[x_col].isnull().any() or df_selected[y_col].isnull().any():
-        # Filter them out (make a copy if we haven't already)
-        if df_selected is df_base:
-            df_selected = df_base.copy()
+        df_selected = df_base.copy()
         df_selected.dropna(subset=[x_col, y_col], inplace=True)
         if df_selected.empty:
-            st.warning(
-                "No valid data to plot after removing missing values.")
+            st.warning("No valid data to plot after removing missing values.")
             return
 
-    # Use all data (no sampling)
     total_points = len(df_selected)
-    df_plot = df_selected
+    hover_cols = ['activity', 'actual_time']
 
-    # Configure hover data and colors
-    hover_cols = ['activity', 'logical_relative', 'actual_time']
-    color_col = dots_config_col
-
-    # Generate the Plotly Scatter (Dotted Chart)
     with st.spinner("Rendering chart..."):
         fig = plot_chart(
-            df=df_plot,
+            df=df_selected,
             x=x_col,
             y=y_col,
-            color=color_col,
+            color=dots_config_col,
             title=f"Dotted Chart: {y_axis} vs {x_axis} ({total_points:,} points)",
-            labels={x_col: x_axis, y_col: y_axis,
-                    color_col: dots_config_label},
+            labels={x_col: x_axis, y_col: y_axis, dots_config_col: dots_config_label},
             hover_data=hover_cols
         )
-
-        # Improve visual appearance
         fig.update_traces(marker=dict(size=5, opacity=0.8))
-
-        # Layout settings
         fig.update_layout(
-            showlegend=(
-                color_col is not None and color_col != 'case_id'),
+            showlegend=(dots_config_col is not None and dots_config_col != 'case_id'),
             hovermode='closest',
             template='plotly_white',
             yaxis=dict(autorange='reversed')
         )
 
-        # Note: Visualization overlays will be added by display_chart()
-        # Do not display chart here - it will be displayed persistently
-
-    # Store the current plot configuration and figure
     st.session_state['current_plot_config'] = {
         'x_col': x_col,
         'y_col': y_col,
@@ -199,244 +201,321 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
         'x_axis_label': x_axis,
         'y_axis_label': y_axis,
         'dots_config_label': dots_config_label,
-        # Store the plotted data (potentially sampled)
-        'df_selected': df_plot,
+        'df_selected': df_selected,
         'total_points': total_points
     }
-
-    # Store the figure and view config for pattern detection (with 3D matrix support)
     st.session_state['fig'] = fig
-    st.session_state['view_config'] = {
-        'x': x_col,
-        'y': y_col,
-        'color': dots_config_col  # Include color for 3D matrix consistency
-    }
+    st.session_state['view_config'] = {'x': x_col, 'y': y_col, 'color': dots_config_col}
     st.session_state['chart_plotted'] = True
+    st.session_state.focus_df = None
 
     st.success("Chart created successfully!")
+    auto_detect_patterns(x_col, y_col, dots_config_col, x_axis, y_axis, get_active_view_df(st.session_state['current_plot_config']))
 
-    # Auto-detect all meaningful patterns after plotting
-    auto_detect_patterns(x_col, y_col, dots_config_col,
-                         x_axis, y_axis, df_plot)
 
+# =============================================================================
+# === Active View DataFrame ===
+# =============================================================================
+
+def get_active_view_df(plot_config: dict):
+    """Get current active dataframe (full or focused, with time filter applied)."""
+    import pandas as pd
+
+    focus_df = st.session_state.get('focus_df')
+    df = focus_df if focus_df is not None else plot_config['df_selected']
+
+    time_range = st.session_state.get('time_filter_range')
+    if time_range is not None and plot_config.get('x_col') == 'actual_time':
+        start, end = time_range
+        if df['actual_time'].dt.tz is not None:
+            start = pd.Timestamp(start).tz_localize(df['actual_time'].dt.tz)
+            end = pd.Timestamp(end).tz_localize(df['actual_time'].dt.tz)
+        df = df[(df['actual_time'] >= start) & (df['actual_time'] <= end)]
+
+    return df
+
+
+# =============================================================================
+# === Chart Display ===
+# =============================================================================
 
 def display_chart():
-    """Display the chart from session state (persistent across reruns)."""
+    """Display chart with pattern overlays and controls."""
     if not st.session_state.get('chart_plotted', False):
         return
-        
+
     plot_config = st.session_state.get('current_plot_config', {})
     if not plot_config:
         return
-    
-    df_selected = plot_config['df_selected']
+
+    df_display = get_active_view_df(plot_config)
+    is_focus_view = st.session_state.get('focus_df') is not None
+
+    # Keep original df for pattern visualization (preserves original indices)
+    df_for_patterns = df_display.copy()
+
+    df_display = df_display.reset_index(drop=True)
+    df_display['_point_id'] = df_display.index
+
     x_col = plot_config['x_col']
     y_col = plot_config['y_col']
     dots_config_col = plot_config['dots_config_col']
     x_axis = plot_config['x_axis_label']
     y_axis = plot_config['y_axis_label']
     dots_config_label = plot_config['dots_config_label']
-    total_points = plot_config['total_points']
-    color_col = dots_config_col
-    hover_cols = ['activity', 'logical_relative', 'actual_time']
-    
-    # Recreate the chart
+    total_points = len(df_display)
+
+    # Title
+    if is_focus_view:
+        full_count = len(plot_config['df_selected'])
+        title = f"Dotted Chart: {y_axis} vs {x_axis} ({total_points:,} of {full_count:,} points) [FOCUS VIEW]"
+    else:
+        title = f"Dotted Chart: {y_axis} vs {x_axis} ({total_points:,} points)"
+
+    # Create chart
     fig = plot_chart(
-        df=df_selected,
+        df=df_display,
         x=x_col,
         y=y_col,
-        color=color_col,
-        title=f"Dotted Chart: {y_axis} vs {x_axis} ({total_points:,} points)",
-        labels={x_col: x_axis, y_col: y_axis, color_col: dots_config_label},
-        hover_data=hover_cols
+        color=dots_config_col,
+        title=title,
+        labels={x_col: x_axis, y_col: y_axis, dots_config_col: dots_config_label},
+        hover_data=['activity', 'actual_time'],
+        custom_data=['_point_id']
     )
-    
-    # Improve visual appearance
     fig.update_traces(marker=dict(size=5, opacity=0.8))
-    
-    # Layout settings
     fig.update_layout(
-        showlegend=(color_col is not None and color_col != 'case_id'),
+        height=600,
+        showlegend=(dots_config_col is not None and dots_config_col != 'case_id'),
         hovermode='closest',
         template='plotly_white',
-        yaxis=dict(autorange='reversed')
+        yaxis=dict(autorange='reversed'),
+        dragmode='lasso'
     )
-    
-    # Add gap visualization if gaps were detected AND layer is visible
+
+    # Add pattern overlays (use df_for_patterns to preserve original indices)
     if st.session_state.get('visible_gap', True):
         if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
-            fig = st.session_state['gap_detector'].visualize(df_selected, fig)
-    
-    # Add outlier visualization if detected AND layer is visible
+            fig = st.session_state['gap_detector'].visualize(df_for_patterns, fig)
+
     if st.session_state.get('visible_outlier', True):
         if st.session_state.get('outlier_detected', False) and 'outlier_pattern' in st.session_state:
-            fig = st.session_state.outlier_pattern.visualize(df_selected, fig)
-    
-    # Add temporal cluster visualization if detected AND layer is visible
+            fig = st.session_state.outlier_pattern.visualize(df_for_patterns, fig)
+
     if st.session_state.get('visible_temporal_cluster', True):
         if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
-            fig = st.session_state.temporal_clusters.visualize(
-                df_selected, fig)
+            fig = st.session_state.temporal_clusters.visualize(df_for_patterns, fig)
 
-    # Add cluster (OPTICS/DBSCAN) visualization if detected AND layer is visible
     if st.session_state.get('visible_cluster', True):
         if st.session_state.get('cluster_detected', False) and 'cluster_detector' in st.session_state:
-            fig = st.session_state.cluster_detector.visualize(
-                df_selected, fig)
+            fig = st.session_state.cluster_detector.visualize(df_for_patterns, fig)
 
-    # Add sequence visualization if detected AND layer is visible
-    if st.session_state.get('visible_sequence', True):
-        if st.session_state.get('sequence_detected', False) and 'sequence_detector' in st.session_state:
-            selected = st.session_state.get('selected_seq_patterns', [])
-            fig = st.session_state.sequence_detector.visualize(
-                df_selected, fig, selected_patterns=selected)
-
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # Update stored figure
+    # Display chart
+    selection = st.plotly_chart(fig, use_container_width=True, on_select="rerun", key="main_chart")
     st.session_state['fig'] = fig
 
-def handle_pattern_detection():
-    """Display pattern summary with tabs for each detected pattern."""
-    st.subheader("Pattern Summary")
-    st.caption(
-        "Patterns are automatically detected after plotting. Toggle visibility in sidebar.")
+    # Time filter and focus controls
+    st.markdown("<div style='margin-top: 1.5rem'></div>", unsafe_allow_html=True)
+    if x_col == 'actual_time':
+        _display_time_filter(plot_config)
+        st.markdown("<div style='margin-top: 1rem'></div>", unsafe_allow_html=True)
+    _display_focus_controls(selection, plot_config, df_display, is_focus_view)
 
-    if not _is_any_pattern_detected():
-        st.info("Patterns will appear here after chart is plotted.")
-        return
-    
-    tabs_names, tabs_types = _get_detected_pattern_tabs()
-    tabs = st.tabs(tabs_names)
-    
-    for tab, pattern_type in zip(tabs, tabs_types):
-        with tab:
-            _display_pattern_tab(pattern_type)
+
+# =============================================================================
+# === Time Filter ===
+# =============================================================================
+
+def _display_time_filter(plot_config):
+    """Render time filter controls."""
+    import pandas as pd
+
+    base_df = plot_config['df_selected']
+    min_time = base_df['actual_time'].min()
+    max_time = base_df['actual_time'].max()
+
+    with st.container(border=True):
+        st.markdown("**Time Filter**")
+        st.caption("Reduce event log by date range (optional)")
+        st.markdown("")
+        col1, col2 = st.columns(2)
+        with col1:
+            start_date = st.date_input(
+                "Start",
+                value=min_time.date() if pd.notna(min_time) else None,
+                min_value=min_time.date() if pd.notna(min_time) else None,
+                max_value=max_time.date() if pd.notna(max_time) else None,
+                key="time_filter_start"
+            )
+        with col2:
+            end_date = st.date_input(
+                "End",
+                value=max_time.date() if pd.notna(max_time) else None,
+                min_value=min_time.date() if pd.notna(min_time) else None,
+                max_value=max_time.date() if pd.notna(max_time) else None,
+                key="time_filter_end"
+            )
+        st.markdown("")
+        col_apply, col_clear = st.columns(2)
+        with col_apply:
+            if st.button("Apply Filter", key="apply_time_filter", type="primary", use_container_width=True):
+                start_dt = pd.Timestamp(start_date)
+                end_dt = pd.Timestamp(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+                st.session_state.time_filter_range = (start_dt, end_dt)
+                _reset_pattern_detection_state()
+                auto_detect_patterns(
+                    plot_config['x_col'], plot_config['y_col'], plot_config['dots_config_col'],
+                    plot_config['x_axis_label'], plot_config['y_axis_label'],
+                    get_active_view_df(plot_config)
+                )
+                st.rerun()
+        with col_clear:
+            if st.button("Clear Filter", key="clear_time_filter", use_container_width=True,
+                        disabled=st.session_state.get('time_filter_range') is None):
+                st.session_state.time_filter_range = None
+                _reset_pattern_detection_state()
+                auto_detect_patterns(
+                    plot_config['x_col'], plot_config['y_col'], plot_config['dots_config_col'],
+                    plot_config['x_axis_label'], plot_config['y_axis_label'],
+                    get_active_view_df(plot_config)
+                )
+                st.rerun()
+
+        if st.session_state.get('time_filter_range'):
+            start, end = st.session_state.time_filter_range
+            st.caption(f"Active: {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}")
+
+
+# =============================================================================
+# === Focus Selection ===
+# =============================================================================
+
+def _display_focus_controls(selection, plot_config, df_display, is_focus_view):
+    """Display selection-based focus controls."""
+    selected_indices = []
+    if not is_focus_view and selection and selection.selection:
+        for pt in selection.selection.get("points", []):
+            customdata = pt.get("customdata")
+            if customdata is not None:
+                try:
+                    if isinstance(customdata, (list, tuple)) and len(customdata) > 0:
+                        selected_indices.append(customdata[0])
+                    elif hasattr(customdata, '__iter__') and not isinstance(customdata, str):
+                        val = list(customdata)
+                        if val:
+                            selected_indices.append(val[0])
+                    else:
+                        selected_indices.append(int(customdata))
+                except (TypeError, IndexError, ValueError):
+                    pass
+
+    with st.container(border=True):
+        if is_focus_view:
+            full_count = len(plot_config['df_selected'])
+            st.markdown("**Selection** · Focus View")
+            st.caption(f"{len(df_display):,} of {full_count:,} points · patterns re-analyzed")
+        else:
+            st.markdown("**Selection**")
+            if selected_indices:
+                st.caption(f"{len(selected_indices):,} points selected · click Focus to analyze")
+            else:
+                st.caption("Use lasso or box select on the chart")
+        st.markdown("")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Focus", disabled=(is_focus_view or not selected_indices), key="focus_btn", type="primary", use_container_width=True):
+                _apply_focus_selection(selected_indices, df_display, plot_config)
+        with col2:
+            if st.button("Reset", disabled=not is_focus_view, key="reset_focus_btn", use_container_width=True):
+                _reset_focus_view(plot_config)
+
+
+def _apply_focus_selection(selected_point_ids, df_display, plot_config):
+    """Apply focus to selected points."""
+    st.session_state.focus_df = df_display[df_display['_point_id'].isin(selected_point_ids)].copy()
+    _reset_pattern_detection_state()
+    auto_detect_patterns(
+        plot_config['x_col'], plot_config['y_col'], plot_config['dots_config_col'],
+        plot_config['x_axis_label'], plot_config['y_axis_label'],
+        get_active_view_df(plot_config)
+    )
+    st.rerun()
+
+
+def _reset_focus_view(plot_config):
+    """Reset to full view."""
+    st.session_state.focus_df = None
+    _reset_pattern_detection_state()
+    auto_detect_patterns(
+        plot_config['x_col'], plot_config['y_col'], plot_config['dots_config_col'],
+        plot_config['x_axis_label'], plot_config['y_axis_label'],
+        get_active_view_df(plot_config)
+    )
+    st.rerun()
+
+
+# =============================================================================
+# === Sidebar Controls ===
+# =============================================================================
+
+def _render_pattern_checkbox(label: str, visibility_key: str, version_key: str, checkbox_key_pattern: str):
+    """Render pattern visibility checkbox with sub-pattern sync."""
+    if visibility_key not in st.session_state:
+        st.session_state[visibility_key] = True
+
+    prev_state = st.session_state[visibility_key]
+    st.checkbox(label, key=visibility_key, help=f"Show/hide {label.lower()} visualization")
+
+    if st.session_state[visibility_key] != prev_state:
+        st.session_state[version_key] = st.session_state.get(version_key, 0) + 1
+        for key in [k for k in list(st.session_state.keys()) if checkbox_key_pattern in k]:
+            del st.session_state[key]
+        st.rerun()
+
 
 def sidebar_pattern_layer_controls():
     """Display pattern layer visibility controls in sidebar."""
     if not _is_any_pattern_detected():
         return
-    
-    st.subheader("Pattern Layers")
-    st.caption("Toggle pattern visualizations on the chart")
-    
-    # Temporal Clusters
+
+    st.markdown("##### Pattern Layers")
+
     if st.session_state.get('temporal_detected', False):
-        _render_pattern_checkbox(
-            "Temporal Clusters",
-            'visible_temporal_cluster',
-            'temporal_cluster_version',
-            'checkbox_temporal_cluster_'
-        )
+        _render_pattern_checkbox("Temporal Clusters", 'visible_temporal_cluster', 'temporal_cluster_version', 'checkbox_temporal_cluster_')
 
-    # Clusters (OPTICS/DBSCAN)
     if st.session_state.get('cluster_detected', False):
-        _render_pattern_checkbox(
-            "Clusters",
-            'visible_cluster',
-            'cluster_version',
-            'checkbox_cluster_'
-        )
+        _render_pattern_checkbox("Clusters (OPTICS)", 'visible_cluster', 'cluster_version', 'checkbox_cluster_')
 
-    # Outlier Detection
     if st.session_state.get('outlier_detected', False):
-        _render_pattern_checkbox(
-            "Outlier Detection",
-            'visible_outlier',
-            'outlier_type_version',
-            'checkbox_outlier_type_'
-        )
-    
-    # Gap Detection
+        _render_pattern_checkbox("Outlier Detection", 'visible_outlier', 'outlier_type_version', 'checkbox_outlier_type_')
+
     if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
-        _render_pattern_checkbox(
-            "Gap Detection",
-            'visible_gap',
-            'gap_transition_version',
-            'checkbox_gap_transition_'
-        )
+        _render_pattern_checkbox("Gap Detection", 'visible_gap', 'gap_transition_version', 'checkbox_gap_transition_')
 
-    # Sequence Detection
     if st.session_state.get('sequence_detected', False):
-        _render_pattern_checkbox(
-            "Sequence Detection",
-            'visible_sequence',
-            'sequence_pattern_version',
-            'checkbox_sequence_pattern_'
-        )
-# endregion
+        _render_pattern_checkbox("Sequence Detection", 'visible_sequence', 'sequence_version', 'checkbox_sequence_')
 
-# region Helpers
+    if st.session_state.get('case_arrival_trend_detected', False):
+        _render_pattern_checkbox("Case Arrival Trend", 'visible_case_arrival_trend', 'case_arrival_trend_version', 'checkbox_case_arrival_trend_')
 
-def _render_pattern_checkbox(label: str, visibility_key: str, version_key: str, checkbox_key_pattern: str):
-    """
-    Render a pattern visibility checkbox with change detection and sub-pattern sync.
-    
-    Args:
-        label: Display label for the checkbox
-        visibility_key: Session state key for visibility (e.g., 'visible_temporal_cluster')
-        version_key: Session state key for widget version (e.g., 'temporal_cluster_version')
-        checkbox_key_pattern: Pattern to match sub-checkbox keys (e.g., 'checkbox_temporal_cluster_')
-    """
-    if visibility_key not in st.session_state:
-        st.session_state[visibility_key] = True
-    
-    prev_state = st.session_state[visibility_key]
-    
-    st.checkbox(
-        label,
-        key=visibility_key,
-        help=f"Show/hide {label.lower()} visualization. Also toggles all sub-patterns."
-    )
-    
-    # Detect change and sync sub-patterns
-    if st.session_state[visibility_key] != prev_state:
-        st.session_state[version_key] = st.session_state.get(
-            version_key, 0) + 1
-        keys_to_delete = [k for k in list(
-            st.session_state.keys()) if checkbox_key_pattern in k]
-        for key in keys_to_delete:
-            del st.session_state[key]
-        st.rerun()
 
-def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df_selected):
-    """Automatically detect all meaningful patterns after chart is plotted."""
-    temporal_meaningful = is_pattern_meaningful(
-        x_col, y_col, color_col, 'temporal_cluster_x')
-    outlier_meaningful = is_pattern_meaningful(
-        x_col, y_col, color_col, 'outlier')
-    gap_meaningful = is_pattern_meaningful(x_col, y_col, color_col, 'gap')
-    sequence_meaningful = is_pattern_meaningful(
-        x_col, y_col, color_col, 'horizontal_sequence')
-    cluster_meaningful = is_pattern_meaningful(
-        x_col, y_col, color_col, 'cluster')
-
-    with st.spinner("Auto-detecting patterns..."):
-        if temporal_meaningful:
-            _detect_temporal_clusters(x_col, y_col, df_selected)
-        if cluster_meaningful or color_col:
-            _detect_clusters(x_col, y_col, color_col, df_selected)
-        if outlier_meaningful:
-            _detect_outliers()
-        if gap_meaningful:
-            _detect_gaps(x_col, y_col, df_selected)
-        if sequence_meaningful or True:
-            _detect_sequences()
+# =============================================================================
+# === AI Description ===
+# =============================================================================
 
 def ollama_description_button():
+    """Generate AI description of chart."""
     with st.spinner("Generating description..."):
         try:
-            evaluator = OllamaEvaluator(
-                model="qwen2.5:3b-instruct-q4_0")
-            df = st.session_state.df
-            summary = st.session_state.summary
-
-            summary_text = "\n".join(
-                [f"{k}: {v}" for k, v in summary.items()])
+            plot_config = st.session_state.get('current_plot_config', {})
+            if not plot_config:
+                st.warning("Please plot a chart first")
+                return
+            df = get_active_view_df(plot_config)
+            summary = summarize_event_log(df)
+            summary_text = "\n".join([f"{k}: {v}" for k, v in summary.items()])
+            evaluator = OllamaEvaluator(model="qwen2.5:3b-instruct-q4_0")
             description = evaluator.describe_chart(summary_text, df)
-
             st.write(description)
         except Exception as e:
             st.error(f"Error generating description: {e}")
-# endregion
