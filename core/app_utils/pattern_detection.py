@@ -120,7 +120,8 @@ def _detect_clusters(x_col, y_col, color_col, df_selected):
             view_config['color'] = color_col
 
         detector = ClusterPattern(view_config=view_config, algorithm='optics')
-        if detector.detect(df_selected):
+        detector.detect(df_selected)
+        if detector.detected is not None:
             st.session_state.cluster_detector = detector
             st.session_state.cluster_detected = True
     except Exception as e:
