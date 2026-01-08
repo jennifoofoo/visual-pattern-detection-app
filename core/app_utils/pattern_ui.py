@@ -396,7 +396,7 @@ def _display_sequence_tab():
 
 
 def _display_case_arrival_trend_tab():
-    """Display Case Arrival Trend pattern details."""
+    """Display Case Arrival Trend pattern details with Prophet insights."""
     if not (st.session_state.get('case_arrival_trend_detected', False) and 'case_arrival_trend_detector' in st.session_state):
         return
 
@@ -412,6 +412,7 @@ def _display_case_arrival_trend_tab():
     p_value = summary.get('p_value', 1.0)
     total_cases = summary.get('total_cases', 0)
 
+    # Main metrics row
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("Cases", total_cases)
@@ -428,3 +429,34 @@ def _display_case_arrival_trend_tab():
         'no_trend': 'No significant trend'
     }
     st.caption(direction_labels.get(direction, 'No significant trend'))
+
+    # Prophet insights (if available)
+    details = summary.get('details', {})
+    has_prophet_insights = any([
+        summary.get('weekend_effect'),
+        summary.get('changepoints'),
+        summary.get('has_weekly_pattern')
+    ])
+
+    if has_prophet_insights:
+        st.divider()
+        st.caption("**Advanced Insights** (Prophet)")
+
+        # Weekend effect
+        if summary.get('weekend_effect') is not None:
+            effect = summary['weekend_effect']
+            if effect < -20:
+                st.caption(f"📅 Weekend: {effect:+.0f}% fewer cases")
+            elif effect > 20:
+                st.caption(f"📅 Weekend: {effect:+.0f}% more cases")
+            elif abs(effect) >= 10:
+                st.caption(f"📅 Weekend effect: {effect:+.0f}%")
+
+        # Changepoints
+        if summary.get('changepoints'):
+            changepoints = summary['changepoints']
+            st.caption(f"⚡ Trend changes detected: {', '.join(changepoints[:2])}")
+
+        # Weekly pattern
+        if summary.get('has_weekly_pattern'):
+            st.caption("📊 Weekly seasonality pattern detected")
