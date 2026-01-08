@@ -361,65 +361,8 @@ class TrendPattern(Pattern):
         go.Figure
             Figure with trend visualization
         """
-        if self.detected is None or self.global_trend is None:
-            return fig
-        
-        # Get trend info
-        trend = self.global_trend['trend']
-        slope_pct = self.global_trend['slope_percent']
-        p_value = self.global_trend['p_value']
-        
-        # Determine trend color and arrow
-        if trend == 'increasing':
-            color = 'rgba(0, 150, 0, 1.0)'  # Green
-            bg_color = 'rgba(200, 255, 200, 0.9)'
-            arrow = '↗'
-        elif trend == 'decreasing':
-            color = 'rgba(200, 0, 0, 1.0)'  # Red
-            bg_color = 'rgba(255, 200, 200, 0.9)'
-            arrow = '↘'
-        elif trend == 'stable':
-            color = 'rgba(0, 100, 200, 1.0)'  # Blue
-            bg_color = 'rgba(200, 220, 255, 0.9)'
-            arrow = '→'
-        else:  # no_trend
-            color = 'rgba(100, 100, 100, 1.0)'  # Gray
-            bg_color = 'rgba(230, 230, 230, 0.9)'
-            arrow = '→'
-        
-        # Add annotation box in top-right corner
-        # Only show if there's a meaningful trend
-        if trend != 'no_trend' or True:  # Always show for now
-            trend_text = f"{arrow} {trend.replace('_', ' ').title()}"
-            # Format slope - show more precision for small values
-            if abs(slope_pct) >= 0.1:
-                slope_str = f"{slope_pct:+.1f}%"
-            elif slope_pct != 0:
-                slope_str = f"{slope_pct:+.3f}%"
-            else:
-                slope_str = "~0%"
-            trend_text += f"<br>{slope_str}/day"
-            if p_value <= 0.05:
-                trend_text += f"<br>p={p_value:.3f}"
-            
-            fig.add_annotation(
-                x=1.0,
-                y=1.0,
-                xref='paper',
-                yref='paper',
-                xanchor='right',
-                yanchor='top',
-                text=trend_text,
-                showarrow=False,
-                font=dict(size=11, color=color),
-                bgcolor=bg_color,
-                bordercolor=color,
-                borderwidth=2,
-                borderpad=6
-            )
-        
         return fig
-    
+
     def get_summary(self) -> Dict[str, Any]:
         """
         Get a summary of detected trends.

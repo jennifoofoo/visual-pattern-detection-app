@@ -273,24 +273,6 @@ class ClusterPattern(Pattern):
                 f"{y_col}: %{{y}}<extra></extra>"
             ))
 
-        # Add algorithm info
-        n_clusters = self.detected['n_clusters']
-        n_noise = np.sum(labels == -1)
-
-        fig.add_annotation(
-            text=f"Algorithm: {self.algorithm.upper()}<br>" +
-                 f"Clusters: {n_clusters}<br>" +
-                 f"Noise Points: {n_noise}",
-            xref="paper", yref="paper",
-            x=0.02, y=0.98,
-            xanchor="left", yanchor="top",
-            showarrow=False,
-            bgcolor="rgba(255,255,255,0.9)",
-            bordercolor="black",
-            borderwidth=1,
-            font=dict(size=10)
-        )
-
         return fig
 
     def get_cluster_summary(self) -> Dict[str, Any]:

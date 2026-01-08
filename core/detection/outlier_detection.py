@@ -1120,22 +1120,6 @@ class OutlierDetectionPattern(Pattern):
             showlegend=True
         ))
 
-        # Add outlier statistics as annotation
-        methods_used = self.statistics.get('detection_methods_used', 0)
-        total_outliers = self.statistics['total_outliers']
-        shown_count = len(filtered_outlier_indices)
-        stats_text = f"Outliers Shown: {shown_count}/{total_outliers}<br>Max Anomaly Score: {max_score:.3f}<br>Detection Methods: {methods_used}"
-        fig.add_annotation(
-            x=0.02, y=0.98,
-            xref='paper', yref='paper',
-            text=stats_text,
-            showarrow=False,
-            bgcolor='rgba(255, 255, 255, 0.9)',
-            bordercolor='darkred',
-            borderwidth=1,
-            font=dict(color='darkred', size=10)
-        )
-
         return fig
 
     def get_outlier_summary(self) -> Dict[str, Any]:

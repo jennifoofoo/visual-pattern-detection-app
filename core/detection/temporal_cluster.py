@@ -384,74 +384,17 @@ class TemporalClusterPattern(Pattern):
                     f"{self.y_axis}: %{{y}}<extra></extra>"
                 ))
 
-        # Add summary annotation
-        fig.add_annotation(
-            text=f"🔴 {len(bursts)} Temporal Bursts<br>Showing top {len(sorted_bursts)}",
-            xref="paper", yref="paper",
-            x=0.02, y=0.98,
-            xanchor="left", yanchor="top",
-            showarrow=False,
-            bgcolor="rgba(255, 200, 200, 0.8)",
-            bordercolor="red",
-            borderwidth=1,
-            font=dict(size=10)
-        )
-
     def _add_parallelism_visualization(self, fig):
         """Add case parallelism visualization to figure."""
-        para = self.clusters['case_parallelism']
-
-        # Add annotation with parallelism statistics
-        fig.add_annotation(
-            text=f"⏱️ Case Parallelism<br>Max: {para['max_parallel_cases']} cases<br>Avg: {para['avg_parallel_cases']:.1f} cases",
-            xref="paper", yref="paper",
-            x=0.98, y=0.98,
-            xanchor="right", yanchor="top",
-            showarrow=False,
-            bgcolor="rgba(173, 216, 230, 0.9)",
-            bordercolor="blue",
-            borderwidth=1,
-            font=dict(size=10)
-        )
+        pass
 
     def _add_activity_cluster_visualization(self, fig):
         """Add activity-time cluster visualization."""
-        activity_clusters = self.clusters['activity_time']
-
-        # Count total clusters
-        total_clusters = sum(len(clusters)
-                             for clusters in activity_clusters.values())
-
-        fig.add_annotation(
-            text=f"🎯 Activity Clusters<br>{len(activity_clusters)} activities<br>{total_clusters} time clusters",
-            xref="paper", yref="paper",
-            x=0.02, y=0.90,
-            xanchor="left", yanchor="top",
-            showarrow=False,
-            bgcolor="rgba(144, 238, 144, 0.8)",
-            bordercolor="green",
-            borderwidth=1,
-            font=dict(size=10)
-        )
+        pass
 
     def _add_resource_pattern_visualization(self, fig):
         """Add resource pattern visualization."""
-        resource_patterns = self.clusters['resource_time']
-
-        total_clusters = sum(len(clusters)
-                             for clusters in resource_patterns.values())
-
-        fig.add_annotation(
-            text=f"👥 Resource Patterns<br>{len(resource_patterns)} resources<br>{total_clusters} shift periods",
-            xref="paper", yref="paper",
-            x=0.98, y=0.90,
-            xanchor="right", yanchor="top",
-            showarrow=False,
-            bgcolor="rgba(255, 215, 0, 0.8)",
-            bordercolor="orange",
-            borderwidth=1,
-            font=dict(size=10)
-        )
+        pass
 
     def get_summary_text(self) -> str:
         """
