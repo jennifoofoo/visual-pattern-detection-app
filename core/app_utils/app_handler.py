@@ -199,8 +199,7 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
             showlegend=(dots_config_col is not None and dots_config_col != 'case_id'),
             hovermode='closest',
             template='plotly_white',
-            yaxis=dict(autorange='reversed'),
-            dragmode='lasso'
+            yaxis=dict(autorange='reversed')
         )
 
     st.session_state['current_plot_config'] = {
@@ -298,8 +297,7 @@ def display_chart():
         showlegend=(dots_config_col is not None and dots_config_col != 'case_id'),
         hovermode='closest',
         template='plotly_white',
-        yaxis=dict(autorange='reversed'),
-        dragmode='lasso'
+        yaxis=dict(autorange='reversed')
     )
 
     # Add pattern overlays (use df_for_patterns to preserve original indices)
