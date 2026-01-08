@@ -31,7 +31,8 @@ class GapPattern(Pattern):
     Works on raw coordinates with case-aware, activity-aware semantics.
     """
 
-    MIN_SAMPLES_FOR_NORMALITY = 5  # Minimum samples needed for statistical threshold
+    MIN_SAMPLES_FOR_NORMALITY = 15  # Minimum samples for stable threshold estimation
+    MAX_GAPS_TO_DISPLAY = 50  # Limit visualization to top N gaps by severity
 
     def __init__(
         self,
@@ -409,96 +410,129 @@ class GapPattern(Pattern):
             self.detected = None
             raise
 
+    @staticmethod
+    def _severity_to_color(severity: float) -> str:
+        """Map severity to color gradient: yellow → orange → red → darkred."""
+        if severity < 2:
+            return 'rgba(255, 193, 7, 0.7)'    # Yellow - mild
+        elif severity < 3:
+            return 'rgba(255, 152, 0, 0.8)'   # Orange - moderate
+        elif severity < 5:
+            return 'rgba(220, 53, 69, 0.85)'  # Red - severe
+        else:
+            return 'rgba(139, 0, 0, 0.9)'     # Dark red - critical
+
+    @staticmethod
+    def _severity_to_width(severity: float) -> float:
+        """Map severity to line width: more severe = thicker."""
+        return min(1.5 + severity * 0.4, 5)  # 1.9px to max 5px
+
+    @staticmethod
+    def _format_duration(seconds: float) -> str:
+        """Format duration in human-readable form."""
+        hours = seconds / 3600
+        if hours < 1:
+            return f"{hours * 60:.0f}min"
+        elif hours < 24:
+            return f"{hours:.1f}h"
+        else:
+            return f"{hours / 24:.1f}d"
+
     def visualize(self, df: pd.DataFrame, fig: go.Figure) -> go.Figure:
         """
-        Overlay abnormal gaps on a Plotly figure using connecting lines.
-        
-        Uses dashed red lines between events to show gaps intuitively.
-        Much cleaner than rectangles - shows exactly where the delay is.
-        
-        Parameters
-        ----------
-        df : pd.DataFrame
-            Event log dataframe
-        fig : go.Figure
-            Plotly figure to annotate
+        Overlay abnormal gaps with severity-based colors and line widths.
 
-        Returns
-        -------
-        go.Figure
-            Figure with abnormal gap lines added
+        Features:
+        - Color gradient: yellow (mild) → red (critical)
+        - Line width scales with severity
+        - Top-N filtering to avoid clutter
+        - Grouped by severity category for legend control
         """
         if self.detected is None or not self.detected.get('abnormal_gaps'):
             return fig
 
         abnormal_gaps = self.detected['abnormal_gaps']
-        
+
         # Filter by selected transitions if set
         selected_transitions = st.session_state.get('selected_gap_transitions')
         if selected_transitions is not None:
             abnormal_gaps = [g for g in abnormal_gaps if g['transition'] in selected_transitions]
-        
+
         if not abnormal_gaps:
             return fig
-        
-        # Collect all line coordinates for batch drawing
-        x_coords = []
-        y_coords = []
-        hover_texts = []
-        severities = []
-        
-        for gap in abnormal_gaps:
-            x_start = gap['x_start']
-            x_end = gap['x_end']
-            y_from = gap['y_value_from']
-            y_to = gap['y_value_to']
-            severity = gap.get('severity', 1.0)
-            duration_hours = gap['duration'] / 3600  # Convert to hours
-            
-            # Format duration for hover
-            if duration_hours < 1:
-                duration_str = f"{duration_hours * 60:.0f} min"
-            elif duration_hours < 24:
-                duration_str = f"{duration_hours:.1f} hours"
+
+        # Sort by severity and limit to top N
+        gaps_sorted = sorted(abnormal_gaps, key=lambda g: g['severity'], reverse=True)
+        gaps_to_show = gaps_sorted[:self.MAX_GAPS_TO_DISPLAY]
+
+        # Group gaps by severity category
+        severity_groups = {
+            'Critical (>5x)': [],
+            'Severe (3-5x)': [],
+            'Moderate (2-3x)': [],
+            'Mild (1-2x)': []
+        }
+
+        for gap in gaps_to_show:
+            sev = gap['severity']
+            if sev >= 5:
+                severity_groups['Critical (>5x)'].append(gap)
+            elif sev >= 3:
+                severity_groups['Severe (3-5x)'].append(gap)
+            elif sev >= 2:
+                severity_groups['Moderate (2-3x)'].append(gap)
             else:
-                duration_str = f"{duration_hours / 24:.1f} days"
-            
-            # Add line segment (with None to break between segments)
-            x_coords.extend([x_start, x_end, None])
-            y_coords.extend([y_from, y_to, None])
-            hover_texts.extend([
-                f"Gap Start<br>{gap['transition']}<br>Duration: {duration_str}<br>Severity: {severity:.1f}x",
-                f"Gap End<br>{gap['transition']}<br>Duration: {duration_str}<br>Severity: {severity:.1f}x",
-                None
-            ])
-            severities.append(severity)
-        
-        # Calculate line opacity based on severity (more severe = more visible)
-        avg_severity = sum(severities) / len(severities) if severities else 1.0
-        opacity = min(0.8, 0.3 + avg_severity * 0.1)
-        
-        # Draw all gap lines as a single trace (much faster)
-        fig.add_trace(go.Scatter(
-            x=x_coords,
-            y=y_coords,
-            mode='lines+markers',
-            line=dict(
-                color=f'rgba(220, 53, 69, {opacity})',  # Bootstrap danger red
-                width=2,
-                dash='dot'  # Dotted line for gaps
-            ),
-            marker=dict(
-                size=8,
-                color='rgba(220, 53, 69, 0.8)',
-                symbol='circle',
-                line=dict(color='white', width=1)
-            ),
-            hoverinfo='text',
-            hovertext=hover_texts,
-            name=f'Gaps ({len(abnormal_gaps)})',
-            showlegend=True
-        ))
-        
+                severity_groups['Mild (1-2x)'].append(gap)
+
+        # Draw each severity group as separate trace (allows legend toggle)
+        group_colors = {
+            'Critical (>5x)': 'rgba(139, 0, 0, 0.9)',
+            'Severe (3-5x)': 'rgba(220, 53, 69, 0.85)',
+            'Moderate (2-3x)': 'rgba(255, 152, 0, 0.8)',
+            'Mild (1-2x)': 'rgba(255, 193, 7, 0.7)'
+        }
+
+        for group_name, gaps in severity_groups.items():
+            if not gaps:
+                continue
+
+            x_coords, y_coords, hover_texts = [], [], []
+            avg_severity = sum(g['severity'] for g in gaps) / len(gaps)
+
+            for gap in gaps:
+                x_coords.extend([gap['x_start'], gap['x_end'], None])
+                y_coords.extend([gap['y_value_from'], gap['y_value_to'], None])
+
+                dur_str = self._format_duration(gap['duration'])
+                thresh_str = self._format_duration(gap['threshold'])
+                hover = (f"<b>{gap['transition']}</b><br>"
+                        f"Duration: {dur_str} (threshold: {thresh_str})<br>"
+                        f"Severity: {gap['severity']:.1f}x<br>"
+                        f"Case: {gap['case_id']}")
+                hover_texts.extend([hover, hover, None])
+
+            fig.add_trace(go.Scatter(
+                x=x_coords,
+                y=y_coords,
+                mode='lines+markers',
+                line=dict(
+                    color=group_colors[group_name],
+                    width=self._severity_to_width(avg_severity),
+                    dash='dot'
+                ),
+                marker=dict(
+                    size=6 + avg_severity,
+                    color=group_colors[group_name],
+                    symbol='circle',
+                    line=dict(color='white', width=1)
+                ),
+                hoverinfo='text',
+                hovertext=hover_texts,
+                name=f'{group_name} ({len(gaps)})',
+                showlegend=True,
+                legendgroup='gaps'
+            ))
+
         return fig
 
     def get_gap_summary(self) -> Dict[str, Any]:

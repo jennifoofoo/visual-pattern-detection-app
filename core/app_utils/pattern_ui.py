@@ -315,7 +315,7 @@ def _display_outlier_tab():
 
 
 def _display_gap_tab():
-    """Display Gap Detection pattern details."""
+    """Display Gap Detection pattern details with severity distribution."""
     from core.app_utils.pattern_detection import _detect_gaps
 
     if not ('gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None):
@@ -324,18 +324,37 @@ def _display_gap_tab():
     gap_detector = st.session_state['gap_detector']
     summary = gap_detector.get_summary()
     details = summary['details']
+    abnormal_gaps = details.get('abnormal_gaps', [])
     layer_visible = st.session_state.get('visible_gap', True)
 
-    col1, col2, col3 = st.columns([1, 1, 0.3])
+    # Compute severity distribution
+    sev_counts = {'Mild (1-2x)': 0, 'Moderate (2-3x)': 0, 'Severe (3-5x)': 0, 'Critical (>5x)': 0}
+    worst_severity = 0
+    for gap in abnormal_gaps:
+        sev = gap.get('severity', 1)
+        worst_severity = max(worst_severity, sev)
+        if sev >= 5:
+            sev_counts['Critical (>5x)'] += 1
+        elif sev >= 3:
+            sev_counts['Severe (3-5x)'] += 1
+        elif sev >= 2:
+            sev_counts['Moderate (2-3x)'] += 1
+        else:
+            sev_counts['Mild (1-2x)'] += 1
+
+    # Header metrics
+    col1, col2, col3, col4 = st.columns([1, 1, 1, 0.3])
     with col1:
         st.metric("Gaps", summary['count'])
     with col2:
         st.metric("Transitions", details['transitions_with_anomalies'])
     with col3:
+        st.metric("Worst", f"{worst_severity:.1f}x" if worst_severity > 0 else "-")
+    with col4:
         with st.popover("..."):
-            current = st.session_state.get('gap_min_samples', 5)
+            current = st.session_state.get('gap_min_samples', 15)
             min_samples = st.number_input(
-                "Min samples", 3, 20, current, key="gap_min_samples_input")
+                "Min samples", 3, 30, current, key="gap_min_samples_input")
             if min_samples != current and st.button("Apply", key="gap_apply"):
                 st.session_state['gap_min_samples'] = min_samples
                 plot_config = st.session_state.get('current_plot_config', {})
@@ -350,16 +369,33 @@ def _display_gap_tab():
     subtab1, subtab2 = st.tabs(["Overview", "Selection"])
 
     with subtab1:
-        trans_stats = details.get('transition_stats', {})
-        for trans, stats in list(trans_stats.items())[:5]:
-            st.caption(
-                f"- {trans}: {stats['count']} gaps, threshold {stats['threshold']/86400:.1f}d")
+        # Severity distribution
+        if abnormal_gaps:
+            st.caption("**Severity Distribution**")
+            for label, count in sev_counts.items():
+                if count > 0:
+                    bar_len = min(count, 20)
+                    bar = "█" * bar_len + "░" * (20 - bar_len)
+                    st.caption(f"`{bar}` {count} {label}")
+
+            # Worst gaps per transition
+            st.caption("**Worst by Transition**")
+            worst_per_trans = {}
+            for gap in abnormal_gaps:
+                trans = gap['transition']
+                if trans not in worst_per_trans or gap['severity'] > worst_per_trans[trans]['severity']:
+                    worst_per_trans[trans] = gap
+
+            sorted_worst = sorted(worst_per_trans.values(), key=lambda g: g['severity'], reverse=True)[:3]
+            for gap in sorted_worst:
+                dur_h = gap['duration'] / 3600
+                dur_str = f"{dur_h:.1f}h" if dur_h < 24 else f"{dur_h/24:.1f}d"
+                st.caption(f"⚠️ {gap['transition']}: {dur_str} ({gap['severity']:.1f}x)")
 
     with subtab2:
         trans_stats = details.get('transition_stats', {})
         if trans_stats:
-            trans_dict = {f"{t} ({s['count']})": t for t,
-                          s in trans_stats.items()}
+            trans_dict = {f"{t} ({s['count']})": t for t, s in trans_stats.items()}
             selected = dict_to_multicheckbox(
                 trans_dict, "Select Transitions", "gap_transition")
             st.session_state['selected_gap_transitions'] = selected
@@ -396,7 +432,7 @@ def _display_sequence_tab():
 
 
 def _display_case_arrival_trend_tab():
-    """Display Case Arrival Trend pattern details with Prophet insights."""
+    """Display Case Arrival Trend pattern details."""
     if not (st.session_state.get('case_arrival_trend_detected', False) and 'case_arrival_trend_detector' in st.session_state):
         return
 
@@ -412,7 +448,6 @@ def _display_case_arrival_trend_tab():
     p_value = summary.get('p_value', 1.0)
     total_cases = summary.get('total_cases', 0)
 
-    # Main metrics row
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("Cases", total_cases)
@@ -429,34 +464,3 @@ def _display_case_arrival_trend_tab():
         'no_trend': 'No significant trend'
     }
     st.caption(direction_labels.get(direction, 'No significant trend'))
-
-    # Prophet insights (if available)
-    details = summary.get('details', {})
-    has_prophet_insights = any([
-        summary.get('weekend_effect'),
-        summary.get('changepoints'),
-        summary.get('has_weekly_pattern')
-    ])
-
-    if has_prophet_insights:
-        st.divider()
-        st.caption("**Advanced Insights** (Prophet)")
-
-        # Weekend effect
-        if summary.get('weekend_effect') is not None:
-            effect = summary['weekend_effect']
-            if effect < -20:
-                st.caption(f"📅 Weekend: {effect:+.0f}% fewer cases")
-            elif effect > 20:
-                st.caption(f"📅 Weekend: {effect:+.0f}% more cases")
-            elif abs(effect) >= 10:
-                st.caption(f"📅 Weekend effect: {effect:+.0f}%")
-
-        # Changepoints
-        if summary.get('changepoints'):
-            changepoints = summary['changepoints']
-            st.caption(f"⚡ Trend changes detected: {', '.join(changepoints[:2])}")
-
-        # Weekly pattern
-        if summary.get('has_weekly_pattern'):
-            st.caption("📊 Weekly seasonality pattern detected")
