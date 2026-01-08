@@ -12,6 +12,7 @@ This document provides a scientific description of the gap detection and trend a
    - 1.3 [Statistical Threshold Computation](#13-statistical-threshold-computation)
    - 1.4 [Architectural Decisions](#14-architectural-decisions)
    - 1.5 [Complexity Analysis](#15-complexity-analysis)
+   - 1.6 [Visualization Strategy](#16-visualization-strategy)
 2. [Trend Detection](#2-trend-detection)
    - 2.1 [Case Arrival Trend Pattern](#21-case-arrival-trend-pattern)
    - 2.2 [General Trend Pattern](#22-general-trend-pattern)
@@ -50,8 +51,9 @@ Algorithm 1: Process-Aware Gap Detection
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Input:  Event log L = {(c, a, t, r) | case c, activity a, time t, resource r}
         View configuration V = (x_col, y_col)
-        Minimum samples threshold k (default: 5)
-Output: Set of abnormal gaps G_abnormal
+        Minimum samples threshold k (default: 15)
+        Maximum gaps to display N (default: 50)
+Output: Set of abnormal gaps G_abnormal (limited to top N by severity)
 
 Phase 1: Transition Extraction
   for each case c ∈ L do
@@ -110,7 +112,7 @@ $$\text{threshold}_\tau = \max(\text{threshold}_{P95}, \text{threshold}_{\text{I
 
 **Rationale:** The IQR method is robust against outliers and assumes approximate symmetry, while P95 directly captures the upper tail of the distribution. Taking the maximum ensures we only flag truly extreme gaps while accommodating both symmetric and skewed distributions.
 
-**Minimum Sample Requirement:** We require $|D_\tau| \geq k$ (default $k=5$) samples per transition before computing thresholds. This prevents unreliable thresholds from sparse data and aligns with recommendations for robust percentile estimation [3].
+**Minimum Sample Requirement:** We require $|D_\tau| \geq k$ (default $k=15$) samples per transition before computing thresholds. This ensures stable percentile and IQR estimates—with fewer than 15 samples, quartile calculations become unreliable, especially for skewed waiting time distributions [3]. The threshold is user-configurable (range: 3-30) to accommodate domain-specific needs.
 
 ### 1.4 Architectural Decisions
 
@@ -118,12 +120,13 @@ $$\text{threshold}_\tau = \max(\text{threshold}_{P95}, \text{threshold}_{\text{I
 |----------|--------|-----------|
 | **Per-transition normality** | Yes | Different activity pairs have inherently different expected durations. Global thresholds would miss context-specific anomalies. |
 | **Threshold formula** | max(P95, Q3+1.5×IQR) | Combines distribution tail capture (P95) with robust outlier detection (IQR). Handles both normal and skewed distributions. |
-| **Minimum samples** | k=5 (configurable) | Ensures statistical reliability. User-configurable via UI for domain-specific adjustment. |
+| **Minimum samples** | k=15 (configurable 3-30) | Ensures stable percentile estimation. Research suggests ≥15 samples for reliable quartile estimates [3]. |
 | **Severity metric** | duration/threshold | Provides interpretable measure: severity=2.0 means gap is twice the normal threshold. Enables prioritization. |
 | **Case-aware extraction** | Gaps within cases only | Gaps between different cases are meaningless for process analysis. Ensures semantic correctness. |
 | **Time validation** | duration > 0 | Filters data quality issues (negative durations from timestamp errors). |
 | **Y-position computation** | FROM-activity row | For categorical Y-axes, gaps are shown at the source activity row, as the waiting semantically occurs "at" that activity. |
-| **Visualization** | Dashed connecting lines | More intuitive than rectangles. Shows exact start/end points of delays. Color intensity reflects severity. |
+| **Max display limit** | N=50 gaps | Prevents visual clutter. Only top N gaps by severity are rendered; all are still available in data. |
+| **Severity categories** | 4 groups | Mild (1-2×), Moderate (2-3×), Severe (3-5×), Critical (>5×). Enables filtering and legend toggle. |
 
 ### 1.5 Complexity Analysis
 
@@ -137,6 +140,76 @@ Let $n$ be the number of events, $c$ the number of cases, and $\tau$ the number 
 | **Total** | $O(n \log n + \tau \cdot m \log m)$ | $O(n + \tau + g)$ |
 
 where $m$ is the average number of gaps per transition and $g$ is the number of detected abnormal gaps.
+
+### 1.6 Visualization Strategy
+
+Effective visualization of abnormal gaps requires balancing informativeness with clarity. We employ a multi-dimensional encoding scheme based on visualization research principles [16].
+
+#### 1.6.1 Severity-Based Visual Encoding
+
+Gaps are visualized using **dashed connecting lines** between the source and target events. Visual properties encode severity:
+
+**Color Gradient (Categorical):**
+
+| Severity Category | Range | Color | RGBA |
+|-------------------|-------|-------|------|
+| Mild | 1-2× threshold | Yellow | `rgba(255, 193, 7, 0.7)` |
+| Moderate | 2-3× threshold | Orange | `rgba(255, 152, 0, 0.8)` |
+| Severe | 3-5× threshold | Red | `rgba(220, 53, 69, 0.85)` |
+| Critical | >5× threshold | Dark Red | `rgba(139, 0, 0, 0.9)` |
+
+**Line Width (Continuous):**
+
+$$w = \min(1.5 + 0.4 \cdot s, 5)$$
+
+where $s$ is the severity and $w$ is the line width in pixels. This provides a range of 1.9px (mild) to 5px (critical).
+
+**Marker Size:**
+
+$$m = 6 + \bar{s}$$
+
+where $\bar{s}$ is the average severity of the gap group.
+
+#### 1.6.2 Display Limiting
+
+To prevent visual clutter in logs with many abnormal gaps, we limit display to the **top N gaps by severity** (default N=50):
+
+```
+gaps_to_display = sorted(abnormal_gaps, key=severity, reverse=True)[:N]
+```
+
+**Rationale:** In large event logs, hundreds of gaps may exceed the threshold. Displaying all of them creates visual noise and obscures the most critical issues. By showing only the top 50 (configurable), users can focus on the most severe anomalies while still having access to the complete data for analysis.
+
+#### 1.6.3 Grouped Traces for Interactivity
+
+Gaps are grouped by severity category into separate Plotly traces:
+
+```
+traces = [
+    "Critical (>5x) (n)",
+    "Severe (3-5x) (n)",
+    "Moderate (2-3x) (n)",
+    "Mild (1-2x) (n)"
+]
+```
+
+**Benefits:**
+- Users can toggle visibility of specific severity levels via the legend
+- Provides immediate overview of severity distribution
+- Reduces visual complexity by hiding less important gaps
+
+#### 1.6.4 Hover Information
+
+Each gap displays contextual information on hover:
+
+```
+<b>Activity A → Activity B</b>
+Duration: 4.2h (threshold: 1.1h)
+Severity: 3.8x
+Case: case_123
+```
+
+This provides immediate context without requiring interaction with the data table.
 
 ---
 
@@ -454,6 +527,8 @@ Step 5: Return insights
 
 [15] Aminikhanghahi, S. & Cook, D.J. (2017). A Survey of Methods for Time Series Change Point Detection. **Knowledge and Information Systems**, 51(2), 339-367. (Comprehensive changepoint detection survey)
 
+[16] Munzner, T. (2014). **Visualization Analysis and Design**. CRC Press. (Visual encoding principles and effectiveness rankings)
+
 ---
 
 ## Appendix A: Implementation Details
@@ -463,8 +538,11 @@ Step 5: Return insights
 ```python
 class GapPattern(Pattern):
     """
+    Class Constants:
+        MIN_SAMPLES_FOR_NORMALITY: int = 15  # Minimum samples for stable thresholds
+        MAX_GAPS_TO_DISPLAY: int = 50        # Limit visualization to top N
+
     Attributes:
-        MIN_SAMPLES_FOR_NORMALITY: int = 5
         view_config: Dict[str, str]      # x, y column configuration
         y_is_categorical: bool           # Affects Y-position computation
         detected: Optional[Dict]         # Detection results
@@ -472,8 +550,13 @@ class GapPattern(Pattern):
 
     Key Methods:
         detect(df) → None                # Main detection entry point
-        visualize(df, fig) → Figure      # Add gap overlays to plot
+        visualize(df, fig) → Figure      # Add severity-colored gap overlays
         get_summary() → Dict             # Standardized pattern summary
+
+    Static Methods:
+        _severity_to_color(severity) → str    # Map severity to RGBA color
+        _severity_to_width(severity) → float  # Map severity to line width
+        _format_duration(seconds) → str       # Human-readable duration format
     """
 ```
 
@@ -592,7 +675,7 @@ Both patterns are tested on the Hospital_log.xes dataset to ensure:
 
 ---
 
-*Document Version: 1.1*
+*Document Version: 1.2*
 *Last Updated: January 2026*
 *Authors: Visual Pattern Detection Team*
 
@@ -602,3 +685,4 @@ Both patterns are tested on the Hospital_log.xes dataset to ensure:
 |---------|------|---------|
 | 1.0 | 2026-01-08 | Initial version with Gap Detection and Mann-Kendall Trend Analysis |
 | 1.1 | 2026-01-08 | Added Prophet integration for seasonality and changepoint detection |
+| 1.2 | 2026-01-08 | Enhanced Gap Detection: MIN_SAMPLES=15, severity-based visualization, display limiting, grouped traces |
