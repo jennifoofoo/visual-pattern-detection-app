@@ -227,7 +227,7 @@ class ClusterPattern(Pattern):
             cluster_indices = original_indices[mask]
 
             # Get original data for these points
-            cluster_data = df.iloc[cluster_indices]
+            cluster_data = df.loc[cluster_indices]
 
             color = colors[i % len(colors)]
 
@@ -254,7 +254,7 @@ class ClusterPattern(Pattern):
         noise_mask = labels == -1
         if np.any(noise_mask):
             noise_indices = original_indices[noise_mask]
-            noise_data = df.iloc[noise_indices]
+            noise_data = df.loc[noise_indices]
 
             fig.add_trace(go.Scatter(
                 x=noise_data[x_col],
