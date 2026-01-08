@@ -9,20 +9,20 @@ This module handles:
 """
 
 import streamlit as st
+from core.app_utils.pattern_detection import _reset_pattern_detection_state, auto_detect_patterns
+from core.app_utils.pattern_ui import _is_any_pattern_detected
 from core.data_processing import load_xes_log
 from core.evaluation.summary_generator import summarize_event_log
 from core.app_utils.mappings import X_AXIS_COLUMN_MAP, Y_AXIS_COLUMN_MAP, DOTS_COLOR_MAP
 from core.visualization.visualizer import plot_dotted_chart as plot_chart
-from core.evaluation.ollama import OllamaEvaluator
-from core.utils.demo_sampling import sample_small_eventlog
-
-# Import pattern detection and UI from separate modules
-from core.app_utils.pattern_detection import (
-    auto_detect_patterns,
-    _reset_pattern_detection_state,
-    _detect_gaps
+from core.utils.demo_sampling import (
+    sample_eventlog_variant_aware,
+    SamplingMode,
+    SAMPLING_CONFIGS
 )
-from core.app_utils.pattern_ui import handle_pattern_detection, _is_any_pattern_detected
+from core.evaluation.ollama import OllamaEvaluator
+
+
 
 
 # =============================================================================
@@ -89,8 +89,7 @@ def init_state():
 # === Data Loading ===
 # =============================================================================
 
-def load_data_button(xes_path, demo_mode=False):
-    """Load XES file and initialize data."""
+def load_data_button(xes_path, demo_mode=False, sampling_mode: SamplingMode = SamplingMode.SQRT):
     try:
         with st.spinner(f"Loading {xes_path}..."):
             df = cached_load_xes_log(xes_path)
@@ -99,20 +98,37 @@ def load_data_button(xes_path, demo_mode=False):
             st.warning("The log file was loaded but contains no events.")
             return
 
-        # Demo Mode: Sample for fast detection
-        if demo_mode and 'case_id' in df.columns:
+        # Demo Mode: Sample event log using variant-aware sampling
+        sampling_stats = None
+        if demo_mode and 'case_id' in df.columns and sampling_mode != SamplingMode.FULL:
             df_original = df
-            df = sample_small_eventlog(
+            df, sampling_stats = sample_eventlog_variant_aware(
                 df,
-                max_cases=100,
-                max_events_per_case=30,
+                mode=sampling_mode,
+                case_col='case_id',
+                activity_col='activity',
                 time_col='actual_time',
                 random_state=42
             )
+            
+            # Build info message based on sampling mode
+            config = SAMPLING_CONFIGS[sampling_mode]
+            reduction_pct = (1 - sampling_stats['reduction_ratio']) * 100
+            
+            variant_info = ""
+            if sampling_stats.get('variants_total'):
+                variant_info = f" | {sampling_stats['variants_total']} variants"
+            
             st.info(
-                f"**DEMO MODE:** Sampled to {len(df):,} events from {len(df_original):,} "
-                f"({df['case_id'].nunique()} cases). Uncheck 'Demo Mode' for full dataset."
+                f"🎬 **{config.name}:** {sampling_stats['sampled_events']:,} events "
+                f"({sampling_stats['sampled_traces']} traces{variant_info}) "
+                f"from {sampling_stats['original_events']:,} original "
+                f"({reduction_pct:.0f}% reduction). "
+                f"{config.description}"
             )
+            
+            # Store sampling stats for later reference
+            st.session_state.sampling_stats = sampling_stats
 
         st.session_state.df = df
         st.session_state.loaded_file = xes_path

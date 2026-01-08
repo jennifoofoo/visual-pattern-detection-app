@@ -1,5 +1,7 @@
 import streamlit as st
+from core.app_utils import pattern_ui
 import core.app_utils.app_handler as app_handler
+from core.utils.demo_sampling import SamplingMode
 from pathlib import Path
 
 # -------------------------------------------------
@@ -57,6 +59,11 @@ def main():
     )
 
 
+
+
+        
+        # Sampling Strategy Selection (only shown when demo mode is enabled)
+        
     # -----------------------------
     # STATE INIT
     # -----------------------------
@@ -69,11 +76,32 @@ def main():
     with st.sidebar:
         with st.expander("Load Data", expanded=st.session_state.ui_step == "load"):
             demo_mode = st.checkbox(
-                "Demo Mode",
-                value=True,
-            )
+            "Demo Mode", 
+            value=True,
+            help="Enable sampling for faster analysis. Choose a sampling strategy below."
+        )
             if demo_mode:
-                st.caption("Samples to 100 cases for faster detection")
+                sampling_mode = SamplingMode.FULL  # Default
+                sampling_options = {
+                    "Minimal (fastest)": SamplingMode.MINIMAL,
+                    "Balanced (√n)": SamplingMode.SQRT,
+                    "Optimized (~70%)": SamplingMode.OPTIMIZED,
+                    "Legacy (first-N)": SamplingMode.LEGACY,
+                }
+                
+                selected_strategy = st.selectbox(
+                    "Sampling Strategy:",
+                    options=list(sampling_options.keys()),
+                    index=1,  # Default to Balanced
+                    help="""
+                    **Minimal**: 1-2 traces per variant - ultra fast demos
+                    **Balanced (√n)**: Keeps √n traces for frequent variants, all rare variants - recommended
+                    **Optimized**: ~70% of data, preserves variant distribution - gentle reduction  
+                    **Legacy**: First 100 cases - original sampling method
+                    """,
+                    key='sampling_strategy'
+                )
+                sampling_mode = sampling_options[selected_strategy]
 
             xes_path = st.text_input(
                 "XES file path",
@@ -83,7 +111,7 @@ def main():
 
             st.markdown("<div style='height: 0.5rem'></div>", unsafe_allow_html=True)
             if st.button("Load Data", type="primary"):
-                app_handler.load_data_button(xes_path, demo_mode=demo_mode)
+                app_handler.load_data_button(xes_path, demo_mode=demo_mode, sampling_mode=sampling_mode)
                 st.session_state.ui_step = "config"
                 st.rerun()
 
@@ -127,7 +155,7 @@ def main():
 
     if st.session_state.get("chart_plotted", False):
         st.divider()
-        app_handler.handle_pattern_detection()
+        pattern_ui.handle_pattern_detection()
 
 
 # -------------------------------------------------
