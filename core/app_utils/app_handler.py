@@ -314,84 +314,8 @@ def display_chart():
     selection = st.plotly_chart(fig, use_container_width=True, on_select="rerun", key="main_chart")
     st.session_state['fig'] = fig
 
-    # Time filter and focus controls
-    st.markdown("<div style='margin-top: 1.5rem'></div>", unsafe_allow_html=True)
-    if x_col == 'actual_time':
-        _display_time_filter(plot_config)
-        st.markdown("<div style='margin-top: 1rem'></div>", unsafe_allow_html=True)
-    _display_focus_controls(selection, plot_config, df_display, is_focus_view)
-
-
-# =============================================================================
-# === Time Filter ===
-# =============================================================================
-
-def _display_time_filter(plot_config):
-    """Render time filter controls."""
-    import pandas as pd
-
-    base_df = plot_config['df_selected']
-    min_time = base_df['actual_time'].min()
-    max_time = base_df['actual_time'].max()
-
-    with st.container(border=True):
-        st.markdown("**Time Filter**")
-        st.caption("Reduce event log by date range (optional)")
-        st.markdown("")
-        col1, col2 = st.columns(2)
-        with col1:
-            start_date = st.date_input(
-                "Start",
-                value=min_time.date() if pd.notna(min_time) else None,
-                min_value=min_time.date() if pd.notna(min_time) else None,
-                max_value=max_time.date() if pd.notna(max_time) else None,
-                key="time_filter_start"
-            )
-        with col2:
-            end_date = st.date_input(
-                "End",
-                value=max_time.date() if pd.notna(max_time) else None,
-                min_value=min_time.date() if pd.notna(min_time) else None,
-                max_value=max_time.date() if pd.notna(max_time) else None,
-                key="time_filter_end"
-            )
-        st.markdown("")
-        col_apply, col_clear = st.columns(2)
-        with col_apply:
-            if st.button("Apply Filter", key="apply_time_filter", type="primary", use_container_width=True):
-                start_dt = pd.Timestamp(start_date)
-                end_dt = pd.Timestamp(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
-                st.session_state.time_filter_range = (start_dt, end_dt)
-                _reset_pattern_detection_state()
-                auto_detect_patterns(
-                    plot_config['x_col'], plot_config['y_col'], plot_config['dots_config_col'],
-                    plot_config['x_axis_label'], plot_config['y_axis_label'],
-                    get_active_view_df(plot_config)
-                )
-                st.rerun()
-        with col_clear:
-            if st.button("Clear Filter", key="clear_time_filter", use_container_width=True,
-                        disabled=st.session_state.get('time_filter_range') is None):
-                st.session_state.time_filter_range = None
-                _reset_pattern_detection_state()
-                auto_detect_patterns(
-                    plot_config['x_col'], plot_config['y_col'], plot_config['dots_config_col'],
-                    plot_config['x_axis_label'], plot_config['y_axis_label'],
-                    get_active_view_df(plot_config)
-                )
-                st.rerun()
-
-        if st.session_state.get('time_filter_range'):
-            start, end = st.session_state.time_filter_range
-            st.caption(f"Active: {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}")
-
-
-# =============================================================================
-# === Focus Selection ===
-# =============================================================================
-
-def _display_focus_controls(selection, plot_config, df_display, is_focus_view):
-    """Display selection-based focus controls."""
+    # Store selection data for sidebar controls
+    st.session_state['_current_df_display'] = df_display
     selected_indices = []
     if not is_focus_view and selection and selection.selection:
         for pt in selection.selection.get("points", []):
@@ -408,27 +332,12 @@ def _display_focus_controls(selection, plot_config, df_display, is_focus_view):
                         selected_indices.append(int(customdata))
                 except (TypeError, IndexError, ValueError):
                     pass
+    st.session_state['_selected_point_indices'] = selected_indices
 
-    with st.container(border=True):
-        if is_focus_view:
-            full_count = len(plot_config['df_selected'])
-            st.markdown("**Selection** · Focus View")
-            st.caption(f"{len(df_display):,} of {full_count:,} points · patterns re-analyzed")
-        else:
-            st.markdown("**Selection**")
-            if selected_indices:
-                st.caption(f"{len(selected_indices):,} points selected · click Focus to analyze")
-            else:
-                st.caption("Use lasso or box select on the chart")
-        st.markdown("")
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Focus", disabled=(is_focus_view or not selected_indices), key="focus_btn", type="primary", use_container_width=True):
-                _apply_focus_selection(selected_indices, df_display, plot_config)
-        with col2:
-            if st.button("Reset", disabled=not is_focus_view, key="reset_focus_btn", use_container_width=True):
-                _reset_focus_view(plot_config)
 
+# =============================================================================
+# === Focus Selection Helpers ===
+# =============================================================================
 
 def _apply_focus_selection(selected_point_ids, df_display, plot_config):
     """Apply focus to selected points."""
@@ -471,6 +380,104 @@ def _render_pattern_checkbox(label: str, visibility_key: str, version_key: str, 
         for key in [k for k in list(st.session_state.keys()) if checkbox_key_pattern in k]:
             del st.session_state[key]
         st.rerun()
+
+
+def sidebar_time_filter():
+    """Render time filter controls in sidebar."""
+    import pandas as pd
+
+    plot_config = st.session_state.get('current_plot_config')
+    if not plot_config:
+        st.caption("Plot a chart first")
+        return
+
+    x_col = plot_config.get('x_col')
+    if x_col != 'actual_time':
+        st.caption("Time filter only available for actual_time x-axis")
+        return
+
+    base_df = plot_config['df_selected']
+    min_time = base_df['actual_time'].min()
+    max_time = base_df['actual_time'].max()
+
+    st.caption("Filter events by date range")
+    col1, col2 = st.columns(2)
+    with col1:
+        start_date = st.date_input(
+            "Start",
+            value=min_time.date() if pd.notna(min_time) else None,
+            min_value=min_time.date() if pd.notna(min_time) else None,
+            max_value=max_time.date() if pd.notna(max_time) else None,
+            key="time_filter_start"
+        )
+    with col2:
+        end_date = st.date_input(
+            "End",
+            value=max_time.date() if pd.notna(max_time) else None,
+            min_value=min_time.date() if pd.notna(min_time) else None,
+            max_value=max_time.date() if pd.notna(max_time) else None,
+            key="time_filter_end"
+        )
+
+    col_apply, col_clear = st.columns(2)
+    with col_apply:
+        if st.button("Apply", key="apply_time_filter", type="primary", use_container_width=True):
+            start_dt = pd.Timestamp(start_date)
+            end_dt = pd.Timestamp(end_date).replace(hour=23, minute=59, second=59, microsecond=999999)
+            st.session_state.time_filter_range = (start_dt, end_dt)
+            _reset_pattern_detection_state()
+            auto_detect_patterns(
+                plot_config['x_col'], plot_config['y_col'], plot_config['dots_config_col'],
+                plot_config['x_axis_label'], plot_config['y_axis_label'],
+                get_active_view_df(plot_config)
+            )
+            st.rerun()
+    with col_clear:
+        if st.button("Clear", key="clear_time_filter", use_container_width=True,
+                    disabled=st.session_state.get('time_filter_range') is None):
+            st.session_state.time_filter_range = None
+            _reset_pattern_detection_state()
+            auto_detect_patterns(
+                plot_config['x_col'], plot_config['y_col'], plot_config['dots_config_col'],
+                plot_config['x_axis_label'], plot_config['y_axis_label'],
+                get_active_view_df(plot_config)
+            )
+            st.rerun()
+
+    if st.session_state.get('time_filter_range'):
+        start, end = st.session_state.time_filter_range
+        st.caption(f"**Active:** {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}")
+
+
+def sidebar_focus_controls():
+    """Render selection/focus controls in sidebar."""
+    plot_config = st.session_state.get('current_plot_config')
+    if not plot_config:
+        st.caption("Plot a chart first")
+        return
+
+    is_focus_view = st.session_state.get('focus_df') is not None
+    selected_indices = st.session_state.get('_selected_point_indices', [])
+    df_display = st.session_state.get('_current_df_display')
+
+    if is_focus_view:
+        full_count = len(plot_config['df_selected'])
+        focus_count = len(st.session_state.focus_df) if st.session_state.focus_df is not None else 0
+        st.caption(f"**Focus View:** {focus_count:,} of {full_count:,} points")
+    else:
+        if selected_indices:
+            st.caption(f"**{len(selected_indices):,} points selected**")
+        else:
+            st.caption("Use lasso/box select on chart")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Focus", disabled=(is_focus_view or not selected_indices), key="focus_btn", type="primary", use_container_width=True):
+            if df_display is not None:
+                _apply_focus_selection(selected_indices, df_display, plot_config)
+    with col2:
+        if st.button("Reset", disabled=not is_focus_view, key="reset_focus_btn", use_container_width=True):
+            _reset_focus_view(plot_config)
 
 
 def sidebar_pattern_layer_controls():
