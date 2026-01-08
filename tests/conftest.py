@@ -21,7 +21,7 @@ def test_data_dir() -> Path:
 @pytest.fixture(scope="session")
 def event_log_path(test_data_dir) -> Path:
     """Return path to Hospital_log.xes test file."""
-    path = test_data_dir / "Hospital_log.xes"
+    path = test_data_dir.parent / "data" / "Hospital_log.xes"
     if not path.exists():
         pytest.skip(f"Test XES file not found: {path}")
     return path
@@ -719,7 +719,7 @@ def df_with_resource_shifts() -> pd.DataFrame:
     df = pd.DataFrame(events)
     df['actual_time'] = pd.to_datetime(df['actual_time'])
     return df
-    
+
 # =============================================================================
 # PREPROCESSOR FIXTURE
 # =============================================================================

@@ -47,6 +47,7 @@ class TemporalClusterPattern(Pattern):
         self.df = df
         self.x_axis = x_axis
         self.y_axis = y_axis
+        self.color = color
         # Dynamic min_cluster_size: sqrt-based but capped at reasonable values
         self.min_cluster_size = min(20, max(5, int(np.sqrt(len(df)) / 3)))
         self.temporal_eps = temporal_eps

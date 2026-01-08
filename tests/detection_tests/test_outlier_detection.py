@@ -243,12 +243,19 @@ class TestHospitalLogOutliers:
 
             # Validation: outlier activities should be statistically rare
             activity_counts = df['activity'].value_counts()
-            outlier_activities = [idx for idx, _ in activity_outliers]
-            for act_idx in outlier_activities[:3]:  # Check first 3
-                act_name = df.iloc[act_idx]['activity']
+            total_acts = len(df)
+
+            # Get unique activities from outlier indices
+            outlier_indices = [idx for idx, _ in activity_outliers] if isinstance(
+                activity_outliers[0], tuple) else activity_outliers
+            outlier_activities_unique = df.loc[outlier_indices, 'activity'].unique(
+            )
+
+            # Check first 3 unique outlier activities
+            for act_name in list(outlier_activities_unique)[:3]:
                 act_count = activity_counts.get(act_name, 0)
-                total_acts = len(df)
                 frequency = act_count / total_acts
+                # Rare activities should have frequency less than 5%
                 assert frequency < 0.05, f"Outlier activity '{act_name}' has frequency {frequency:.3f} >= 5% - not truly rare"
                 print(
                     f"  - '{act_name}': {act_count} occurrences ({frequency*100:.2f}%)")
