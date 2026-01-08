@@ -217,21 +217,36 @@ class ClusterPattern(Pattern):
         x_col = self.view_config['x']
         y_col = self.view_config['y']
 
+        # Helper to build hover data
+        def build_hover_text(data, cluster_label, cluster_size=None):
+            texts = []
+            for idx in data.index:
+                row = data.loc[idx]
+                parts = [f"<b>Cluster {cluster_label}</b>" if cluster_label != 'Noise' else "<b>Noise Point</b>"]
+                if cluster_size:
+                    parts[0] += f" ({cluster_size} points)"
+                if 'case_id' in data.columns:
+                    parts.append(f"Case: {row['case_id']}")
+                if 'activity' in data.columns:
+                    parts.append(f"Activity: {row['activity']}")
+                if 'resource' in data.columns:
+                    parts.append(f"Resource: {row['resource']}")
+                texts.append("<br>".join(parts))
+            return texts
+
         # Add cluster points with different colors
         for i, label in enumerate(unique_labels):
             mask = labels == label
             if not np.any(mask):
                 continue
 
-            # Get indices of points in this cluster
             cluster_indices = original_indices[mask]
-
-            # Get original data for these points
             cluster_data = df.loc[cluster_indices]
-
+            cluster_size = len(cluster_data)
             color = colors[i % len(colors)]
 
-            # Add cluster points
+            hover_texts = build_hover_text(cluster_data, label, cluster_size)
+
             fig.add_trace(go.Scatter(
                 x=cluster_data[x_col],
                 y=cluster_data[y_col],
@@ -243,11 +258,10 @@ class ClusterPattern(Pattern):
                     line=dict(color='black', width=1),
                     opacity=0.8
                 ),
-                name=f"Cluster {label}",
+                name=f"Cluster {label} ({cluster_size})",
                 showlegend=True,
-                hovertemplate=f"<b>Cluster {label}</b><br>" +
-                f"{x_col}: %{{x}}<br>" +
-                f"{y_col}: %{{y}}<extra></extra>"
+                text=hover_texts,
+                hovertemplate='%{text}<extra></extra>'
             ))
 
         # Add noise points if any
@@ -255,6 +269,8 @@ class ClusterPattern(Pattern):
         if np.any(noise_mask):
             noise_indices = original_indices[noise_mask]
             noise_data = df.loc[noise_indices]
+
+            hover_texts = build_hover_text(noise_data, 'Noise')
 
             fig.add_trace(go.Scatter(
                 x=noise_data[x_col],
@@ -266,11 +282,10 @@ class ClusterPattern(Pattern):
                     symbol='x',
                     opacity=0.5
                 ),
-                name="Noise",
+                name=f"Noise ({len(noise_data)})",
                 showlegend=True,
-                hovertemplate="<b>Noise Point</b><br>" +
-                f"{x_col}: %{{x}}<br>" +
-                f"{y_col}: %{{y}}<extra></extra>"
+                text=hover_texts,
+                hovertemplate='%{text}<extra></extra>'
             ))
 
         return fig

@@ -364,7 +364,19 @@ class TemporalClusterPattern(Pattern):
             cluster_events = df_work[df_work['cluster_label'] == cluster_id]
 
             if len(cluster_events) > 0:
-                # Add scatter trace for this cluster
+                # Build hover texts with context info
+                hover_texts = []
+                for idx in cluster_events.index:
+                    row = cluster_events.loc[idx]
+                    parts = [f"<b>Temporal Burst {i+1}</b> ({burst['event_count']} events)"]
+                    if 'case_id' in cluster_events.columns:
+                        parts.append(f"Case: {row['case_id']}")
+                    if 'activity' in cluster_events.columns:
+                        parts.append(f"Activity: {row['activity']}")
+                    if 'resource' in cluster_events.columns:
+                        parts.append(f"Resource: {row['resource']}")
+                    hover_texts.append("<br>".join(parts))
+
                 fig.add_trace(go.Scatter(
                     x=cluster_events[self.x_axis],
                     y=cluster_events[self.y_axis],
@@ -378,10 +390,8 @@ class TemporalClusterPattern(Pattern):
                     ),
                     name=f'Burst {i+1} ({burst["event_count"]} events)',
                     showlegend=True,
-                    hovertemplate=f"<b>Burst Cluster {i+1}</b><br>" +
-                    f"Events: {burst['event_count']}<br>" +
-                    f"{self.x_axis}: %{{x}}<br>" +
-                    f"{self.y_axis}: %{{y}}<extra></extra>"
+                    text=hover_texts,
+                    hovertemplate='%{text}<extra></extra>'
                 ))
 
     def _add_parallelism_visualization(self, fig):

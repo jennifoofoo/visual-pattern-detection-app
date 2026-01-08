@@ -174,9 +174,14 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
             return
 
     total_points = len(df_selected)
-    hover_cols = ['activity', 'actual_time']
 
     with st.spinner("Rendering chart..."):
+        # Build custom hover template with all relevant info
+        hover_cols = []
+        for col in ['case_id', 'activity', 'resource', 'actual_time']:
+            if col in df_selected.columns and col not in [x_col, y_col, dots_config_col]:
+                hover_cols.append(col)
+
         fig = plot_chart(
             df=df_selected,
             x=x_col,
