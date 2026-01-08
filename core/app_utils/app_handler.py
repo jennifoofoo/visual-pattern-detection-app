@@ -165,18 +165,20 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
     y_col = Y_AXIS_COLUMN_MAP[y_axis]
     dots_config_col = DOTS_COLOR_MAP[dots_config_label]
 
-    df_selected = df_base
+    df_selected = df_base.copy()
     if df_selected[x_col].isnull().any() or df_selected[y_col].isnull().any():
-        df_selected = df_base.copy()
         df_selected.dropna(subset=[x_col, y_col], inplace=True)
         if df_selected.empty:
             st.warning("No valid data to plot after removing missing values.")
             return
 
+    # Reset index and add _point_id for selection
+    df_selected = df_selected.reset_index(drop=True)
+    df_selected['_point_id'] = df_selected.index
     total_points = len(df_selected)
 
     with st.spinner("Rendering chart..."):
-        # Build custom hover template with all relevant info
+        # Build hover columns (exclude axes and color to avoid redundancy)
         hover_cols = []
         for col in ['case_id', 'activity', 'resource', 'actual_time']:
             if col in df_selected.columns and col not in [x_col, y_col, dots_config_col]:
@@ -189,14 +191,16 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
             color=dots_config_col,
             title=f"Dotted Chart: {y_axis} vs {x_axis} ({total_points:,} points)",
             labels={x_col: x_axis, y_col: y_axis, dots_config_col: dots_config_label},
-            hover_data=hover_cols
+            hover_data=hover_cols,
+            custom_data=['_point_id']
         )
         fig.update_traces(marker=dict(size=5, opacity=0.8))
         fig.update_layout(
             showlegend=(dots_config_col is not None and dots_config_col != 'case_id'),
             hovermode='closest',
             template='plotly_white',
-            yaxis=dict(autorange='reversed')
+            yaxis=dict(autorange='reversed'),
+            dragmode='lasso'
         )
 
     st.session_state['current_plot_config'] = {
@@ -337,7 +341,15 @@ def display_chart():
                         selected_indices.append(int(customdata))
                 except (TypeError, IndexError, ValueError):
                     pass
+
+    # Check if selection changed - trigger rerun so sidebar can see it
+    old_selection = st.session_state.get('_selected_point_indices', [])
+    selection_changed = set(selected_indices) != set(old_selection)
     st.session_state['_selected_point_indices'] = selected_indices
+
+    # Rerun if selection changed so sidebar updates
+    if selection_changed and selected_indices:
+        st.rerun()
 
 
 # =============================================================================
