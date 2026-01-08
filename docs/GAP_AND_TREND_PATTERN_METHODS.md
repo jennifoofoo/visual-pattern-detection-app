@@ -18,6 +18,7 @@ This document provides a scientific description of the gap detection and trend a
    - 2.3 [Mann-Kendall Test](#23-mann-kendall-test)
    - 2.4 [Sen's Slope Estimator](#24-sens-slope-estimator)
    - 2.5 [Architectural Decisions](#25-architectural-decisions)
+   - 2.6 [Prophet Integration for Advanced Insights](#26-prophet-integration-for-advanced-insights)
 3. [References](#3-references)
 
 ---
@@ -291,6 +292,134 @@ Classification Decision Tree:
 └──────┘ └──────────┘                 │
 ```
 
+### 2.7 Prophet Integration for Advanced Insights
+
+While Mann-Kendall provides robust monotonic trend detection, real-world process data often exhibits complex temporal patterns that require more sophisticated analysis. We optionally integrate **Prophet** [11], Meta's open-source forecasting library, to provide additional insights.
+
+#### 2.7.1 Theoretical Background
+
+Prophet implements a **decomposable time series model** [11, 12]:
+
+$$y(t) = g(t) + s(t) + h(t) + \epsilon_t$$
+
+where:
+- $g(t)$ is the **trend function** modeling non-periodic changes
+- $s(t)$ is the **seasonality function** capturing periodic patterns (weekly, yearly)
+- $h(t)$ represents **holiday/event effects**
+- $\epsilon_t$ is the error term (assumed normally distributed)
+
+**Trend Component:** Prophet uses a piecewise linear or logistic growth model with automatic changepoint detection:
+
+$$g(t) = (k + \mathbf{a}(t)^T \boldsymbol{\delta}) \cdot t + (m + \mathbf{a}(t)^T \boldsymbol{\gamma})$$
+
+where:
+- $k$ is the base growth rate
+- $\boldsymbol{\delta}$ is a vector of rate adjustments at changepoints
+- $\mathbf{a}(t)$ is an indicator function for changepoints before time $t$
+- $m$ is the offset parameter
+
+**Seasonality Component:** Seasonality is modeled using Fourier series [13]:
+
+$$s(t) = \sum_{n=1}^{N} \left( a_n \cos\left(\frac{2\pi nt}{P}\right) + b_n \sin\left(\frac{2\pi nt}{P}\right) \right)$$
+
+where $P$ is the period (e.g., 7 for weekly seasonality) and $N$ determines the smoothness.
+
+#### 2.7.2 Process Mining Application
+
+In process mining contexts, Prophet provides three key insights not available from Mann-Kendall:
+
+**1. Weekly Seasonality Detection**
+
+Healthcare and business processes often exhibit strong weekly patterns. For example:
+- Fewer case arrivals on weekends
+- Higher activity on Mondays (backlog from weekend)
+- Mid-week peaks for certain activities
+
+We quantify the **weekend effect** as:
+
+$$\text{Weekend Effect} = \frac{\bar{s}_{\text{weekend}} - \bar{s}_{\text{weekday}}}{\bar{s}_{\text{weekday}}} \times 100\%$$
+
+where $\bar{s}_{\text{weekend}}$ and $\bar{s}_{\text{weekday}}$ are the mean seasonal components for weekend and weekday periods.
+
+**2. Changepoint Detection**
+
+Process changes (new policies, system updates, organizational restructuring) often cause sudden shifts in case arrival patterns. Prophet automatically detects these changepoints using a sparse prior on the rate change vector $\boldsymbol{\delta}$ [11]:
+
+$$\delta_j \sim \text{Laplace}(0, \tau)$$
+
+where $\tau$ controls the flexibility of the model. We filter to **significant changepoints** where:
+
+$$|\delta_j| > \sigma_\delta$$
+
+where $\sigma_\delta$ is the standard deviation of all changepoint magnitudes.
+
+**3. Multiplicative Seasonality**
+
+For count data (case arrivals), we use multiplicative seasonality mode:
+
+$$y(t) = g(t) \cdot (1 + s(t)) + \epsilon_t$$
+
+This is more appropriate than additive seasonality because a 20% weekend reduction should scale with the overall volume—if weekdays have 100 cases, weekends have 80; if weekdays have 1000, weekends have 800.
+
+#### 2.7.3 Algorithm Integration
+
+```
+Algorithm 3: Prophet-Enhanced Trend Detection
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Input:  Daily case arrival counts (minimum 14 days)
+Output: Seasonality insights, changepoints
+
+Step 1: Data preparation
+  df_prophet ← DataFrame with columns 'ds' (date), 'y' (count)
+
+Step 2: Model configuration
+  model ← Prophet(
+    yearly_seasonality = False,      # Usually insufficient data
+    weekly_seasonality = True,       # Primary interest
+    daily_seasonality = False,       # Too granular
+    seasonality_mode = 'multiplicative',
+    changepoint_prior_scale = 0.05   # Default sensitivity
+  )
+
+Step 3: Fit and predict
+  model.fit(df_prophet)
+  forecast ← model.predict(df_prophet)
+
+Step 4: Extract insights
+  weekly_effect ← forecast['weekly']
+  weekend_effect ← calculate_weekend_effect(model)
+  changepoints ← filter_significant_changepoints(model)
+
+Step 5: Return insights
+  return {
+    'weekend_effect': weekend_effect,      # e.g., -72%
+    'changepoints': changepoints,          # e.g., ['2024-04-15']
+    'has_weekly_pattern': range(weekly_effect) > 0.1
+  }
+```
+
+#### 2.7.4 Architectural Decisions for Prophet Integration
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| **Optional dependency** | Prophet via try/except | Heavy dependency (~100MB). System works without it. |
+| **Primary vs. enhancement** | Mann-Kendall primary | Mann-Kendall is simpler, more interpretable, scientifically established. Prophet adds optional depth. |
+| **Minimum data requirement** | 14 days | Prophet needs sufficient data for weekly pattern detection. Less than 2 weeks is unreliable. |
+| **Seasonality mode** | Multiplicative | Better for count data where effects scale with volume. |
+| **Yearly seasonality** | Disabled | Most process logs don't span full years. Enabling would overfit. |
+| **Changepoint sensitivity** | 0.05 (default) | Balanced between detecting real changes and avoiding false positives. |
+| **Significant changepoint filter** | \|δ\| > σ_δ | Only report changepoints with meaningful trend changes. |
+| **Weekend effect threshold** | ≥10% | Only report if practically significant. Small effects are noise. |
+
+#### 2.7.5 Interpretation Guidelines
+
+| Insight | Example | Interpretation |
+|---------|---------|----------------|
+| Weekend effect: -72% | Hospital ER | 72% fewer cases on weekends—expected for elective procedures, concerning for emergency care |
+| Changepoint: 2024-04-15 | Process log | Investigate: new policy? system change? external event? |
+| Weekly pattern detected | Business process | Strong weekday/weekend distinction—consider separate SLAs |
+| No weekly pattern | 24/7 operation | Process operates continuously without weekly cycles |
+
 ---
 
 ## 3. References
@@ -314,6 +443,16 @@ Classification Decision Tree:
 [9] Augusto, A., et al. (2019). Automated Discovery of Process Models from Event Logs: Review and Benchmark. **IEEE Transactions on Knowledge and Data Engineering**, 31(4), 686-705. (Process mining benchmarks)
 
 [10] Suriadi, S., Andrews, R., ter Hofstede, A.H.M., & Wynn, M.T. (2017). Event log imperfection patterns for process mining: Towards a systematic approach to cleaning event logs. **Information Systems**, 64, 132-150. (Data quality in process mining)
+
+[11] Taylor, S.J. & Letham, B. (2018). Forecasting at Scale. **The American Statistician**, 72(1), 37-45. (Prophet algorithm and implementation)
+
+[12] Harvey, A.C. & Peters, S. (1990). Estimation procedures for structural time series models. **Journal of Forecasting**, 9(2), 89-108. (Structural time series models foundation)
+
+[13] Bloomfield, P. (2000). **Fourier Analysis of Time Series: An Introduction** (2nd ed.). Wiley. (Fourier series for seasonality modeling)
+
+[14] Adams, R.P. & MacKay, D.J.C. (2007). Bayesian Online Changepoint Detection. **arXiv preprint arXiv:0710.3742**. (Changepoint detection theory)
+
+[15] Aminikhanghahi, S. & Cook, D.J. (2017). A Survey of Methods for Time Series Change Point Detection. **Knowledge and Information Systems**, 51(2), 339-367. (Comprehensive changepoint detection survey)
 
 ---
 
@@ -341,17 +480,29 @@ class GapPattern(Pattern):
 ### A.2 Trend Pattern Class Structure
 
 ```python
+# Optional Prophet availability check
+try:
+    from prophet import Prophet
+    PROPHET_AVAILABLE = True
+except ImportError:
+    PROPHET_AVAILABLE = False
+
 class CaseArrivalTrendPattern(Pattern):
     """
     Attributes:
         aggregation_period: str = 'W'    # Pandas frequency string
         min_periods: int = 5             # Minimum periods for analysis
         significance_level: float = 0.05 # Alpha for Mann-Kendall
-        trend_result: Optional[Dict]     # Detection results
+        use_prophet: bool = True         # Enable Prophet if available
+        trend_result: Optional[Dict]     # Mann-Kendall results
+        prophet_insights: Optional[Dict] # Prophet results (if available)
 
     Key Methods:
         detect(df) → bool                # Returns True if trend detected
         get_summary() → Dict             # Summary with direction, slope, p-value
+        _mann_kendall_test(data) → Dict  # Primary trend detection
+        _prophet_analysis(counts) → Dict # Optional: seasonality & changepoints
+        _calculate_weekend_effect(model) → float  # Weekend vs weekday difference
     """
 
 class TrendPattern(Pattern):
@@ -368,7 +519,37 @@ class TrendPattern(Pattern):
     """
 ```
 
-### A.3 View Configuration Compatibility
+### A.3 Prophet Integration Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    CaseArrivalTrendPattern                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────────────┐    ┌─────────────────────────────┐   │
+│  │   Mann-Kendall Test  │    │   Prophet Analysis          │   │
+│  │   (Primary - Always) │    │   (Optional Enhancement)    │   │
+│  ├──────────────────────┤    ├─────────────────────────────┤   │
+│  │ • Trend direction    │    │ • Weekly seasonality        │   │
+│  │ • p-value            │    │ • Weekend effect (%)        │   │
+│  │ • Sen's slope        │    │ • Changepoint dates         │   │
+│  │ • Slope percentage   │    │ • Pattern strength          │   │
+│  └──────────┬───────────┘    └──────────────┬──────────────┘   │
+│             │                                │                   │
+│             └────────────┬───────────────────┘                   │
+│                          │                                       │
+│                          ▼                                       │
+│             ┌────────────────────────┐                          │
+│             │     get_summary()      │                          │
+│             │  Combined Results      │                          │
+│             └────────────────────────┘                          │
+│                                                                  │
+│  Fallback: If Prophet unavailable or fails,                     │
+│            returns Mann-Kendall results only                     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### A.4 View Configuration Compatibility
 
 Both patterns require time-based X-axis columns. The following configurations are supported:
 
@@ -411,6 +592,13 @@ Both patterns are tested on the Hospital_log.xes dataset to ensure:
 
 ---
 
-*Document Version: 1.0*
+*Document Version: 1.1*
 *Last Updated: January 2026*
 *Authors: Visual Pattern Detection Team*
+
+### Changelog
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0 | 2026-01-08 | Initial version with Gap Detection and Mann-Kendall Trend Analysis |
+| 1.1 | 2026-01-08 | Added Prophet integration for seasonality and changepoint detection |
