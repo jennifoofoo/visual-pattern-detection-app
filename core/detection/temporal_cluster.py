@@ -26,7 +26,7 @@ class TemporalClusterPattern(Pattern):
     def __init__(self, df: pd.DataFrame, x_axis: str, y_axis: str,
                  color: str = 'case_id',
                  min_cluster_size: int = 5,
-                 temporal_eps: float = None,
+                 temporal_eps: float = 1.0,
                  spatial_eps: float = None):
         """
         Initialize temporal cluster detector.
@@ -47,6 +47,7 @@ class TemporalClusterPattern(Pattern):
         self.df = df
         self.x_axis = x_axis
         self.y_axis = y_axis
+        self.color = color
         # Dynamic min_cluster_size: sqrt-based but capped at reasonable values
         self.min_cluster_size = min(20, max(5, int(np.sqrt(len(df)) / 3)))
         self.temporal_eps = temporal_eps
@@ -78,6 +79,14 @@ class TemporalClusterPattern(Pattern):
         # Use provided df or fall back to self.df
         if df is not None:
             self.df = df
+
+        # Validate DataFrame is not empty
+        if self.df is None or len(self.df) == 0:
+            return False
+
+        # Check if temporal_cluster_x is meaningful for this view
+        if not is_pattern_meaningful(self.x_axis, self.y_axis, self.color, 'temporal_cluster_x'):
+            return False
 
         detected_patterns = []
 
@@ -142,7 +151,7 @@ class TemporalClusterPattern(Pattern):
                 # Max 2 hours        # Perform DBSCAN clustering on time dimension
                 self.temporal_eps = min(std_based, range_based, 7200)
         X = df_work[['time_numeric']].values
-        clustering = DBSCAN(eps=self.temporal_eps,
+        clustering = DBSCAN(eps=float(self.temporal_eps),
                             min_samples=self.min_cluster_size)
         df_work['time_cluster'] = clustering.fit_predict(X)
 
@@ -219,7 +228,7 @@ class TemporalClusterPattern(Pattern):
                 continue
 
             X = activity_df[['time_numeric']].values
-            clustering = DBSCAN(eps=self.temporal_eps, min_samples=max(
+            clustering = DBSCAN(eps=float(self.temporal_eps), min_samples=max(
                 3, self.min_cluster_size // 2))
             labels = clustering.fit_predict(X)
 
@@ -341,7 +350,7 @@ class TemporalClusterPattern(Pattern):
             df_work['time_numeric'] = df_work[self.x_axis]
 
         X = df_work[['time_numeric']].values
-        clustering = DBSCAN(eps=self.temporal_eps,
+        clustering = DBSCAN(eps=float(self.temporal_eps),
                             min_samples=self.min_cluster_size)
         cluster_labels = clustering.fit_predict(X)
         df_work['cluster_label'] = cluster_labels

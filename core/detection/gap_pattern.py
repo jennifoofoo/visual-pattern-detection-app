@@ -19,7 +19,7 @@ from typing import Dict, Any, List, Optional
 class GapPattern(Pattern):
     """
     Process-aware gap detector using transition-specific normality.
-    
+
     Detects abnormal gaps by:
     1. Extracting gaps within cases between consecutive events
     2. Learning normal gap duration per transition (A → B)
@@ -27,21 +27,21 @@ class GapPattern(Pattern):
     4. Identifying gaps that exceed transition-specific thresholds
     5. Computing gap severity (duration / threshold)
     6. Pre-computing visual Y-positions for stable rendering
-    
+
     Works on raw coordinates with case-aware, activity-aware semantics.
     """
-    
+
     MIN_SAMPLES_FOR_NORMALITY = 5  # Minimum samples needed for statistical threshold
-    
+
     def __init__(
-        self, 
+        self,
         view_config: Dict[str, str],
         y_is_categorical: bool = False,
         **kwargs
     ):
         """
         Initialize process-aware gap detector.
-        
+
         Parameters
         ----------
         view_config : dict
@@ -55,18 +55,18 @@ class GapPattern(Pattern):
         self.transition_stats = None
         self.y_categories = None
         self.y_to_index = None
-    
+
     def _is_time_like(self, x_series: pd.Series, x_col: str) -> bool:
         """
         Check if X-axis is time-like (required for gap detection).
-        
+
         Parameters
         ----------
         x_series : pd.Series
             X-axis data series
         x_col : str
             Column name for X-axis
-            
+
         Returns
         -------
         bool
@@ -75,14 +75,14 @@ class GapPattern(Pattern):
         # Check if datetime dtype
         if pd.api.types.is_datetime64_any_dtype(x_series):
             return True
-        
+
         # Check column name
         time_like_names = [
             "actual_time", "relative_time", "relative_ratio",
             "logical_time", "logical_relative"
         ]
         return x_col in time_like_names
-    
+
     def _extract_transition_gaps(
         self,
         df: pd.DataFrame,
@@ -91,7 +91,7 @@ class GapPattern(Pattern):
     ) -> List[Dict[str, Any]]:
         """
         Extract gaps within cases between consecutive events.
-        
+
         Parameters
         ----------
         df : pd.DataFrame
@@ -100,7 +100,7 @@ class GapPattern(Pattern):
             X-axis column name (time-like)
         y_col : str
             Y-axis column name
-            
+
         Returns
         -------
         list of dict
@@ -108,55 +108,57 @@ class GapPattern(Pattern):
         """
         if 'case_id' not in df.columns:
             return []
-        
+
         if 'activity' not in df.columns:
             return []
-        
+
         # Sort by case and time
         df_sorted = df.sort_values(['case_id', x_col]).copy()
-        
+
         # Check if X is datetime
         x_is_datetime = pd.api.types.is_datetime64_any_dtype(df_sorted[x_col])
-        
+
         gaps = []
-        
+
         # Group by case
         for case_id, case_df in df_sorted.groupby('case_id'):
             case_df = case_df.reset_index(drop=True)
-            
+
             if len(case_df) < 2:
                 continue
-            
+
             # Extract consecutive event pairs
             for i in range(len(case_df) - 1):
                 event_a = case_df.iloc[i]
                 event_b = case_df.iloc[i + 1]
-                
+
                 activity_a = event_a['activity']
                 activity_b = event_b['activity']
-                
+
                 x_start = event_a[x_col]
                 x_end = event_b[x_col]
-                
+
                 y_value_a = event_a[y_col]
                 y_value_b = event_b[y_col]
-                
+
                 # Calculate duration
                 if x_is_datetime:
                     # Ensure timestamps
                     if not isinstance(x_start, pd.Timestamp):
-                        x_start = pd.Timestamp(int(x_start) if isinstance(x_start, (int, float)) else x_start)
+                        x_start = pd.Timestamp(int(x_start) if isinstance(
+                            x_start, (int, float)) else x_start)
                     if not isinstance(x_end, pd.Timestamp):
-                        x_end = pd.Timestamp(int(x_end) if isinstance(x_end, (int, float)) else x_end)
-                    
+                        x_end = pd.Timestamp(int(x_end) if isinstance(
+                            x_end, (int, float)) else x_end)
+
                     duration = (x_end - x_start).total_seconds()
                 else:
                     duration = float(x_end - x_start)
-                
+
                 # Skip negative or zero durations (data quality issue)
                 if duration <= 0:
                     continue
-                
+
                 gaps.append({
                     'case_id': case_id,
                     'activity_from': activity_a,
@@ -168,23 +170,23 @@ class GapPattern(Pattern):
                     'y_value_to': y_value_b,
                     'duration': duration
                 })
-        
+
         return gaps
-    
+
     def _compute_normality_per_transition(
         self,
         gaps: List[Dict[str, Any]]
     ) -> Dict[str, Dict[str, float]]:
         """
         Compute statistical normality thresholds per transition.
-        
+
         Only computes thresholds for transitions with >= MIN_SAMPLES_FOR_NORMALITY.
-        
+
         Parameters
         ----------
         gaps : list of dict
             List of gaps with transition information
-            
+
         Returns
         -------
         dict
@@ -208,27 +210,27 @@ class GapPattern(Pattern):
             if transition not in transition_durations:
                 transition_durations[transition] = []
             transition_durations[transition].append(gap['duration'])
-        
+
         # Compute statistics per transition
         transition_stats = {}
-        
+
         for transition, durations in transition_durations.items():
             durations_array = np.array(durations)
             count = len(durations)
-            
+
             # Skip transitions with insufficient samples
             if count < self.MIN_SAMPLES_FOR_NORMALITY:
                 continue
-            
+
             median = np.median(durations_array)
             q1 = np.percentile(durations_array, 25)
             q3 = np.percentile(durations_array, 75)
             iqr = q3 - q1
             p95 = np.percentile(durations_array, 95)
-            
+
             # Compute threshold: max(P95, Q3 + 1.5*IQR)
             threshold = max(p95, q3 + 1.5 * iqr)
-            
+
             transition_stats[transition] = {
                 'count': count,
                 'median': median,
@@ -238,9 +240,9 @@ class GapPattern(Pattern):
                 'p95': p95,
                 'threshold': threshold
             }
-        
+
         return transition_stats
-    
+
     def _compute_y_position(
         self,
         gap: Dict[str, Any],
@@ -249,13 +251,13 @@ class GapPattern(Pattern):
     ) -> tuple:
         """
         Compute visual Y-position for gap visualization.
-        
+
         For categorical Y: Always shows gap at the FROM-resource row.
         This is semantically correct because the gap represents waiting time
         at/after the FROM activity, regardless of where the TO activity happens.
-        
+
         For numeric Y: Uses the full Y-range of the plot.
-        
+
         Parameters
         ----------
         gap : dict
@@ -264,7 +266,7 @@ class GapPattern(Pattern):
             Event log dataframe
         y_col : str
             Y-axis column name
-            
+
         Returns
         -------
         tuple
@@ -274,7 +276,7 @@ class GapPattern(Pattern):
             # Use precomputed category index mapping
             # ALWAYS show gap at the FROM-resource (where the waiting happens)
             y_value_from = gap['y_value_from']
-            
+
             if y_value_from in self.y_to_index:
                 idx = self.y_to_index[y_value_from]
                 y_low = idx - 0.4
@@ -288,10 +290,15 @@ class GapPattern(Pattern):
             # For now, use df range as placeholder
             y_low = df[y_col].min()
             y_high = df[y_col].max()
-        
+
         return y_low, y_high
-    
+
     def detect(self, df: pd.DataFrame) -> None:
+        """Detect process-aware gaps in the event log."""
+        # Validate DataFrame is not empty
+        if df is None or len(df) == 0:
+            raise ValueError("Cannot detect gaps: DataFrame is empty")
+
         """
         Detect abnormal gaps using process-aware transition analysis.
         
@@ -303,60 +310,62 @@ class GapPattern(Pattern):
         if df.empty:
             self.detected = None
             return
-        
+
         try:
             x_col = self.view_config['x']
             y_col = self.view_config['y']
-            
+
             if x_col not in df.columns or y_col not in df.columns:
                 self.detected = None
                 return
-            
+
             # Check if X is time-like (required for gap detection)
             if not self._is_time_like(df[x_col], x_col):
                 self.detected = None
                 return
-            
+
             # Store Y categories if categorical
             if self.y_is_categorical:
                 self.y_categories = list(pd.unique(df[y_col]))
-                self.y_to_index = {cat: idx for idx, cat in enumerate(self.y_categories)}
-            
+                self.y_to_index = {cat: idx for idx,
+                                   cat in enumerate(self.y_categories)}
+
             # Extract transition gaps
             all_gaps = self._extract_transition_gaps(df, x_col, y_col)
-            
+
             if not all_gaps:
                 self.detected = None
                 return
-            
+
             # Compute normality per transition
-            self.transition_stats = self._compute_normality_per_transition(all_gaps)
-            
+            self.transition_stats = self._compute_normality_per_transition(
+                all_gaps)
+
             if not self.transition_stats:
                 # No transitions with sufficient samples
                 self.detected = None
                 return
-            
+
             # Identify abnormal gaps
             abnormal_gaps = []
-            
+
             for gap in all_gaps:
                 transition = gap['transition']
-                
+
                 # Skip transitions without computed thresholds
                 if transition not in self.transition_stats:
                     continue
-                
+
                 duration = gap['duration']
                 threshold = self.transition_stats[transition]['threshold']
-                
+
                 if duration > threshold:
                     # Compute severity
                     severity = duration / threshold
-                    
+
                     # Compute Y position for visualization
                     y_low, y_high = self._compute_y_position(gap, df, y_col)
-                    
+
                     # Build complete abnormal gap structure
                     abnormal_gap = {
                         'case_id': gap['case_id'],
@@ -373,19 +382,20 @@ class GapPattern(Pattern):
                         'y_value_from': gap['y_value_from'],
                         'y_value_to': gap['y_value_to']
                     }
-                    
+
                     abnormal_gaps.append(abnormal_gap)
-            
+
             if not abnormal_gaps:
                 self.detected = None
                 return
-            
+
             # Build result summary
             total_gaps = len(all_gaps)
             total_abnormal = len(abnormal_gaps)
             total_transitions = len(self.transition_stats)
-            transitions_with_anomalies = len(set(g['transition'] for g in abnormal_gaps))
-            
+            transitions_with_anomalies = len(
+                set(g['transition'] for g in abnormal_gaps))
+
             self.detected = {
                 'total_gaps': total_gaps,
                 'total_abnormal_gaps': total_abnormal,
@@ -394,11 +404,11 @@ class GapPattern(Pattern):
                 'abnormal_gaps': abnormal_gaps,
                 'transition_stats': self.transition_stats
             }
-            
+
         except Exception as e:
             self.detected = None
             raise
-    
+
     def visualize(self, df: pd.DataFrame, fig: go.Figure) -> go.Figure:
         """
         Overlay abnormal gaps on a Plotly figure using connecting lines.
@@ -412,7 +422,7 @@ class GapPattern(Pattern):
             Event log dataframe
         fig : go.Figure
             Plotly figure to annotate
-            
+
         Returns
         -------
         go.Figure
@@ -420,7 +430,7 @@ class GapPattern(Pattern):
         """
         if self.detected is None or not self.detected.get('abnormal_gaps'):
             return fig
-        
+
         abnormal_gaps = self.detected['abnormal_gaps']
         
         # Filter by selected transitions if set
@@ -490,11 +500,11 @@ class GapPattern(Pattern):
         ))
         
         return fig
-    
+
     def get_gap_summary(self) -> Dict[str, Any]:
         """
         Get summary of detected abnormal gaps.
-        
+
         Returns
         -------
         dict
@@ -512,12 +522,14 @@ class GapPattern(Pattern):
                 'gaps': [],  # Alias for backward compatibility
                 'transition_stats': {}
             }
-        
+
         # Calculate total and average duration for UI display
         abnormal_gaps = self.detected['abnormal_gaps']
-        total_duration = sum(gap['duration'] for gap in abnormal_gaps) if abnormal_gaps else 0
-        avg_duration = total_duration / len(abnormal_gaps) if abnormal_gaps else 0
-        
+        total_duration = sum(gap['duration']
+                             for gap in abnormal_gaps) if abnormal_gaps else 0
+        avg_duration = total_duration / \
+            len(abnormal_gaps) if abnormal_gaps else 0
+
         return {
             'total_gaps': self.detected['total_gaps'],
             'total_abnormal_gaps': self.detected['total_abnormal_gaps'],
@@ -529,18 +541,18 @@ class GapPattern(Pattern):
             'gaps': abnormal_gaps,  # Alias for backward compatibility with UI
             'transition_stats': self.detected['transition_stats']
         }
-    
+
     def get_summary(self) -> Dict[str, Any]:
         """
         Get standardized pattern summary.
-        
+
         Returns
         -------
         Dict[str, Any]
             Standardized summary with pattern_type, detected, count, and details
         """
         gap_summary = self.get_gap_summary()
-        
+
         return {
             'pattern_type': 'gap',
             'detected': self.detected is not None and gap_summary['total_abnormal_gaps'] > 0,
