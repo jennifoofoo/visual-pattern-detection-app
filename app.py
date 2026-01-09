@@ -130,6 +130,16 @@ def main():
 
         st.divider()
 
+        with st.expander("Time Filter", expanded=st.session_state.get("chart_plotted", False)):
+            app_handler.sidebar_time_filter()
+
+        st.divider()
+
+        with st.expander("Selection", expanded=st.session_state.get("chart_plotted", False)):
+            app_handler.sidebar_focus_controls()
+
+        st.divider()
+
         with st.expander("Pattern Layers", expanded=st.session_state.ui_step == "layers"):
             if st.session_state.get("chart_plotted", False):
                 app_handler.sidebar_pattern_layer_controls()
