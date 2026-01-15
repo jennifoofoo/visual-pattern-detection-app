@@ -62,10 +62,12 @@ class ChartConfig:
 class HorizontalSequencePatternDetector(Pattern):
     def __init__(
         self,
-        min_support = 50,
+        min_support = 50
     ):
         chart_config = ChartConfig() # make sure data is available in session state
         self.df_by_configuration = chart_config.df
+
+        self.topk = None
 
         # find sequences on x-axis (horizontal) and use y axis for grouping
         self.sequence_detection_axis = chart_config.x_axis_df_key
@@ -285,6 +287,10 @@ class HorizontalSequencePatternDetector(Pattern):
         return {
             'total_patterns_found': len(source_df['pattern_instance_id'].unique()),
             'max_pattern_length': source_df['pattern'].apply(len).max(),
+            'min_pattern_length': source_df['pattern'].apply(len).min(),
+            'avg_pattern_length': source_df['pattern'].apply(len).mean(),
+            'top_k_sequences': self.topk,
+            'min_support': self.min_support,
             'details': {
                 'pattern_stats': pattern_stats
             }
@@ -322,6 +328,8 @@ class HorizontalSequencePatternDetector(Pattern):
         pd.DataFrame
             DataFrame containing only the top k sequences by support_count
         """
+        self.topk = k
+        
         if self.df_found_patterns.empty:
             self.topkresults = pd.DataFrame()
             return self.topkresults
@@ -439,11 +447,9 @@ class HorizontalSequencePatternDetector(Pattern):
             return None
 
         # Get selected patterns from session state
-        # Distinguish between None (not set yet) and [] (explicitly empty)
+        # Both None (not set yet) and [] (explicitly empty) mean show nothing
         selected_sequences = st.session_state.get('selected_seq_patterns')
-        
-        # If explicitly set to empty list, user deselected all - show nothing
-        if selected_sequences is not None and len(selected_sequences) == 0:
+        if not selected_sequences:
             return None
         
         # Start with full results, filter to pattern rows only
@@ -456,10 +462,6 @@ class HorizontalSequencePatternDetector(Pattern):
             lambda p: " -> ".join(map(str, p)) if isinstance(p, list) else None
         )
 
-        # If selected_sequences is None (not set yet), show all patterns
-        if selected_sequences is None:
-            return df
-
         # Filter to user-selected patterns
         filtered = df[df['pattern_str'].isin(selected_sequences)]
 
@@ -468,6 +470,9 @@ class HorizontalSequencePatternDetector(Pattern):
     def _build_color_map(self, pattern_templates: List[str]) -> Dict[str, str]:
         """
         Build a color mapping for pattern templates.
+
+        Uses a hash of the pattern string to ensure stable colors regardless
+        of which patterns are currently selected.
 
         Parameters
         ----------
@@ -484,8 +489,8 @@ class HorizontalSequencePatternDetector(Pattern):
             '#19D3F3', '#FF6692', '#B6E880', '#FF97FF', '#FECB52'
         ]
         return {
-            template: colors[i % len(colors)]
-            for i, template in enumerate(pattern_templates)
+            template: colors[hash(template) % len(colors)]
+            for template in pattern_templates
         }
 
     def _add_sequence_trace(

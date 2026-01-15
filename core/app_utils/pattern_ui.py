@@ -74,7 +74,12 @@ def list_to_multicheckbox(item_list: list, title: str, key_prefix: str) -> list:
     return selected_items
 
 
-def dict_to_multicheckbox(data_dict: dict, title: str, key_prefix: str) -> list:
+def dict_to_multicheckbox(
+    data_dict: dict, 
+    title: str, 
+    key_prefix: str, 
+    default_checked: bool = True
+    ) -> list:
     """Render multi-checkbox UI for a dictionary."""
     if not data_dict:
         return []
@@ -104,7 +109,7 @@ def dict_to_multicheckbox(data_dict: dict, title: str, key_prefix: str) -> list:
         for key, value in data_dict.items():
             state_key = f"dict_checkbox_{key_prefix}_{key}"
             if state_key not in st.session_state:
-                st.session_state[state_key] = True
+                st.session_state[state_key] = default_checked
             if st.checkbox(key, key=state_key):
                 selected_items.append(value)
 
@@ -427,7 +432,7 @@ def _display_sequence_tab():
             seq_dict = {f"{p} ({s['count']} cases)": p for p,
                         s in pattern_stats.items()}
             selected = dict_to_multicheckbox(
-                seq_dict, "Select Sequences", "seq_pattern")
+                seq_dict, "Select Sequences", "seq_pattern", default_checked=False)
             st.session_state['selected_seq_patterns'] = selected
 
 
