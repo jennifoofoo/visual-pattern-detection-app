@@ -316,7 +316,11 @@ def display_chart():
     if st.session_state.get('visible_cluster', True):
         if st.session_state.get('cluster_detected', False) and 'cluster_detector' in st.session_state:
             fig = st.session_state.cluster_detector.visualize(df_for_patterns, fig)
-
+   
+    if st.session_state.get('visible_sequence', True):
+        if st.session_state.get('sequence_detected', False) and 'sequence_detector' in st.session_state:
+            fig = st.session_state.sequence_detector.visualize(df_for_patterns, fig)
+    
     # Display chart
     selection = st.plotly_chart(fig, use_container_width=True, on_select="rerun", key="main_chart")
     st.session_state['fig'] = fig

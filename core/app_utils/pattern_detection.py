@@ -92,8 +92,7 @@ def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df
             _detect_gaps(x_col, y_col, df_selected)
         if x_col == 'actual_time':
             _detect_case_arrival_trend(x_col, df_selected)
-        # Sequence detection: run if y_col != color_col (otherwise sequences are trivial)
-        if y_col != color_col:
+        if is_pattern_meaningful(x_col, y_col, color_col, 'sequence'):
             _detect_sequences()
 
 
@@ -166,12 +165,21 @@ def _detect_case_arrival_trend(x_col, df_selected):
     except Exception as e:
         st.warning(f"Case arrival trend detection skipped: {str(e)}")
 
+def _detect_sequences(top_k: int = 5):
+    """
+    Detect horizontal sequences using PrefixSpan and filter to top k.
 
-def _detect_sequences():
-    """Detect horizontal sequences using PrefixSpan."""
+    Parameters
+    ----------
+    top_k : int
+        Number of top patterns by support_count to keep (default: 10).
+    """
     try:
         sequence_detector = HorizontalSequencePatternDetector(min_support=50)
         if sequence_detector.detect():
+            # Apply top k filtering immediately
+            sequence_detector.get_top_k_sequences(top_k)
+            
             summary = sequence_detector.get_summary()
             # Only mark as detected if actual patterns were found
             if summary.get('count', 0) > 0:
