@@ -16,6 +16,7 @@ from typing import Dict, Any, Optional, List, Tuple
 
 EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] = {
 
+    #region AcTi x Res
     # ========================================================================
     # ACTUAL_TIME × RESOURCE × CASE_ID
     # ========================================================================
@@ -155,6 +156,9 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         }
     },
 
+    #endregion
+
+    #region AcTi x Activ
     # ========================================================================
     # ACTUAL_TIME × ACTIVITY × CASE_ID
     # ========================================================================
@@ -293,6 +297,9 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         }
     },
 
+    #endregion
+
+    #region AcTi x Case ID
     # ========================================================================
     # ACTUAL_TIME × CASE_ID × CASE_ID (Same dimension on Y and Color)
     # ========================================================================
@@ -431,11 +438,257 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "List of detected sequences with frequency counts."
         }
     },
+    #endregion
+    
+    #region RelTi x Res
+    # ========================================================================
+    # RELATIVE_TIME × RESOURCE × CASE_ID
+    # ========================================================================
+    ("relative_time", "resource", "case_id"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {}, 
+        "cluster": {},
+        "sequence": {}
+    },
 
     # ========================================================================
-    # NON-MEANINGFUL COMBINATIONS (Examples)
+    # RELATIVE_TIME × RESOURCE × ACTIVITY
     # ========================================================================
+    ("relative_time", "resource", "activity"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
 
+    # ========================================================================
+    # RELATIVE_TIME × RESOURCE × RESOURCE (Same dimension on Y and Color)
+    # ========================================================================
+    ("relative_time", "resource", "resource"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+    #endregion
+
+    #region RelTi x Activ
+    # ========================================================================
+    # RELATIVE_TIME × ACTIVITY × CASE_ID
+    # ========================================================================
+    ("relative_time", "activity", "case_id"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {}, 
+        "cluster": {},
+        "sequence": {}
+    },
+
+    # ========================================================================
+    # RELATIVE_TIME × ACTIVITY × ACTIVITY (Same dimension on Y and Color)
+    # ========================================================================
+    ("relative_time", "activity", "activity"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+
+    # ========================================================================
+    # RELATIVE_TIME × ACTIVITY × RESOURCE 
+    # ========================================================================
+    ("relative_time", "activity", "resource"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+    #endregion
+
+    #region RelTi x CaseId
+    # ========================================================================
+    # RELATIVE_TIME × CASE_ID × CASE_ID (Same dimension on Y and Color)
+    # ========================================================================
+    ("relative_time", "case_id", "case_id"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {}, 
+        "cluster": {},
+        "sequence": {}
+    },
+
+    # ========================================================================
+    # RELATIVE_TIME × CASE_ID × ACTIVITY
+    # ========================================================================
+    ("relative_time", "case_id", "activity"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+
+    # ========================================================================
+    # RELATIVE_TIME × CASE_ID × RESOURCE 
+    # ========================================================================
+    ("relative_time", "case_id", "resource"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+    #endregion
+
+    #region RelRatio x Res
+    # ========================================================================
+    # RELATIVE_RATIO × RESOURCE × CASE_ID
+    # ========================================================================
+    ("relative_ratio", "resource", "case_id"): {
+        "gap": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Red rectangles showing normalized gaps in resource activity. Case coloring helps compare normalized delays across different cases.",
+            "interpretation": "Detects abnormal waiting times between activities, normalized by case duration. Shows which resources have delays relative to total case time. Color-coded by case.",
+            "use_case": "Comparing delays across cases of different lengths, identifying resource bottlenecks independent of case duration",
+            "output": "Abnormal gaps with normalized time ratios, colored by case"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio is not a time measurement.",
+            "use_case": "Use temporal axis for temporal analysis",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Current implementation detects outliers based on actual_time, not relative_ratio. Results don't match visualization.",
+            "use_case": "Use actual_time or relative_time views for meaningful outlier detection",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": True,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: case_id as color does not provide useful clustering information.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of cases processed by each resource over relative time. Colors show different sequences. Sequences elements can be spaced closer due to relative time.",
+            "interpretation": "Detects sequences of cases processed by resources over relative time. A resource often works in a specific order on cases.",
+            "use_case": "Finding cases that are frequently processed after each other by the same resource.",
+            "output": "List of detected sequences with frequency counts."
+        }
+    },
+
+    # ========================================================================
+    # RELATIVE_RATIO × RESOURCE × ACTIVITY
+    # ========================================================================
+    ("relative_ratio", "resource", "activity"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+
+    # ========================================================================
+    # RELATIVE_RATIO × RESOURCE × RESOURCE (Same dimension on Y and Color)
+    # ========================================================================
+    ("relative_ratio", "resource", "resource"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+    #endregion
+
+    #region RelRatio x Activ
+    # ========================================================================
+    # RELATIVE_RATIO × ACTIVITY × CASE_ID
+    # ========================================================================
+    ("relative_ratio", "activity", "case_id"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {}, 
+        "cluster": {},
+        "sequence": {}
+    },
+
+    # ========================================================================
+    # RELATIVE_RATIO × ACTIVITY × ACTIVITY (Same dimension on Y and Color)
+    # ========================================================================
+    ("relative_ratio", "activity", "activity"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+
+    # ========================================================================
+    # RELATIVE_RATIO × ACTIVITY × RESOURCE 
+    # ========================================================================
+    ("relative_ratio", "activity", "resource"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+    #endregion
+
+    #region RelRatio x CaseId
+    # ========================================================================
+    # RELATIVE_RATIO × CASE_ID × CASE_ID (Same dimension on Y and Color)
+    # ========================================================================
+    ("relative_ratio", "case_id", "case_id"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {}, 
+        "cluster": {},
+        "sequence": {}
+    },
+
+    # ========================================================================
+    # RELATIVE_RATIO × CASE_ID × ACTIVITY
+    # ========================================================================
+    ("relative_ratio", "case_id", "activity"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+
+    # ========================================================================
+    # RELATIVE_RATIO × CASE_ID × RESOURCE 
+    # ========================================================================
+    ("relative_ratio", "case_id", "resource"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+    #endregion
+
+    #region LogiTi x Res
+    # ========================================================================
+    # LOGICAL_TIME × RESOURCE × CASE_ID
+    # ========================================================================
     ("logical_time", "resource", "case_id"): {
         "gap": {
             "can_be_found": False,
@@ -479,48 +732,203 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         }
     },
 
-    ("relative_ratio", "resource", "case_id"): {
-        "gap": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "Red rectangles showing normalized gaps in resource activity. Case coloring helps compare normalized delays across different cases.",
-            "interpretation": "Detects abnormal waiting times between activities, normalized by case duration. Shows which resources have delays relative to total case time. Color-coded by case.",
-            "use_case": "Comparing delays across cases of different lengths, identifying resource bottlenecks independent of case duration",
-            "output": "Abnormal gaps with normalized time ratios, colored by case"
-        },
-        "temporal_cluster_x": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: relative_ratio is not a time measurement.",
-            "use_case": "Use temporal axis for temporal analysis",
-            "output": "N/A"
-        },
-        "outlier": {
-            "can_be_found": True,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Current implementation detects outliers based on actual_time, not relative_ratio. Results don't match visualization.",
-            "use_case": "Use actual_time or relative_time views for meaningful outlier detection",
-            "output": "N/A"
-        },
-        "cluster": {
-            "can_be_found": True,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: case_id as color does not provide useful clustering information.",
-            "use_case": "Not recommended.",
-            "output": "N/A"
-        },
-        "sequence": {
-            "can_be_found": True,
-            "makes_sense": True,
-            "visual": "Colored horizontal lines showing sequences of cases processed by each resource over relative time. Colors show different sequences. Sequences elements can be spaced closer due to relative time.",
-            "interpretation": "Detects sequences of cases processed by resources over relative time. A resource often works in a specific order on cases.",
-            "use_case": "Finding cases that are frequently processed after each other by the same resource.",
-            "output": "List of detected sequences with frequency counts."
-        }
+    # ========================================================================
+    # LOGICAL_TIME × RESOURCE × ACTIVITY
+    # ========================================================================
+    ("logical_time", "resource", "activity"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
     },
+
+    # ========================================================================
+    # LOGICAL_TIME × RESOURCE × RESOURCE (Same dimension on Y and Color)
+    # ========================================================================
+    ("logical_time", "resource", "resource"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+    #endregion
+
+    #region LogiTi x Activ
+    # ========================================================================
+    # LOGICAL_TIME × ACTIVITY × CASE_ID
+    # ========================================================================
+    ("logical_time", "activity", "case_id"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {}, 
+        "cluster": {},
+        "sequence": {}
+    },
+
+    # ========================================================================
+    # LOGICAL_TIME × ACTIVITY × ACTIVITY (Same dimension on Y and Color)
+    # ========================================================================
+    ("logical_time", "activity", "activity"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+
+    # ========================================================================
+    # LOGICAL_TIME × ACTIVITY × RESOURCE 
+    # ========================================================================
+    ("logical_time", "activity", "resource"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+    #endregion
+
+    #region LogiTi x CaseId
+    # ========================================================================
+    # LOGICAL_TIME × CASE_ID × CASE_ID (Same dimension on Y and Color)
+    # ========================================================================
+    ("logical_time", "case_id", "case_id"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {}, 
+        "cluster": {},
+        "sequence": {}
+    },
+
+    # ========================================================================
+    # LOGICAL_TIME × CASE_ID × ACTIVITY
+    # ========================================================================
+    ("logical_time", "case_id", "activity"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+
+    # ========================================================================
+    # LOGICAL_TIME × CASE_ID × RESOURCE 
+    # ========================================================================
+    ("logical_time", "case_id", "resource"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+    #endregion
+
+    #region LogiRel x Res
+    # ========================================================================
+    # LOGICAL_RELATIVE × RESOURCE × CASE_ID
+    # ========================================================================
+    ("logical_relative", "resource", "case_id"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {}, 
+        "cluster": {},
+        "sequence": {}
+    },
+
+    # ========================================================================
+    # LOGICAL_RELATIVE × RESOURCE × ACTIVITY
+    # ========================================================================
+    ("logical_relative", "resource", "activity"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+
+    # ========================================================================
+    # LOGICAL_RELATIVE × RESOURCE × RESOURCE (Same dimension on Y and Color)
+    # ========================================================================
+    ("logical_relative", "resource", "resource"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+    #endregion
+
+    #region LogiRel x Activ
+    # ========================================================================
+    # LOGICAL_RELATIVE × ACTIVITY × CASE_ID
+    # ========================================================================
+    ("logical_relative", "activity", "case_id"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {}, 
+        "cluster": {},
+        "sequence": {}
+    },
+
+    # ========================================================================
+    # LOGICAL_RELATIVE × ACTIVITY × ACTIVITY (Same dimension on Y and Color)
+    # ========================================================================
+    ("logical_relative", "activity", "activity"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+
+    # ========================================================================
+    # LOGICAL_RELATIVE × ACTIVITY × RESOURCE 
+    # ========================================================================
+    ("logical_relative", "activity", "resource"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+    #endregion
+
+    #region LogiRel x CaseId
+    # ========================================================================
+    # LOGICAL_RELATIVE × CASE_ID × CASE_ID (Same dimension on Y and Color)
+    # ========================================================================
+    ("logical_relative", "case_id", "case_id"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {}, 
+        "cluster": {},
+        "sequence": {}
+    },
+
+    # ========================================================================
+    # LOGICAL_RELATIVE × CASE_ID × ACTIVITY
+    # ========================================================================
+    ("logical_relative", "case_id", "activity"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+
+    # ========================================================================
+    # LOGICAL_RELATIVE × CASE_ID × RESOURCE 
+    # ========================================================================
+    ("logical_relative", "case_id", "resource"): {
+        "gap": {},
+        "temporal_cluster_x": {},
+        "outlier": {},
+        "cluster": {},
+        "sequence": {}
+    },
+    #endregion
 }
 
 
