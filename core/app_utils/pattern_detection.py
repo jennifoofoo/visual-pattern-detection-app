@@ -34,6 +34,7 @@ def _reset_pattern_detection_state():
     st.session_state.case_arrival_trend_detected = False
     st.session_state.cluster_detected = False
     st.session_state.sequence_detected = False
+    st.session_state.pattern_focus_mode = False
     if 'gap_detector' in st.session_state:
         del st.session_state['gap_detector']
     if 'cluster_detector' in st.session_state:

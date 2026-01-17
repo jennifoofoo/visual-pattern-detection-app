@@ -41,6 +41,7 @@ class GapPattern(Pattern):
         self.transition_stats = None
         self.y_categories = None
         self.y_to_index = None
+        self.gap_point_indices = {}  # For focus mode
 
     def _is_time_like(self, x_series: pd.Series, x_col: str) -> bool:
         """Check if X-axis is time-like (required for gap detection)."""
@@ -79,6 +80,8 @@ class GapPattern(Pattern):
         for group_id, group_df in df_sorted.groupby(group_col):
             if len(group_df) < 2:
                 continue
+            # Preserve original indices before reset
+            original_indices = group_df.index.tolist()
             group_df = group_df.reset_index(drop=True)
 
             for i in range(len(group_df) - 1):
@@ -93,6 +96,8 @@ class GapPattern(Pattern):
                     'duration': duration,
                     'y_value_from': event_a[y_col],
                     'y_value_to': event_b[y_col],
+                    'start_idx': original_indices[i],
+                    'end_idx': original_indices[i + 1],
                 }
 
                 if is_transition_mode:
@@ -203,6 +208,15 @@ class GapPattern(Pattern):
                     abnormal_gap = {**gap, 'threshold': threshold, 'severity': gap['duration'] / threshold,
                                     'y_low': y_low, 'y_high': y_high, 'group_key': group}
                     abnormal_gaps.append(abnormal_gap)
+
+            # Store point indices for focus mode
+            self.gap_point_indices = {}
+            for gap in abnormal_gaps:
+                key = gap.get('transition') or gap.get('resource')
+                if key not in self.gap_point_indices:
+                    self.gap_point_indices[key] = set()
+                self.gap_point_indices[key].add(gap['start_idx'])
+                self.gap_point_indices[key].add(gap['end_idx'])
 
             if not abnormal_gaps:
                 self.detected = None

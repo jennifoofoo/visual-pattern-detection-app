@@ -55,6 +55,7 @@ class TemporalClusterPattern(Pattern):
 
         self.clusters = {}
         self.cluster_metadata = {}
+        self.cluster_point_indices = {}  # For focus mode
 
     def _has_column(self, *column_names: str):
         """Check if any of the column names exist (case-insensitive)."""
@@ -153,7 +154,15 @@ class TemporalClusterPattern(Pattern):
         X = df_work[['time_numeric']].values
         clustering = DBSCAN(eps=float(self.temporal_eps),
                             min_samples=self.min_cluster_size)
-        df_work['time_cluster'] = clustering.fit_predict(X)
+        cluster_labels = clustering.fit_predict(X)
+        df_work['time_cluster'] = cluster_labels
+
+        # Store point indices per cluster for focus mode
+        self.cluster_point_indices = {}
+        for cluster_id in set(cluster_labels):
+            if cluster_id >= 0:
+                mask = cluster_labels == cluster_id
+                self.cluster_point_indices[cluster_id] = df_work.index[mask].tolist()
 
         # Filter out noise (-1 label)
         bursts = df_work[df_work['time_cluster'] >= 0].groupby('time_cluster').agg({

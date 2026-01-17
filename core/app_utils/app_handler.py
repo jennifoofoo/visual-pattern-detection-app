@@ -84,6 +84,10 @@ def init_state():
     if 'time_filter_range' not in st.session_state:
         st.session_state.time_filter_range = None
 
+    # Pattern Focus Mode
+    if 'pattern_focus_mode' not in st.session_state:
+        st.session_state.pattern_focus_mode = False
+
 
 # =============================================================================
 # === Data Loading ===
@@ -262,6 +266,9 @@ def display_chart():
     # Keep original df for pattern visualization (preserves original indices)
     df_for_patterns = df_display.copy()
 
+    # Create mapping from original indices to new indices before reset
+    original_to_new_idx = {orig: new for new, orig in enumerate(df_display.index)}
+
     df_display = df_display.reset_index(drop=True)
     df_display['_point_id'] = df_display.index
 
@@ -280,6 +287,17 @@ def display_chart():
     else:
         title = f"Dotted Chart: {y_axis} vs {x_axis} ({total_points:,} points)"
 
+    # Determine focus mode indices (pattern focus mode)
+    focus_indices = None
+    if st.session_state.get('pattern_focus_mode'):
+        from core.utils.pattern_indices import get_all_pattern_indices
+        original_focus_indices = get_all_pattern_indices(st.session_state)
+        if original_focus_indices:
+            # Map original indices to reset indices
+            focus_indices = {original_to_new_idx[idx] for idx in original_focus_indices if idx in original_to_new_idx}
+            if focus_indices:
+                title += " [PATTERN FOCUS]"
+
     # Create chart
     fig = plot_chart(
         df=df_display,
@@ -289,7 +307,8 @@ def display_chart():
         title=title,
         labels={x_col: x_axis, y_col: y_axis, dots_config_col: dots_config_label},
         hover_data=['activity', 'actual_time'],
-        custom_data=['_point_id']
+        custom_data=['_point_id'],
+        focus_mode_indices=focus_indices
     )
     fig.update_traces(marker=dict(size=5, opacity=0.8))
     fig.update_layout(
@@ -524,6 +543,12 @@ def _get_pattern_not_detected_reason(pattern_key: str, x_col: str, y_col: str, c
 
     # Pattern is meaningful but wasn't found
     return "No patterns found in data"
+
+
+def sidebar_focus_mode_toggle():
+    st.checkbox("Pattern Focus Mode", key="pattern_focus_mode",
+                disabled=not _is_any_pattern_detected(),
+                help="Gray out non-pattern points")
 
 
 def sidebar_pattern_layer_controls():

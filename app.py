@@ -157,6 +157,8 @@ def main():
 
         with st.expander("Pattern Layers", expanded=st.session_state.ui_step == "layers"):
             if st.session_state.get("chart_plotted", False):
+                app_handler.sidebar_focus_mode_toggle()
+                st.markdown("---")
                 app_handler.sidebar_pattern_layer_controls()
             else:
                 st.caption("Plot a chart first")

@@ -1,6 +1,6 @@
 import plotly.express as px
 import plotly.graph_objects as go
-from typing import Optional, List
+from typing import Optional, List, Set
 
 
 def plot_dotted_chart(
@@ -11,32 +11,29 @@ def plot_dotted_chart(
     title: str,
     labels: dict,
     hover_data: Optional[List[str]] = None,
-    custom_data: Optional[List[str]] = None
+    custom_data: Optional[List[str]] = None,
+    focus_mode_indices: Optional[Set[int]] = None
 ) -> go.Figure:
-    """
-    Create a dotted chart for event log visualization.
+    """Create a dotted chart. If focus_mode_indices provided, non-pattern points are grayed out."""
+    if focus_mode_indices is None:
+        return px.scatter(df, x=x, y=y, color=color, title=title, labels=labels,
+                          hover_data=hover_data, custom_data=custom_data)
 
-    Args:
-        df: DataFrame with event data
-        x: Column name for x-axis
-        y: Column name for y-axis
-        color: Column name for color encoding
-        title: Chart title
-        labels: Dictionary mapping column names to display labels
-        hover_data: List of columns to include in hover tooltip
-        custom_data: List of columns to include as custom data (for selection)
+    # Focus mode: per-point coloring
+    colors_palette = px.colors.qualitative.Plotly
+    unique_vals = df[color].unique()
+    val_to_color = {v: colors_palette[i % len(colors_palette)] for i, v in enumerate(unique_vals)}
+    gray = 'rgba(150,150,150,0.3)'
 
-    Returns:
-        Plotly Figure object
-    """
-    fig = px.scatter(
-        df,
-        x=x,
-        y=y,
-        color=color,
-        title=title,
-        labels=labels,
-        hover_data=hover_data,
-        custom_data=custom_data
-    )
+    point_colors = [val_to_color[df.loc[idx, color]] if idx in focus_mode_indices else gray
+                    for idx in df.index]
+
+    fig = go.Figure(go.Scatter(
+        x=df[x], y=df[y], mode='markers',
+        marker=dict(color=point_colors, size=5, opacity=0.8),
+        customdata=df[custom_data].values if custom_data else None,
+        hovertemplate=(f"<b>{labels.get(y, y)}:</b> %{{y}}<br>"
+                       f"<b>{labels.get(x, x)}:</b> %{{x}}<extra></extra>")
+    ))
+    fig.update_layout(title=title, xaxis_title=labels.get(x, x), yaxis_title=labels.get(y, y))
     return fig
