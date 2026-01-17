@@ -13,22 +13,27 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Literal
 
 
 class GapPattern(Pattern):
     """
-    Process-aware gap detector using transition-specific normality.
+    Gap detector supporting two distinct modes:
 
-    Detects abnormal gaps by:
-    1. Extracting gaps within cases between consecutive events
-    2. Learning normal gap duration per transition (A → B)
-    3. Computing statistical thresholds (Q3 + 1.5*IQR, P95)
-    4. Identifying gaps that exceed transition-specific thresholds
-    5. Computing gap severity (duration / threshold)
-    6. Pre-computing visual Y-positions for stable rendering
+    1. TRANSITION mode (default): Process-aware gaps within cases
+       - Extracts gaps between consecutive events within a case
+       - Learns normal duration per transition (Activity A → Activity B)
+       - Detects abnormal delays in process flow
 
-    Works on raw coordinates with case-aware, activity-aware semantics.
+    2. RESOURCE_INACTIVITY mode: Resource-timeline gaps
+       - Extracts gaps between consecutive events per resource
+       - Learns normal activity frequency per resource
+       - Detects periods of unusual resource inactivity
+       - NOT a process-flow gap - purely resource availability analysis
+
+    Both modes use the same statistical approach:
+    - Threshold: max(P95, Q3 + 1.5*IQR)
+    - Severity: duration / threshold
     """
 
     MIN_SAMPLES_FOR_NORMALITY = 15  # Minimum samples for stable threshold estimation
@@ -38,10 +43,11 @@ class GapPattern(Pattern):
         self,
         view_config: Dict[str, str],
         y_is_categorical: bool = False,
+        gap_mode: Literal["transition", "resource_inactivity"] = "transition",
         **kwargs
     ):
         """
-        Initialize process-aware gap detector.
+        Initialize gap detector.
 
         Parameters
         ----------
@@ -49,11 +55,20 @@ class GapPattern(Pattern):
             Configuration with "x" and "y" keys for chart dimensions
         y_is_categorical : bool, default False
             Whether Y-axis is categorical
+        gap_mode : str, default "transition"
+            Detection mode:
+            - "transition": Case-internal gaps between activities (process flow)
+            - "resource_inactivity": Resource-timeline gaps (not process flow)
         """
-        super().__init__("Process-Aware Gap Detection", view_config)
+        mode_names = {
+            "transition": "Transition Gap Detection",
+            "resource_inactivity": "Resource Inactivity Detection"
+        }
+        super().__init__(mode_names.get(gap_mode, "Gap Detection"), view_config)
         self.y_is_categorical = y_is_categorical
+        self.gap_mode = gap_mode
         self.detected = None
-        self.transition_stats = None
+        self.transition_stats = None  # Used for both modes (keyed by transition or resource)
         self.y_categories = None
         self.y_to_index = None
 
@@ -174,26 +189,119 @@ class GapPattern(Pattern):
 
         return gaps
 
-    def _compute_normality_per_transition(
+    def _extract_resource_gaps(
         self,
-        gaps: List[Dict[str, Any]]
+        df: pd.DataFrame,
+        x_col: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Extract gaps within resource timelines (NOT process-flow gaps).
+
+        Groups events by resource and finds periods of inactivity.
+        This is fundamentally different from transition gaps:
+        - Transition gaps: delays within a case's process flow
+        - Resource gaps: periods when a resource has no events
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Event log dataframe with 'resource' column
+        x_col : str
+            X-axis column name (time-like)
+
+        Returns
+        -------
+        list of dict
+            List of resource inactivity gaps
+        """
+        if 'resource' not in df.columns:
+            return []
+
+        # Sort by resource and time
+        df_sorted = df.sort_values(['resource', x_col]).copy()
+
+        # Check if X is datetime
+        x_is_datetime = pd.api.types.is_datetime64_any_dtype(df_sorted[x_col])
+
+        gaps = []
+
+        # Group by resource (NOT by case)
+        for resource, resource_df in df_sorted.groupby('resource'):
+            resource_df = resource_df.reset_index(drop=True)
+
+            if len(resource_df) < 2:
+                continue
+
+            # Extract consecutive event pairs within this resource's timeline
+            for i in range(len(resource_df) - 1):
+                event_a = resource_df.iloc[i]
+                event_b = resource_df.iloc[i + 1]
+
+                x_start = event_a[x_col]
+                x_end = event_b[x_col]
+
+                # Calculate duration
+                if x_is_datetime:
+                    if not isinstance(x_start, pd.Timestamp):
+                        x_start = pd.Timestamp(int(x_start) if isinstance(
+                            x_start, (int, float)) else x_start)
+                    if not isinstance(x_end, pd.Timestamp):
+                        x_end = pd.Timestamp(int(x_end) if isinstance(
+                            x_end, (int, float)) else x_end)
+                    duration = (x_end - x_start).total_seconds()
+                else:
+                    duration = float(x_end - x_start)
+
+                # Skip negative or zero durations
+                if duration <= 0:
+                    continue
+
+                # Get case_ids for context (events may be from different cases)
+                case_from = event_a.get('case_id', 'N/A')
+                case_to = event_b.get('case_id', 'N/A')
+
+                gaps.append({
+                    'resource': resource,
+                    'group_key': resource,  # Uniform key for normality computation
+                    'x_start': x_start,
+                    'x_end': x_end,
+                    'y_value_from': resource,
+                    'y_value_to': resource,
+                    'duration': duration,
+                    'case_from': case_from,
+                    'case_to': case_to,
+                    # No transition info - this is NOT a process-flow gap
+                })
+
+        return gaps
+
+    def _compute_normality_per_group(
+        self,
+        gaps: List[Dict[str, Any]],
+        group_key: str = 'transition'
     ) -> Dict[str, Dict[str, float]]:
         """
-        Compute statistical normality thresholds per transition.
+        Compute statistical normality thresholds per group.
 
-        Only computes thresholds for transitions with >= MIN_SAMPLES_FOR_NORMALITY.
+        Works for both modes:
+        - Transition mode: groups by 'transition' (Activity A → Activity B)
+        - Resource inactivity mode: groups by 'resource'
+
+        Only computes thresholds for groups with >= MIN_SAMPLES_FOR_NORMALITY.
 
         Parameters
         ----------
         gaps : list of dict
-            List of gaps with transition information
+            List of gaps with group information
+        group_key : str
+            Key to group by ('transition' or 'resource')
 
         Returns
         -------
         dict
-            Mapping from transition to statistics:
+            Mapping from group to statistics:
             {
-                'transition_name': {
+                'group_name': {
                     'count': int,
                     'median': float,
                     'q1': float,
@@ -204,22 +312,22 @@ class GapPattern(Pattern):
                 }
             }
         """
-        # Group gaps by transition
-        transition_durations = {}
+        # Group gaps by the specified key
+        group_durations = {}
         for gap in gaps:
-            transition = gap['transition']
-            if transition not in transition_durations:
-                transition_durations[transition] = []
-            transition_durations[transition].append(gap['duration'])
+            group = gap.get(group_key, gap.get('group_key', 'unknown'))
+            if group not in group_durations:
+                group_durations[group] = []
+            group_durations[group].append(gap['duration'])
 
-        # Compute statistics per transition
-        transition_stats = {}
+        # Compute statistics per group
+        group_stats = {}
 
-        for transition, durations in transition_durations.items():
+        for group, durations in group_durations.items():
             durations_array = np.array(durations)
             count = len(durations)
 
-            # Skip transitions with insufficient samples
+            # Skip groups with insufficient samples
             if count < self.MIN_SAMPLES_FOR_NORMALITY:
                 continue
 
@@ -232,7 +340,7 @@ class GapPattern(Pattern):
             # Compute threshold: max(P95, Q3 + 1.5*IQR)
             threshold = max(p95, q3 + 1.5 * iqr)
 
-            transition_stats[transition] = {
+            group_stats[group] = {
                 'count': count,
                 'median': median,
                 'q1': q1,
@@ -242,7 +350,7 @@ class GapPattern(Pattern):
                 'threshold': threshold
             }
 
-        return transition_stats
+        return group_stats
 
     def _compute_y_position(
         self,
@@ -295,19 +403,22 @@ class GapPattern(Pattern):
         return y_low, y_high
 
     def detect(self, df: pd.DataFrame) -> None:
-        """Detect process-aware gaps in the event log."""
+        """
+        Detect abnormal gaps based on the configured mode.
+
+        Modes:
+        - transition: Case-internal gaps between activities (process flow)
+        - resource_inactivity: Resource-timeline gaps (NOT process flow)
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Event log dataframe
+        """
         # Validate DataFrame is not empty
         if df is None or len(df) == 0:
             raise ValueError("Cannot detect gaps: DataFrame is empty")
 
-        """
-        Detect abnormal gaps using process-aware transition analysis.
-        
-        Parameters
-        ----------
-        df : pd.DataFrame
-            Event log dataframe with case_id and activity columns
-        """
         if df.empty:
             self.detected = None
             return
@@ -331,19 +442,29 @@ class GapPattern(Pattern):
                 self.y_to_index = {cat: idx for idx,
                                    cat in enumerate(self.y_categories)}
 
-            # Extract transition gaps
-            all_gaps = self._extract_transition_gaps(df, x_col, y_col)
+            # Extract gaps based on mode
+            if self.gap_mode == "resource_inactivity":
+                # Resource inactivity mode: requires 'resource' column
+                if 'resource' not in df.columns:
+                    self.detected = None
+                    return
+                all_gaps = self._extract_resource_gaps(df, x_col)
+                group_key = 'resource'
+            else:
+                # Transition mode (default): requires case_id and activity
+                all_gaps = self._extract_transition_gaps(df, x_col, y_col)
+                group_key = 'transition'
 
             if not all_gaps:
                 self.detected = None
                 return
 
-            # Compute normality per transition
-            self.transition_stats = self._compute_normality_per_transition(
-                all_gaps)
+            # Compute normality per group (transition or resource)
+            self.transition_stats = self._compute_normality_per_group(
+                all_gaps, group_key)
 
             if not self.transition_stats:
-                # No transitions with sufficient samples
+                # No groups with sufficient samples
                 self.detected = None
                 return
 
@@ -351,14 +472,14 @@ class GapPattern(Pattern):
             abnormal_gaps = []
 
             for gap in all_gaps:
-                transition = gap['transition']
+                group = gap.get(group_key, gap.get('group_key', 'unknown'))
 
-                # Skip transitions without computed thresholds
-                if transition not in self.transition_stats:
+                # Skip groups without computed thresholds
+                if group not in self.transition_stats:
                     continue
 
                 duration = gap['duration']
-                threshold = self.transition_stats[transition]['threshold']
+                threshold = self.transition_stats[group]['threshold']
 
                 if duration > threshold:
                     # Compute severity
@@ -367,22 +488,40 @@ class GapPattern(Pattern):
                     # Compute Y position for visualization
                     y_low, y_high = self._compute_y_position(gap, df, y_col)
 
-                    # Build complete abnormal gap structure
-                    abnormal_gap = {
-                        'case_id': gap['case_id'],
-                        'transition': transition,
-                        'activity_from': gap['activity_from'],
-                        'activity_to': gap['activity_to'],
-                        'x_start': gap['x_start'],
-                        'x_end': gap['x_end'],
-                        'duration': duration,
-                        'threshold': threshold,
-                        'severity': severity,
-                        'y_low': y_low,
-                        'y_high': y_high,
-                        'y_value_from': gap['y_value_from'],
-                        'y_value_to': gap['y_value_to']
-                    }
+                    # Build abnormal gap structure (mode-specific fields)
+                    if self.gap_mode == "resource_inactivity":
+                        abnormal_gap = {
+                            'resource': gap['resource'],
+                            'group_key': group,
+                            'x_start': gap['x_start'],
+                            'x_end': gap['x_end'],
+                            'duration': duration,
+                            'threshold': threshold,
+                            'severity': severity,
+                            'y_low': y_low,
+                            'y_high': y_high,
+                            'y_value_from': gap['y_value_from'],
+                            'y_value_to': gap['y_value_to'],
+                            'case_from': gap.get('case_from', 'N/A'),
+                            'case_to': gap.get('case_to', 'N/A'),
+                        }
+                    else:
+                        abnormal_gap = {
+                            'case_id': gap['case_id'],
+                            'transition': gap['transition'],
+                            'group_key': group,
+                            'activity_from': gap['activity_from'],
+                            'activity_to': gap['activity_to'],
+                            'x_start': gap['x_start'],
+                            'x_end': gap['x_end'],
+                            'duration': duration,
+                            'threshold': threshold,
+                            'severity': severity,
+                            'y_low': y_low,
+                            'y_high': y_high,
+                            'y_value_from': gap['y_value_from'],
+                            'y_value_to': gap['y_value_to']
+                        }
 
                     abnormal_gaps.append(abnormal_gap)
 
@@ -390,20 +529,27 @@ class GapPattern(Pattern):
                 self.detected = None
                 return
 
-            # Build result summary
+            # Build result summary (mode-specific labels)
             total_gaps = len(all_gaps)
             total_abnormal = len(abnormal_gaps)
-            total_transitions = len(self.transition_stats)
-            transitions_with_anomalies = len(
-                set(g['transition'] for g in abnormal_gaps))
+            total_groups = len(self.transition_stats)
+            groups_with_anomalies = len(
+                set(g['group_key'] for g in abnormal_gaps))
 
             self.detected = {
+                'gap_mode': self.gap_mode,
                 'total_gaps': total_gaps,
                 'total_abnormal_gaps': total_abnormal,
-                'total_transitions': total_transitions,
-                'transitions_with_anomalies': transitions_with_anomalies,
+                'total_groups': total_groups,
+                'groups_with_anomalies': groups_with_anomalies,
+                # Mode-specific aliases for backward compatibility
+                'total_transitions': total_groups if self.gap_mode == 'transition' else 0,
+                'transitions_with_anomalies': groups_with_anomalies if self.gap_mode == 'transition' else 0,
+                'total_resources': total_groups if self.gap_mode == 'resource_inactivity' else 0,
+                'resources_with_anomalies': groups_with_anomalies if self.gap_mode == 'resource_inactivity' else 0,
                 'abnormal_gaps': abnormal_gaps,
-                'transition_stats': self.transition_stats
+                'transition_stats': self.transition_stats,  # Kept for backward compat
+                'group_stats': self.transition_stats  # New generic name
             }
 
         except Exception as e:
@@ -447,16 +593,23 @@ class GapPattern(Pattern):
         - Line width scales with severity
         - Top-N filtering to avoid clutter
         - Grouped by severity category for legend control
+        - Mode-aware: different hover text for transition vs resource_inactivity
         """
         if self.detected is None or not self.detected.get('abnormal_gaps'):
             return fig
 
         abnormal_gaps = self.detected['abnormal_gaps']
+        gap_mode = self.detected.get('gap_mode', 'transition')
 
-        # Filter by selected transitions if set
-        selected_transitions = st.session_state.get('selected_gap_transitions')
-        if selected_transitions is not None:
-            abnormal_gaps = [g for g in abnormal_gaps if g['transition'] in selected_transitions]
+        # Filter by selected items based on mode
+        if gap_mode == 'resource_inactivity':
+            selected_resources = st.session_state.get('selected_gap_resources')
+            if selected_resources is not None:
+                abnormal_gaps = [g for g in abnormal_gaps if g['resource'] in selected_resources]
+        else:
+            selected_transitions = st.session_state.get('selected_gap_transitions')
+            if selected_transitions is not None:
+                abnormal_gaps = [g for g in abnormal_gaps if g.get('transition') in selected_transitions]
 
         if not abnormal_gaps:
             return fig
@@ -505,11 +658,22 @@ class GapPattern(Pattern):
 
                 dur_str = self._format_duration(gap['duration'])
                 thresh_str = self._format_duration(gap['threshold'])
-                hover = (f"<b>{gap['transition']}</b><br>"
-                        f"Duration: {dur_str} (threshold: {thresh_str})<br>"
-                        f"Severity: {gap['severity']:.1f}x<br>"
-                        f"Case: {gap['case_id']}")
+
+                # Mode-specific hover text
+                if gap_mode == 'resource_inactivity':
+                    hover = (f"<b>Resource: {gap['resource']}</b><br>"
+                            f"Inactivity: {dur_str} (threshold: {thresh_str})<br>"
+                            f"Severity: {gap['severity']:.1f}x<br>"
+                            f"<i>Not a process-flow gap</i>")
+                else:
+                    hover = (f"<b>{gap.get('transition', 'N/A')}</b><br>"
+                            f"Duration: {dur_str} (threshold: {thresh_str})<br>"
+                            f"Severity: {gap['severity']:.1f}x<br>"
+                            f"Case: {gap.get('case_id', 'N/A')}")
                 hover_texts.extend([hover, hover, None])
+
+            # Mode-specific legend group
+            legend_group = 'resource_gaps' if gap_mode == 'resource_inactivity' else 'transition_gaps'
 
             fig.add_trace(go.Scatter(
                 x=x_coords,
@@ -530,7 +694,7 @@ class GapPattern(Pattern):
                 hovertext=hover_texts,
                 name=f'{group_name} ({len(gaps)})',
                 showlegend=True,
-                legendgroup='gaps'
+                legendgroup=legend_group
             ))
 
         return fig
@@ -539,22 +703,31 @@ class GapPattern(Pattern):
         """
         Get summary of detected abnormal gaps.
 
+        Returns mode-specific labels for UI display.
+
         Returns
         -------
         dict
-            Summary dictionary with gap statistics and transition info
+            Summary dictionary with gap statistics and mode-specific info
         """
         if self.detected is None:
             return {
+                'gap_mode': self.gap_mode,
                 'total_gaps': 0,
                 'total_abnormal_gaps': 0,
+                'total_groups': 0,
+                'groups_with_anomalies': 0,
+                # Backward compat
                 'total_transitions': 0,
                 'transitions_with_anomalies': 0,
+                'total_resources': 0,
+                'resources_with_anomalies': 0,
                 'total_magnitude': 0,
                 'average_magnitude': 0,
                 'abnormal_gaps': [],
-                'gaps': [],  # Alias for backward compatibility
-                'transition_stats': {}
+                'gaps': [],
+                'transition_stats': {},
+                'group_stats': {}
             }
 
         # Calculate total and average duration for UI display
@@ -564,16 +737,25 @@ class GapPattern(Pattern):
         avg_duration = total_duration / \
             len(abnormal_gaps) if abnormal_gaps else 0
 
+        gap_mode = self.detected.get('gap_mode', 'transition')
+
         return {
+            'gap_mode': gap_mode,
             'total_gaps': self.detected['total_gaps'],
             'total_abnormal_gaps': self.detected['total_abnormal_gaps'],
-            'total_transitions': self.detected['total_transitions'],
-            'transitions_with_anomalies': self.detected['transitions_with_anomalies'],
-            'total_magnitude': total_duration,  # Total duration of abnormal gaps
-            'average_magnitude': avg_duration,  # Average duration of abnormal gaps
+            'total_groups': self.detected.get('total_groups', 0),
+            'groups_with_anomalies': self.detected.get('groups_with_anomalies', 0),
+            # Mode-specific aliases
+            'total_transitions': self.detected.get('total_transitions', 0),
+            'transitions_with_anomalies': self.detected.get('transitions_with_anomalies', 0),
+            'total_resources': self.detected.get('total_resources', 0),
+            'resources_with_anomalies': self.detected.get('resources_with_anomalies', 0),
+            'total_magnitude': total_duration,
+            'average_magnitude': avg_duration,
             'abnormal_gaps': abnormal_gaps,
-            'gaps': abnormal_gaps,  # Alias for backward compatibility with UI
-            'transition_stats': self.detected['transition_stats']
+            'gaps': abnormal_gaps,  # Backward compatibility
+            'transition_stats': self.detected.get('transition_stats', {}),
+            'group_stats': self.detected.get('group_stats', {})
         }
 
     def get_summary(self) -> Dict[str, Any]:

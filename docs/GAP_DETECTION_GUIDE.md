@@ -2,16 +2,23 @@
 
 ## 📋 Overview
 
-Gap Detection identifies **abnormally long waiting times** between process activities using **transition-specific normality learning**. Unlike traditional gap detection that uses fixed thresholds, this implementation learns what's "normal" for each specific activity transition (A → B) and flags deviations.
+Gap Detection identifies **abnormally long gaps** in event logs using **statistical normality learning**. The system supports **two distinct modes** that serve different analytical purposes:
+
+| Mode | What It Detects | Process-Flow Gap? |
+|------|-----------------|-------------------|
+| **Transition** (default) | Delays between activities within a case | **Yes** |
+| **Resource Inactivity** | Periods when resources have no events | **No** |
 
 ---
 
-## 🎯 What It Detects
+## 🎯 Two Detection Modes
 
-**Process-Aware Gaps:**
+### Mode 1: Transition Gaps (Default)
+
+**Process-aware gap detection within cases:**
 - Unusually long delays between consecutive activities **within a case**
 - Transition-specific: What's normal for "A → B" may be abnormal for "C → D"
-- Case-aware: Only analyzes gaps within case boundaries (respects process structure)
+- Case-aware: Only analyzes gaps within case boundaries
 
 **Example:**
 ```
@@ -19,6 +26,28 @@ Normal: "Order → Payment" usually takes 2 days (learned from 100 cases)
 Abnormal: One case has "Order → Payment" taking 14 days
 → Detected as abnormal gap with severity 7.0x
 ```
+
+### Mode 2: Resource Inactivity (NEW)
+
+**Resource availability analysis across cases:**
+- Periods when a resource has **no events**
+- NOT a process-flow gap - purely resource timeline analysis
+- Cross-case: Events before/after the gap may belong to different cases
+
+**Example:**
+```
+Normal: Resource "Nurse_A" has an event every ~4 hours
+Abnormal: Resource "Nurse_A" has no events for 5 days
+→ Detected as resource inactivity with severity 3.2x
+```
+
+**Important:** Resource inactivity does NOT represent process delays. It indicates when a resource was unavailable, offline, or idle.
+
+**Use Cases for Resource Inactivity:**
+- Vacation/illness detection
+- Equipment downtime
+- Shift pattern analysis
+- Capacity planning
 
 ---
 
@@ -76,8 +105,19 @@ view_config = {
     'y': 'resource'        # Categorical or numeric
 }
 
-detector = GapPattern(view_config, y_is_categorical=True)
+# Transition mode (default)
+detector = GapPattern(view_config, y_is_categorical=True, gap_mode='transition')
+
+# Resource inactivity mode
+detector = GapPattern(view_config, y_is_categorical=True, gap_mode='resource_inactivity')
 ```
+
+### Gap Mode Selection
+
+| Mode | Grouping | Required Columns | When to Use |
+|------|----------|------------------|-------------|
+| `transition` | Per Case | `case_id`, `activity` | Finding process delays |
+| `resource_inactivity` | Per Resource | `resource` | Finding resource unavailability |
 
 ### Supported X-Axis (Time-like)
 - `actual_time` ✅ (timestamps)
@@ -92,17 +132,20 @@ detector = GapPattern(view_config, y_is_categorical=True)
 - **Numeric:** Any numeric column
   - Gaps drawn spanning full Y-range
 
+**Note:** Resource inactivity mode is only meaningful when Y-axis = `resource`.
+
 ### Parameters
 
 ```python
 GapPattern(
     view_config: Dict[str, str],
     y_is_categorical: bool = False,
+    gap_mode: str = 'transition',  # 'transition' or 'resource_inactivity'
     **kwargs
 )
 
-# Set minimum samples per transition (default: 5)
-detector.MIN_SAMPLES_FOR_NORMALITY = 5
+# Set minimum samples per group (default: 15)
+detector.MIN_SAMPLES_FOR_NORMALITY = 15
 ```
 
 ---
@@ -316,24 +359,31 @@ summary = {
     'detected': True,
     'count': 15,  # Number of abnormal gaps
     'details': {
+        'gap_mode': 'transition',  # or 'resource_inactivity'
         'total_gaps': 450,  # All gaps (including normal)
         'total_abnormal_gaps': 15,
-        'total_transitions': 29,  # Unique transitions analyzed
-        'transitions_with_anomalies': 8,  # Transitions with abnormal gaps
+        'total_groups': 29,  # Groups analyzed (transitions or resources)
+        'groups_with_anomalies': 8,  # Groups with abnormal gaps
+        # Mode-specific aliases:
+        'total_transitions': 29,  # (transition mode only)
+        'transitions_with_anomalies': 8,  # (transition mode only)
+        'total_resources': 0,  # (resource_inactivity mode only)
+        'resources_with_anomalies': 0,  # (resource_inactivity mode only)
         'total_magnitude': 1065600.0,  # Total duration (seconds)
         'average_magnitude': 71040.0,  # Average duration (seconds)
         'abnormal_gaps': [...],  # List of gap dicts
-        'transition_stats': {...}  # Per-transition statistics
+        'group_stats': {...}  # Per-group statistics
     }
 }
 ```
 
-### Gap Object
+### Gap Object (Transition Mode)
 
 ```python
 gap = {
     'case_id': '00000088',
     'transition': 'Order → Payment',
+    'group_key': 'Order → Payment',
     'activity_from': 'Order',
     'activity_to': 'Payment',
     'duration': 1036800.0,  # seconds
@@ -343,6 +393,25 @@ gap = {
     'x_end': Timestamp('2005-04-13 01:00:00'),
     'y_value_from': 'Resource A',
     'y_value_to': 'Resource A'
+}
+```
+
+### Gap Object (Resource Inactivity Mode)
+
+```python
+gap = {
+    'resource': 'Nurse_A',
+    'group_key': 'Nurse_A',
+    'case_from': '00000088',  # Case of event before gap
+    'case_to': '00000091',    # Case of event after gap (may differ!)
+    'duration': 432000.0,  # seconds (5 days)
+    'threshold': 86400.0,  # seconds (1 day)
+    'severity': 5.0,  # duration / threshold
+    'x_start': Timestamp('2005-04-01 18:00:00'),
+    'x_end': Timestamp('2005-04-06 18:00:00'),
+    'y_value_from': 'Nurse_A',
+    'y_value_to': 'Nurse_A'
+    # NOTE: No 'transition' field - this is NOT a process-flow gap
 }
 ```
 
@@ -397,16 +466,22 @@ detector.detect(df_small)
 ## 🔄 Future Enhancements
 
 **Possible improvements:**
-1. **Multi-resource gaps:** Track resource handover delays
+1. ~~**Multi-resource gaps:** Track resource handover delays~~ → **DONE** (Resource Inactivity mode)
 2. **Contextual factors:** Consider day-of-week, time-of-day
 3. **Trend analysis:** Are gaps increasing over time?
 4. **Root cause hints:** Suggest possible causes based on patterns
 5. **Auto-threshold tuning:** ML-based threshold optimization
+6. **Handover delay analysis:** Compare same-resource vs cross-resource transitions
+
+**Explicitly out of scope:**
+- Shift calendars / working hours
+- Holidays / organizational availability
+- Mixing transition and resource inactivity modes
 
 ---
 
-**Last updated:** November 2025  
-**Maintained by:** @jennifoofoo  
-**Implementation:** `core/detection/gap_pattern.py`  
-**Status:** ✅ Production-ready
+**Last updated:** January 2026
+**Maintained by:** @jennifoofoo
+**Implementation:** `core/detection/gap_pattern.py`
+**Status:** ✅ Production-ready (v1.3 with two modes)
 

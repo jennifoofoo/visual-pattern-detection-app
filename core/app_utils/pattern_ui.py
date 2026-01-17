@@ -315,16 +315,63 @@ def _display_outlier_tab():
 
 
 def _display_gap_tab():
-    """Display Gap Detection pattern details with severity distribution."""
+    """Display Gap Detection pattern details with mode selection and severity distribution."""
     from core.app_utils.pattern_detection import _detect_gaps
 
+    # Mode selection dropdown
+    gap_mode_options = {
+        "transition": "Transition gaps (within cases)",
+        "resource_inactivity": "Resource inactivity (within resources)"
+    }
+    current_mode = st.session_state.get('gap_mode', 'transition')
+
+    # Check if resource column exists for resource_inactivity mode
+    plot_config = st.session_state.get('current_plot_config', {})
+    df_selected = plot_config.get('df_selected')
+    has_resource_col = df_selected is not None and 'resource' in df_selected.columns
+
+    selected_mode = st.selectbox(
+        "Gap Mode",
+        options=list(gap_mode_options.keys()),
+        format_func=lambda x: gap_mode_options[x],
+        index=list(gap_mode_options.keys()).index(current_mode),
+        key="gap_mode_selector",
+        disabled=False
+    )
+
+    # Explanatory text for semantic distinction
+    if selected_mode == "transition":
+        st.caption("*Process-flow gaps: delays between activities within a case*")
+    else:
+        st.caption("*Resource timeline gaps: periods without events (not process-flow)*")
+        if not has_resource_col:
+            st.warning("Resource inactivity requires 'resource' column in data")
+
+    # Re-run gap detection if mode changed
+    if selected_mode != current_mode:
+        st.session_state['gap_mode'] = selected_mode
+        # Clear mode-specific selections
+        if 'selected_gap_transitions' in st.session_state:
+            del st.session_state['selected_gap_transitions']
+        if 'selected_gap_resources' in st.session_state:
+            del st.session_state['selected_gap_resources']
+        if plot_config and df_selected is not None:
+            _detect_gaps(
+                plot_config['x_col'], plot_config['y_col'], df_selected,
+                gap_mode=selected_mode
+            )
+            st.rerun()
+
+    # Check if we have detection results
     if not ('gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None):
+        st.caption("No gaps detected for this mode")
         return
 
     gap_detector = st.session_state['gap_detector']
     summary = gap_detector.get_summary()
     details = summary['details']
     abnormal_gaps = details.get('abnormal_gaps', [])
+    gap_mode = details.get('gap_mode', 'transition')
     layer_visible = st.session_state.get('visible_gap', True)
 
     # Compute severity distribution
@@ -342,12 +389,15 @@ def _display_gap_tab():
         else:
             sev_counts['Mild (1-2x)'] += 1
 
-    # Header metrics
+    # Header metrics - mode-specific labels
     col1, col2, col3, col4 = st.columns([1, 1, 1, 0.3])
     with col1:
         st.metric("Gaps", summary['count'])
     with col2:
-        st.metric("Transitions", details['transitions_with_anomalies'])
+        if gap_mode == 'resource_inactivity':
+            st.metric("Resources", details.get('resources_with_anomalies', 0))
+        else:
+            st.metric("Transitions", details.get('transitions_with_anomalies', 0))
     with col3:
         st.metric("Worst", f"{worst_severity:.1f}x" if worst_severity > 0 else "-")
     with col4:
@@ -357,10 +407,10 @@ def _display_gap_tab():
                 "Min samples", 3, 30, current, key="gap_min_samples_input")
             if min_samples != current and st.button("Apply", key="gap_apply"):
                 st.session_state['gap_min_samples'] = min_samples
-                plot_config = st.session_state.get('current_plot_config', {})
-                if plot_config:
+                if plot_config and df_selected is not None:
                     _detect_gaps(
-                        plot_config['x_col'], plot_config['y_col'], plot_config['df_selected'], min_samples)
+                        plot_config['x_col'], plot_config['y_col'], df_selected,
+                        min_samples, gap_mode=gap_mode)
                     st.rerun()
 
     if not layer_visible:
@@ -378,27 +428,49 @@ def _display_gap_tab():
                     bar = "█" * bar_len + "░" * (20 - bar_len)
                     st.caption(f"`{bar}` {count} {label}")
 
-            # Worst gaps per transition
-            st.caption("**Worst by Transition**")
-            worst_per_trans = {}
-            for gap in abnormal_gaps:
-                trans = gap['transition']
-                if trans not in worst_per_trans or gap['severity'] > worst_per_trans[trans]['severity']:
-                    worst_per_trans[trans] = gap
+            # Worst gaps - mode-specific labels
+            if gap_mode == 'resource_inactivity':
+                st.caption("**Worst by Resource**")
+                worst_per_group = {}
+                for gap in abnormal_gaps:
+                    resource = gap.get('resource', 'unknown')
+                    if resource not in worst_per_group or gap['severity'] > worst_per_group[resource]['severity']:
+                        worst_per_group[resource] = gap
 
-            sorted_worst = sorted(worst_per_trans.values(), key=lambda g: g['severity'], reverse=True)[:3]
-            for gap in sorted_worst:
-                dur_h = gap['duration'] / 3600
-                dur_str = f"{dur_h:.1f}h" if dur_h < 24 else f"{dur_h/24:.1f}d"
-                st.caption(f"⚠️ {gap['transition']}: {dur_str} ({gap['severity']:.1f}x)")
+                sorted_worst = sorted(worst_per_group.values(), key=lambda g: g['severity'], reverse=True)[:3]
+                for gap in sorted_worst:
+                    dur_h = gap['duration'] / 3600
+                    dur_str = f"{dur_h:.1f}h" if dur_h < 24 else f"{dur_h/24:.1f}d"
+                    st.caption(f"⚠️ {gap['resource']}: {dur_str} ({gap['severity']:.1f}x)")
+            else:
+                st.caption("**Worst by Transition**")
+                worst_per_trans = {}
+                for gap in abnormal_gaps:
+                    trans = gap.get('transition', 'unknown')
+                    if trans not in worst_per_trans or gap['severity'] > worst_per_trans[trans]['severity']:
+                        worst_per_trans[trans] = gap
+
+                sorted_worst = sorted(worst_per_trans.values(), key=lambda g: g['severity'], reverse=True)[:3]
+                for gap in sorted_worst:
+                    dur_h = gap['duration'] / 3600
+                    dur_str = f"{dur_h:.1f}h" if dur_h < 24 else f"{dur_h/24:.1f}d"
+                    st.caption(f"⚠️ {gap.get('transition', 'N/A')}: {dur_str} ({gap['severity']:.1f}x)")
 
     with subtab2:
-        trans_stats = details.get('transition_stats', {})
-        if trans_stats:
-            trans_dict = {f"{t} ({s['count']})": t for t, s in trans_stats.items()}
-            selected = dict_to_multicheckbox(
-                trans_dict, "Select Transitions", "gap_transition")
-            st.session_state['selected_gap_transitions'] = selected
+        group_stats = details.get('group_stats', details.get('transition_stats', {}))
+        if group_stats:
+            if gap_mode == 'resource_inactivity':
+                # Resource selection
+                resource_dict = {f"{r} ({s['count']})": r for r, s in group_stats.items()}
+                selected = dict_to_multicheckbox(
+                    resource_dict, "Select Resources", "gap_resource")
+                st.session_state['selected_gap_resources'] = selected
+            else:
+                # Transition selection
+                trans_dict = {f"{t} ({s['count']})": t for t, s in group_stats.items()}
+                selected = dict_to_multicheckbox(
+                    trans_dict, "Select Transitions", "gap_transition")
+                st.session_state['selected_gap_transitions'] = selected
 
 
 def _display_sequence_tab():

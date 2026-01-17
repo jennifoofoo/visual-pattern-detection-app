@@ -73,6 +73,8 @@ def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df
     # Clear sub-pattern selections (they reference old data)
     if 'selected_gap_transitions' in st.session_state:
         del st.session_state['selected_gap_transitions']
+    if 'selected_gap_resources' in st.session_state:
+        del st.session_state['selected_gap_resources']
     if 'selected_outlier_types' in st.session_state:
         del st.session_state['selected_outlier_types']
     if 'selected_temporal_clusters' in st.session_state:
@@ -139,19 +141,55 @@ def _detect_outliers(df):
         st.warning(f"Outlier detection skipped: {str(e)}")
 
 
-def _detect_gaps(x_col, y_col, df_selected, min_samples=None):
-    """Detect gaps in transitions."""
+def _detect_gaps(x_col, y_col, df_selected, min_samples=None, gap_mode=None):
+    """
+    Detect gaps based on mode.
+
+    Parameters
+    ----------
+    x_col : str
+        X-axis column (must be time-like)
+    y_col : str
+        Y-axis column
+    df_selected : pd.DataFrame
+        Event log data
+    min_samples : int, optional
+        Minimum samples for threshold computation
+    gap_mode : str, optional
+        Detection mode: 'transition' (default) or 'resource_inactivity'
+        Resource inactivity mode requires y_col='resource' or 'resource' in df
+    """
     try:
         if min_samples is None:
             min_samples = st.session_state.get('gap_min_samples', 5)
 
+        if gap_mode is None:
+            gap_mode = st.session_state.get('gap_mode', 'transition')
+
+        # Validate resource_inactivity mode requirements
+        if gap_mode == 'resource_inactivity':
+            if 'resource' not in df_selected.columns:
+                st.warning("Resource inactivity mode requires 'resource' column")
+                return
+
         y_is_categorical = df_selected[y_col].nunique() <= 60
-        gap_detector = GapPattern(view_config={'x': x_col, 'y': y_col}, y_is_categorical=y_is_categorical)
+        gap_detector = GapPattern(
+            view_config={'x': x_col, 'y': y_col},
+            y_is_categorical=y_is_categorical,
+            gap_mode=gap_mode
+        )
         gap_detector.MIN_SAMPLES_FOR_NORMALITY = min_samples
         gap_detector.detect(df_selected)
 
         if gap_detector.detected is not None and len(gap_detector.detected) > 0:
             st.session_state['gap_detector'] = gap_detector
+            # Store current mode for cache validation
+            st.session_state['_gap_mode_cache'] = gap_mode
+        else:
+            # Clear detector if no gaps found
+            if 'gap_detector' in st.session_state:
+                del st.session_state['gap_detector']
+
     except Exception as e:
         st.warning(f"Gap detection skipped: {str(e)}")
 
@@ -170,7 +208,7 @@ def _detect_case_arrival_trend(x_col, df_selected):
 def _detect_sequences():
     """Detect horizontal sequences using PrefixSpan."""
     try:
-        sequence_detector = HorizontalSequencePatternDetector(min_support=50)
+        sequence_detector = HorizontalSequencePatternDetector(min_support=80)
         if sequence_detector.detect():
             summary = sequence_detector.get_summary()
             # Only mark as detected if actual patterns were found

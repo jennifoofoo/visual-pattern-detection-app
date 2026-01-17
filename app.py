@@ -80,8 +80,8 @@ def main():
             value=True,
             help="Enable sampling for faster analysis. Choose a sampling strategy below."
         )
+            sampling_mode = SamplingMode.FULL  # Default
             if demo_mode:
-                sampling_mode = SamplingMode.FULL  # Default
                 sampling_options = {
                     "Minimal (fastest)": SamplingMode.MINIMAL,
                     "Balanced (√n)": SamplingMode.SQRT,

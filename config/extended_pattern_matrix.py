@@ -23,8 +23,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "Red rectangles showing time spans of abnormal gaps between activities. Case coloring helps identify which specific cases experience delays at each resource.",
-            "interpretation": "Detects abnormal waiting times between consecutive activities within cases. Shows which resources have process delays. Color-coded by case for case-specific analysis.",
+            "modes": ["transition", "resource_inactivity"],
+            "visual": "Red rectangles showing time spans of abnormal gaps. Case coloring helps identify which specific cases experience delays at each resource.",
+            "interpretation": {
+                "transition": "Detects abnormal waiting times between consecutive activities within cases. Shows which resources have process delays. This IS a process-flow gap.",
+                "resource_inactivity": "Detects periods when resources have no events. Shows resource availability patterns. This is NOT a process-flow gap - purely resource timeline analysis."
+            },
             "use_case": "Finding process bottlenecks, resource unavailability, weekend delays per case",
             "output": "List of abnormal gaps with severity scores, grouped by resource and colored by case"
         },
@@ -70,8 +74,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "Red rectangles showing time spans of abnormal gaps between activities. Activity coloring reveals which specific activities are delayed at each resource.",
-            "interpretation": "Detects abnormal waiting times between consecutive activities within cases. Shows which resources have process delays. Color-coded by activity to see which activities cause delays.",
+            "modes": ["transition", "resource_inactivity"],
+            "visual": "Red rectangles showing time spans of abnormal gaps. Activity coloring reveals which specific activities are delayed at each resource.",
+            "interpretation": {
+                "transition": "Detects abnormal waiting times between consecutive activities within cases. Shows which resources have process delays. This IS a process-flow gap.",
+                "resource_inactivity": "Detects periods when resources have no events. Shows resource availability patterns. This is NOT a process-flow gap - purely resource timeline analysis."
+            },
             "use_case": "Finding process bottlenecks per resource, identifying which activities cause delays",
             "output": "List of abnormal gaps with severity scores, grouped by resource and colored by activity"
         },
@@ -116,8 +124,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "Red rectangles showing time spans of abnormal gaps, colored by resource. Resource coloring provides redundant but clear visual separation of resources.",
-            "interpretation": "Detects abnormal waiting times between consecutive activities within cases. Shows which resources have process delays. Color matches Y-axis for clear resource identification.",
+            "modes": ["transition", "resource_inactivity"],
+            "visual": "Red rectangles showing time spans of abnormal gaps, colored by resource. Resource coloring provides clear visual separation of resources.",
+            "interpretation": {
+                "transition": "Detects abnormal waiting times between consecutive activities within cases. Shows which resources have process delays. This IS a process-flow gap.",
+                "resource_inactivity": "Detects periods when resources have no events. Shows resource availability patterns. This is NOT a process-flow gap - purely resource timeline analysis."
+            },
             "use_case": "Finding process bottlenecks per resource with clear visual resource separation",
             "output": "List of abnormal gaps with severity scores, grouped and colored by resource"
         },
@@ -162,8 +174,11 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
+            "modes": ["transition"],  # Resource inactivity not applicable (Y != resource)
             "visual": "Red rectangles showing time spans of abnormal gaps between activities. Case coloring reveals which cases experience delays in specific activity transitions.",
-            "interpretation": "Detects abnormal waiting times between specific activity transitions. Shows which activity sequences have delays. Color-coded by case for case-specific analysis.",
+            "interpretation": {
+                "transition": "Detects abnormal waiting times between specific activity transitions. Shows which activity sequences have delays. This IS a process-flow gap."
+            },
             "use_case": "Identifying bottlenecks in specific process steps, analyzing handover times per case",
             "output": "List of abnormal gaps per transition (Activity A → Activity B), colored by case"
         },
@@ -208,8 +223,11 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "Red rectangles showing time spans of abnormal gaps, colored by activity. Activity coloring provides redundant but clear visual separation of activities.",
-            "interpretation": "Detects abnormal waiting times between specific activity transitions. Color matches Y-axis for clear activity identification.",
+            "modes": ["transition"],  # Resource inactivity not applicable (Y != resource)
+            "visual": "Red rectangles showing time spans of abnormal gaps, colored by activity. Activity coloring provides clear visual separation of activities.",
+            "interpretation": {
+                "transition": "Detects abnormal waiting times between specific activity transitions. This IS a process-flow gap."
+            },
             "use_case": "Identifying bottlenecks in specific process steps with clear visual separation",
             "output": "List of abnormal gaps per transition (Activity A → Activity B), colored by activity"
         },
@@ -254,8 +272,11 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
+            "modes": ["transition"],  # Resource inactivity not applicable (Y != resource)
             "visual": "Red rectangles showing time spans of abnormal gaps, colored by resource. Resource coloring reveals which resources are involved in activity transition delays.",
-            "interpretation": "Detects abnormal waiting times between specific activity transitions. Shows which activity sequences have delays. Color-coded by resource to see resource involvement.",
+            "interpretation": {
+                "transition": "Detects abnormal waiting times between specific activity transitions. Shows which activity sequences have delays. This IS a process-flow gap."
+            },
             "use_case": "Identifying bottlenecks in specific process steps, analyzing which resources cause delays",
             "output": "List of abnormal gaps per transition (Activity A → Activity B), colored by resource"
         },
@@ -300,8 +321,11 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "Red rectangles showing gaps within individual case timelines. Case coloring provides redundant but clear visual separation of cases.",
-            "interpretation": "Detects abnormal waiting times within specific cases. Each case is analyzed individually. Color matches Y-axis for clear case identification.",
+            "modes": ["transition"],  # Resource inactivity not applicable (Y != resource)
+            "visual": "Red rectangles showing gaps within individual case timelines. Case coloring provides clear visual separation of cases.",
+            "interpretation": {
+                "transition": "Detects abnormal waiting times within specific cases. Each case is analyzed individually. This IS a process-flow gap."
+            },
             "use_case": "Finding case-specific delays, comparing case execution times with clear visual separation",
             "output": "Abnormal gaps with case identification, colored by case"
         },
@@ -346,8 +370,11 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
+            "modes": ["transition"],  # Resource inactivity not applicable (Y != resource)
             "visual": "Red rectangles showing gaps within individual case timelines, colored by activity. Activity coloring reveals which activities are delayed within each case.",
-            "interpretation": "Detects abnormal waiting times within specific cases. Each case is analyzed individually. Color-coded by activity to see which activities cause delays.",
+            "interpretation": {
+                "transition": "Detects abnormal waiting times within specific cases. Each case is analyzed individually. This IS a process-flow gap."
+            },
             "use_case": "Finding case-specific delays, identifying which activities cause delays in each case",
             "output": "Abnormal gaps with case identification, colored by activity"
         },
@@ -393,8 +420,11 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
+            "modes": ["transition"],  # Resource inactivity not applicable (Y != resource)
             "visual": "Red rectangles showing gaps within individual case timelines, colored by resource. Resource coloring reveals which resources are involved in case-specific delays.",
-            "interpretation": "Detects abnormal waiting times within specific cases. Each case is analyzed individually. Color-coded by resource to see resource involvement in delays.",
+            "interpretation": {
+                "transition": "Detects abnormal waiting times within specific cases. Each case is analyzed individually. This IS a process-flow gap."
+            },
             "use_case": "Finding case-specific delays, identifying which resources cause delays in each case",
             "output": "Abnormal gaps with case identification, colored by resource"
         },
