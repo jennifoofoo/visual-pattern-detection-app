@@ -340,14 +340,13 @@ def display_chart():
                 except (TypeError, IndexError, ValueError):
                     pass
 
-    # Check if selection changed - trigger rerun so sidebar can see it
-    old_selection = st.session_state.get('_selected_point_indices', [])
-    selection_changed = set(selected_indices) != set(old_selection)
-    st.session_state['_selected_point_indices'] = selected_indices
-
-    # Rerun if selection changed so sidebar updates
-    if selection_changed and selected_indices:
-        st.rerun()
+    # Only update selection state if we have new selection data
+    # (avoid overwriting with empty list on button clicks/reruns)
+    if selected_indices:
+        old_selection = st.session_state.get('_selected_point_indices', [])
+        if set(selected_indices) != set(old_selection):
+            st.session_state['_selected_point_indices'] = selected_indices
+            st.rerun()
 
 
 # =============================================================================
@@ -382,13 +381,13 @@ def _reset_focus_view(plot_config):
 # === Sidebar Controls ===
 # =============================================================================
 
-def _render_pattern_checkbox(label: str, visibility_key: str, version_key: str, checkbox_key_pattern: str):
+def _render_pattern_checkbox(label: str, visibility_key: str, version_key: str, checkbox_key_pattern: str, help_text: str = None):
     """Render pattern visibility checkbox with sub-pattern sync."""
     if visibility_key not in st.session_state:
         st.session_state[visibility_key] = True
 
     prev_state = st.session_state[visibility_key]
-    st.checkbox(label, key=visibility_key, help=f"Show/hide {label.lower()} visualization")
+    st.checkbox(label, key=visibility_key, help=help_text or f"Show/hide {label.lower()}")
 
     if st.session_state[visibility_key] != prev_state:
         st.session_state[version_key] = st.session_state.get(version_key, 0) + 1
@@ -478,7 +477,10 @@ def sidebar_focus_controls():
     if is_focus_view:
         full_count = len(plot_config['df_selected'])
         focus_count = len(st.session_state.focus_df) if st.session_state.focus_df is not None else 0
-        st.caption(f"**Focus View:** {focus_count:,} of {full_count:,} points")
+        if selected_indices:
+            st.caption(f"**Focus View:** {focus_count:,} pts | **{len(selected_indices):,} selected**")
+        else:
+            st.caption(f"**Focus View:** {focus_count:,} of {full_count:,} points")
     else:
         if selected_indices:
             st.caption(f"**{len(selected_indices):,} points selected**")
@@ -487,7 +489,8 @@ def sidebar_focus_controls():
 
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Focus", disabled=(is_focus_view or not selected_indices), key="focus_btn", type="primary", use_container_width=True):
+        # Allow re-focusing within focus view (nested selection)
+        if st.button("Focus", disabled=not selected_indices, key="focus_btn", type="primary", use_container_width=True):
             if df_display is not None:
                 _apply_focus_selection(selected_indices, df_display, plot_config)
     with col2:
@@ -495,30 +498,84 @@ def sidebar_focus_controls():
             _reset_focus_view(plot_config)
 
 
+def _get_pattern_not_detected_reason(pattern_key: str, x_col: str, y_col: str, color_col: str) -> str:
+    """Get explanation why a pattern was not detected."""
+    from config.extended_pattern_matrix import is_pattern_meaningful, get_pattern_info
+
+    # Map pattern keys to matrix pattern names
+    pattern_map = {
+        'temporal': 'temporal_cluster_x',
+        'cluster': 'cluster',
+        'outlier': 'outlier',
+        'gap': 'gap',
+        'sequence': 'sequence',
+        'case_arrival_trend': 'trend'
+    }
+    matrix_name = pattern_map.get(pattern_key, pattern_key)
+
+    info = get_pattern_info(x_col, y_col, color_col, matrix_name)
+    if info is None:
+        return "Not applicable for this view configuration"
+
+    if not info.get("can_be_found", False):
+        return "Cannot be detected with current axis configuration"
+    if not info.get("makes_sense", False):
+        return "Not meaningful for this view (would not provide useful insights)"
+
+    # Pattern is meaningful but wasn't found
+    return "No patterns found in data"
+
+
 def sidebar_pattern_layer_controls():
-    """Display pattern layer visibility controls in sidebar."""
-    if not _is_any_pattern_detected():
+    """Display pattern layer visibility controls in sidebar with explanations."""
+    plot_config = st.session_state.get('current_plot_config')
+    if not plot_config:
         return
+
+    x_col = plot_config.get('x_col', '')
+    y_col = plot_config.get('y_col', '')
+    color_col = plot_config.get('dots_config_col', '')
 
     st.markdown("##### Pattern Layers")
 
-    if st.session_state.get('temporal_detected', False):
-        _render_pattern_checkbox("Temporal Clusters", 'visible_temporal_cluster', 'temporal_cluster_version', 'checkbox_temporal_cluster_')
+    def get_detector_info(detector_key):
+        """Get count and explanation from detector."""
+        d = st.session_state.get(detector_key)
+        if not d or not hasattr(d, 'get_summary'):
+            return 0, None
+        s = d.get_summary()
+        count = s.get('count', 0)
+        details = s.get('details', {})
+        # Build explanation from summary
+        if detector_key == 'gap_detector':
+            return count, f"Detected via per-transition thresholds (P95/IQR). {details.get('transitions_with_anomalies', 0)} transitions affected."
+        elif detector_key == 'outlier_pattern':
+            return count, f"Detected via Isolation Forest + statistical methods across {len(details.get('outlier_types', []))} categories."
+        elif detector_key == 'cluster_detector':
+            return count, f"Detected via OPTICS clustering algorithm."
+        elif detector_key == 'sequence_detector':
+            return count, f"Detected via PrefixSpan with {details.get('min_support', 80)}% min support."
+        return count, None
 
-    if st.session_state.get('cluster_detected', False):
-        _render_pattern_checkbox("Clusters (OPTICS)", 'visible_cluster', 'cluster_version', 'checkbox_cluster_')
+    def show_pattern(label, count, visibility_key, version_key, checkbox_key, matrix_key, explanation=None):
+        if count:
+            _render_pattern_checkbox(f"{label} ({count})", visibility_key, version_key, checkbox_key, explanation)
+        else:
+            reason = _get_pattern_not_detected_reason(matrix_key, x_col, y_col, color_col)
+            st.checkbox(label, value=False, disabled=True, help=f"Not detected: {reason}")
 
-    if st.session_state.get('outlier_detected', False):
-        _render_pattern_checkbox("Outlier Detection", 'visible_outlier', 'outlier_type_version', 'checkbox_outlier_type_')
+    gap_count, gap_exp = get_detector_info('gap_detector')
+    outlier_count, outlier_exp = get_detector_info('outlier_pattern')
+    cluster_count, cluster_exp = get_detector_info('cluster_detector')
+    seq_count, seq_exp = get_detector_info('sequence_detector')
+    temporal_count = len(st.session_state.get('temporal_clusters', {}).get('clusters', [])) if st.session_state.get('temporal_detected') else 0
 
-    if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
-        _render_pattern_checkbox("Gap Detection", 'visible_gap', 'gap_transition_version', 'checkbox_gap_transition_')
-
-    if st.session_state.get('sequence_detected', False):
-        _render_pattern_checkbox("Sequence Detection", 'visible_sequence', 'sequence_version', 'checkbox_sequence_')
-
-    if st.session_state.get('case_arrival_trend_detected', False):
-        _render_pattern_checkbox("Case Arrival Trend", 'visible_case_arrival_trend', 'case_arrival_trend_version', 'checkbox_case_arrival_trend_')
+    show_pattern("Temporal Clusters", temporal_count, 'visible_temporal_cluster', 'temporal_cluster_version', 'checkbox_temporal_cluster_', 'temporal', "Detected via DBSCAN on time axis.")
+    show_pattern("Clusters", cluster_count, 'visible_cluster', 'cluster_version', 'checkbox_cluster_', 'cluster', cluster_exp)
+    show_pattern("Outliers", outlier_count, 'visible_outlier', 'outlier_type_version', 'checkbox_outlier_type_', 'outlier', outlier_exp)
+    show_pattern("Gaps", gap_count, 'visible_gap', 'gap_transition_version', 'checkbox_gap_transition_', 'gap', gap_exp)
+    show_pattern("Sequences", seq_count, 'visible_sequence', 'sequence_version', 'checkbox_sequence_', 'sequence', seq_exp)
+    show_pattern("Case Arrival Trend", 1 if st.session_state.get('case_arrival_trend_detected') else 0, 'visible_case_arrival_trend', 'case_arrival_trend_version', 'checkbox_case_arrival_trend_', 'case_arrival_trend', "Detected via Mann-Kendall trend test.")
 
 
 # =============================================================================

@@ -22,6 +22,21 @@ def load_css():
 
 load_css()
 
+# Keyboard shortcuts: R=Reset, F=Focus
+st.markdown("""
+<script>
+document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    const btns = {r: 'reset_focus_btn', f: 'focus_btn'};
+    const key = btns[e.key.toLowerCase()];
+    if (key) {
+        const btn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.toLowerCase().includes(key.split('_')[0]));
+        if (btn && !btn.disabled) btn.click();
+    }
+});
+</script>
+""", unsafe_allow_html=True)
+
 # -------------------------------------------------
 # MINIMAL HEADER (KEEP SIDEBAR TOGGLE VISIBLE)
 # -------------------------------------------------
