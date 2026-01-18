@@ -6,13 +6,14 @@ This document provides a scientific description of the gap detection and trend a
 
 ## Table of Contents
 
-1. [Process-Aware Gap Detection](#1-process-aware-gap-detection)
-   - 1.1 [Theoretical Foundation](#11-theoretical-foundation)
-   - 1.2 [Algorithm Design](#12-algorithm-design)
-   - 1.3 [Statistical Threshold Computation](#13-statistical-threshold-computation)
-   - 1.4 [Architectural Decisions](#14-architectural-decisions)
-   - 1.5 [Complexity Analysis](#15-complexity-analysis)
-   - 1.6 [Visualization Strategy](#16-visualization-strategy)
+1. [Gap Detection](#1-gap-detection)
+   - 1.1 [Overview: Two Detection Modes](#11-overview-two-detection-modes)
+   - 1.2 [Mode 1: Transition Gap Detection (Process-Aware)](#12-mode-1-transition-gap-detection-process-aware)
+   - 1.3 [Mode 2: Resource Inactivity Detection](#13-mode-2-resource-inactivity-detection)
+   - 1.4 [Statistical Threshold Computation](#14-statistical-threshold-computation)
+   - 1.5 [Architectural Decisions](#15-architectural-decisions)
+   - 1.6 [Complexity Analysis](#16-complexity-analysis)
+   - 1.7 [Visualization Strategy](#17-visualization-strategy)
 2. [Trend Detection](#2-trend-detection)
    - 2.1 [Case Arrival Trend Pattern](#21-case-arrival-trend-pattern)
    - 2.2 [General Trend Pattern](#22-general-trend-pattern)
@@ -24,11 +25,30 @@ This document provides a scientific description of the gap detection and trend a
 
 ---
 
-## 1. Process-Aware Gap Detection
+## 1. Gap Detection
 
-### 1.1 Theoretical Foundation
+### 1.1 Overview: Two Detection Modes
 
-Gap detection in process mining identifies abnormal waiting times between consecutive activities within process instances (cases). Unlike generic anomaly detection, our approach is **process-aware**: it considers the semantic meaning of activity transitions and learns normality per transition type.
+The gap detection system supports **two semantically distinct modes** that serve different analytical purposes:
+
+| Mode | Grouping | Semantic Meaning | Process-Flow Gap? |
+|------|----------|------------------|-------------------|
+| **Transition** (default) | Per Case | Delays between activities within a case | **Yes** |
+| **Resource Inactivity** | Per Resource | Periods of resource unavailability | **No** |
+
+**Critical Distinction:** These modes answer fundamentally different questions:
+- **Transition Mode:** "Which activity transitions in the process are taking abnormally long?"
+- **Resource Inactivity Mode:** "Which resources have unusually long periods without any events?"
+
+The modes are **mutually exclusive**—they are never mixed or overlaid. Users select the mode via a dropdown in the UI, and the detection re-runs with the appropriate algorithm.
+
+---
+
+### 1.2 Mode 1: Transition Gap Detection (Process-Aware)
+
+#### 1.2.1 Theoretical Foundation
+
+Transition gap detection identifies abnormal waiting times between consecutive activities **within process instances (cases)**. This approach is **process-aware**: it considers the semantic meaning of activity transitions and learns normality per transition type.
 
 **Definition (Transition Gap):** Given a case $c$ with ordered events $e_1, e_2, \ldots, e_n$, the gap $g_{i,i+1}$ between consecutive events $e_i$ and $e_{i+1}$ is defined as:
 
@@ -40,22 +60,18 @@ where $t(e)$ denotes the timestamp of event $e$.
 
 The key insight is that different transitions have inherently different expected durations. For example, the transition "Lab Test → Diagnosis" may typically take 2 hours, while "Registration → Triage" may take 10 minutes. A 30-minute gap would be normal for the former but anomalous for the latter.
 
-This approach aligns with the concept of **performance analysis** in process mining [1], where waiting times between activities are analyzed to identify bottlenecks. However, our method extends this by computing **transition-specific statistical thresholds** rather than using global measures.
+This approach aligns with the concept of **performance analysis** in process mining [1], where waiting times between activities are analyzed to identify bottlenecks.
 
-### 1.2 Algorithm Design
-
-The gap detection algorithm follows a four-phase approach:
+#### 1.2.2 Algorithm Design
 
 ```
-Algorithm 1: Process-Aware Gap Detection
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Algorithm 1a: Transition Gap Detection (Process-Aware)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Input:  Event log L = {(c, a, t, r) | case c, activity a, time t, resource r}
-        View configuration V = (x_col, y_col)
         Minimum samples threshold k (default: 15)
-        Maximum gaps to display N (default: 50)
-Output: Set of abnormal gaps G_abnormal (limited to top N by severity)
+Output: Set of abnormal gaps G_abnormal
 
-Phase 1: Transition Extraction
+Phase 1: Transition Extraction (Case-Grouped)
   for each case c ∈ L do
     Sort events by timestamp
     for i = 1 to |events(c)| - 1 do
@@ -69,7 +85,6 @@ Phase 2: Normality Learning (per transition)
   for each unique transition τ do
     D_τ ← {g | (τ, g, _, _, _) ∈ transition_gaps}
     if |D_τ| ≥ k then
-      Compute statistics: Q1, Q3, IQR, P95
       threshold_τ ← max(P95, Q3 + 1.5 × IQR)
       Store (τ, threshold_τ, statistics)
     end if
@@ -84,13 +99,80 @@ Phase 3: Anomaly Identification
     end if
   end for
 
-Phase 4: Result Aggregation
-  Group G_abnormal by transition
-  Compute summary statistics
-  Return G_abnormal with metadata
+Phase 4: Return G_abnormal with transition-specific metadata
 ```
 
-### 1.3 Statistical Threshold Computation
+**Requirements:** `case_id` and `activity` columns must be present.
+
+---
+
+### 1.3 Mode 2: Resource Inactivity Detection
+
+#### 1.3.1 Theoretical Foundation
+
+Resource inactivity detection identifies **periods when resources have no events**. This is fundamentally different from transition gap detection:
+
+- **Not a process-flow gap:** Resource inactivity does not represent delays within a case's process flow
+- **Resource availability analysis:** Detects when resources are unavailable, offline, or idle
+- **Cross-case:** Gaps span across cases (events before and after the gap may belong to different cases)
+
+**Definition (Resource Inactivity Gap):** Given a resource $r$ with all events $E_r = \{e_1, e_2, \ldots, e_n\}$ sorted by timestamp, the inactivity gap $g_{i,i+1}^r$ between consecutive events is:
+
+$$g_{i,i+1}^r = t(e_{i+1}) - t(e_i)$$
+
+Note that $e_i$ and $e_{i+1}$ may belong to **different cases**—this is expected and correct for resource inactivity analysis.
+
+**Use Cases:**
+- Detecting resource unavailability (vacation, illness, maintenance)
+- Identifying equipment downtime
+- Finding shift gaps or operational hours
+- Capacity planning analysis
+
+#### 1.3.2 Algorithm Design
+
+```
+Algorithm 1b: Resource Inactivity Detection
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Input:  Event log L = {(c, a, t, r) | case c, activity a, time t, resource r}
+        Minimum samples threshold k (default: 15)
+Output: Set of abnormal inactivity gaps G_abnormal
+
+Phase 1: Resource Gap Extraction (Resource-Grouped, NOT Case-Grouped)
+  for each resource r ∈ L do
+    Sort events by timestamp (across ALL cases)
+    for i = 1 to |events(r)| - 1 do
+      g ← t(e_{i+1}) - t(e_i)
+      Add (r, g, e_i, e_{i+1}) to resource_gaps
+    end for
+  end for
+
+Phase 2: Normality Learning (per resource)
+  for each unique resource r do
+    D_r ← {g | (r, g, _, _) ∈ resource_gaps}
+    if |D_r| ≥ k then
+      threshold_r ← max(P95, Q3 + 1.5 × IQR)
+      Store (r, threshold_r, statistics)
+    end if
+  end for
+
+Phase 3: Anomaly Identification
+  G_abnormal ← ∅
+  for each (r, g, e_from, e_to) ∈ resource_gaps do
+    if threshold_r exists AND g > threshold_r then
+      severity ← g / threshold_r
+      Add (r, g, e_from, e_to, severity) to G_abnormal
+    end if
+  end for
+
+Phase 4: Return G_abnormal with resource-specific metadata
+         (includes case_from, case_to for context)
+```
+
+**Requirements:** `resource` column must be present. Resource inactivity mode is only meaningful when the Y-axis represents resources.
+
+---
+
+### 1.4 Statistical Threshold Computation
 
 The threshold computation combines two robust statistical methods to handle skewed distributions commonly found in waiting time data:
 
@@ -114,23 +196,53 @@ $$\text{threshold}_\tau = \max(\text{threshold}_{P95}, \text{threshold}_{\text{I
 
 **Minimum Sample Requirement:** We require $|D_\tau| \geq k$ (default $k=15$) samples per transition before computing thresholds. This ensures stable percentile and IQR estimates—with fewer than 15 samples, quartile calculations become unreliable, especially for skewed waiting time distributions [3]. The threshold is user-configurable (range: 3-30) to accommodate domain-specific needs.
 
-### 1.4 Architectural Decisions
+### 1.5 Architectural Decisions
+
+#### 1.5.1 Mode Selection Decisions
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| **Per-transition normality** | Yes | Different activity pairs have inherently different expected durations. Global thresholds would miss context-specific anomalies. |
+| **Two distinct modes** | transition, resource_inactivity | Fundamentally different semantic meanings. Transition = process delays; Resource = availability. Mixing would confuse interpretation. |
+| **Mutual exclusivity** | Never mix modes | Each mode answers a different question. Overlaying both would create visual and semantic confusion. |
+| **Mode-specific UI labels** | "Transitions affected" vs "Resources affected" | Clear communication of what the numbers mean in each mode. |
+| **Resource mode constraint** | Only when Y=resource | Resource inactivity is only meaningful when viewing resources on Y-axis. Other Y-axes would produce misleading visualizations. |
+
+#### 1.5.2 Common Decisions (Both Modes)
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
 | **Threshold formula** | max(P95, Q3+1.5×IQR) | Combines distribution tail capture (P95) with robust outlier detection (IQR). Handles both normal and skewed distributions. |
 | **Minimum samples** | k=15 (configurable 3-30) | Ensures stable percentile estimation. Research suggests ≥15 samples for reliable quartile estimates [3]. |
 | **Severity metric** | duration/threshold | Provides interpretable measure: severity=2.0 means gap is twice the normal threshold. Enables prioritization. |
-| **Case-aware extraction** | Gaps within cases only | Gaps between different cases are meaningless for process analysis. Ensures semantic correctness. |
 | **Time validation** | duration > 0 | Filters data quality issues (negative durations from timestamp errors). |
-| **Y-position computation** | FROM-activity row | For categorical Y-axes, gaps are shown at the source activity row, as the waiting semantically occurs "at" that activity. |
 | **Max display limit** | N=50 gaps | Prevents visual clutter. Only top N gaps by severity are rendered; all are still available in data. |
 | **Severity categories** | 4 groups | Mild (1-2×), Moderate (2-3×), Severe (3-5×), Critical (>5×). Enables filtering and legend toggle. |
 
-### 1.5 Complexity Analysis
+#### 1.5.3 Mode-Specific Decisions
 
-Let $n$ be the number of events, $c$ the number of cases, and $\tau$ the number of unique transitions.
+| Decision | Transition Mode | Resource Inactivity Mode |
+|----------|-----------------|--------------------------|
+| **Grouping key** | Activity transition (A→B) | Resource |
+| **Extraction scope** | Within each case | Within each resource (across cases) |
+| **Required columns** | case_id, activity | resource |
+| **Hover text** | Transition, Case ID, Duration | Resource, Duration, "Not a process-flow gap" |
+| **Summary label** | "Transitions with anomalies" | "Resources with anomalies" |
+| **Selection widget** | Transition multiselect | Resource multiselect |
+
+#### 1.5.4 Out of Scope (By Design)
+
+The following features are **explicitly not implemented** to keep the detection focused and interpretable:
+
+- **Shift calendars:** No modeling of working hours, weekends, or holidays
+- **Organizational availability:** No HR or capacity models
+- **Mixed mode display:** Never overlay transition gaps and resource inactivity
+- **Automatic mode selection:** User must explicitly choose the mode
+
+### 1.6 Complexity Analysis
+
+Let $n$ be the number of events, $c$ the number of cases, $\tau$ the number of unique transitions, and $r$ the number of unique resources.
+
+#### Transition Mode
 
 | Phase | Time Complexity | Space Complexity |
 |-------|-----------------|------------------|
@@ -141,11 +253,22 @@ Let $n$ be the number of events, $c$ the number of cases, and $\tau$ the number 
 
 where $m$ is the average number of gaps per transition and $g$ is the number of detected abnormal gaps.
 
-### 1.6 Visualization Strategy
+#### Resource Inactivity Mode
+
+| Phase | Time Complexity | Space Complexity |
+|-------|-----------------|------------------|
+| Resource Gap Extraction | $O(n \log n)$ | $O(n)$ |
+| Normality Learning | $O(r \cdot m_r \log m_r)$ | $O(r)$ |
+| Anomaly Identification | $O(n)$ | $O(g)$ |
+| **Total** | $O(n \log n + r \cdot m_r \log m_r)$ | $O(n + r + g)$ |
+
+where $m_r$ is the average number of gaps per resource.
+
+### 1.7 Visualization Strategy
 
 Effective visualization of abnormal gaps requires balancing informativeness with clarity. We employ a multi-dimensional encoding scheme based on visualization research principles [16].
 
-#### 1.6.1 Severity-Based Visual Encoding
+#### 1.7.1 Severity-Based Visual Encoding
 
 Gaps are visualized using **dashed connecting lines** between the source and target events. Visual properties encode severity:
 
@@ -170,7 +293,7 @@ $$m = 6 + \bar{s}$$
 
 where $\bar{s}$ is the average severity of the gap group.
 
-#### 1.6.2 Display Limiting
+#### 1.7.2 Display Limiting
 
 To prevent visual clutter in logs with many abnormal gaps, we limit display to the **top N gaps by severity** (default N=50):
 
@@ -180,7 +303,7 @@ gaps_to_display = sorted(abnormal_gaps, key=severity, reverse=True)[:N]
 
 **Rationale:** In large event logs, hundreds of gaps may exceed the threshold. Displaying all of them creates visual noise and obscures the most critical issues. By showing only the top 50 (configurable), users can focus on the most severe anomalies while still having access to the complete data for analysis.
 
-#### 1.6.3 Grouped Traces for Interactivity
+#### 1.7.3 Grouped Traces for Interactivity
 
 Gaps are grouped by severity category into separate Plotly traces:
 
@@ -198,10 +321,11 @@ traces = [
 - Provides immediate overview of severity distribution
 - Reduces visual complexity by hiding less important gaps
 
-#### 1.6.4 Hover Information
+#### 1.7.4 Mode-Specific Hover Information
 
-Each gap displays contextual information on hover:
+Each gap displays **mode-specific contextual information** on hover:
 
+**Transition Mode:**
 ```
 <b>Activity A → Activity B</b>
 Duration: 4.2h (threshold: 1.1h)
@@ -209,7 +333,15 @@ Severity: 3.8x
 Case: case_123
 ```
 
-This provides immediate context without requiring interaction with the data table.
+**Resource Inactivity Mode:**
+```
+<b>Resource: ResourceX</b>
+Inactivity: 48.5h (threshold: 12.3h)
+Severity: 3.9x
+<i>Not a process-flow gap</i>
+```
+
+The explicit "Not a process-flow gap" disclaimer in resource inactivity mode reinforces the semantic distinction to users.
 
 ---
 
@@ -538,6 +670,10 @@ Step 5: Return insights
 ```python
 class GapPattern(Pattern):
     """
+    Gap detector supporting two distinct modes:
+    - transition: Process-aware gaps within cases (default)
+    - resource_inactivity: Resource-timeline gaps (NOT process-flow)
+
     Class Constants:
         MIN_SAMPLES_FOR_NORMALITY: int = 15  # Minimum samples for stable thresholds
         MAX_GAPS_TO_DISPLAY: int = 50        # Limit visualization to top N
@@ -545,18 +681,33 @@ class GapPattern(Pattern):
     Attributes:
         view_config: Dict[str, str]      # x, y column configuration
         y_is_categorical: bool           # Affects Y-position computation
-        detected: Optional[Dict]         # Detection results
-        transition_stats: Dict           # Per-transition statistics
+        gap_mode: str                    # "transition" or "resource_inactivity"
+        detected: Optional[Dict]         # Detection results (includes gap_mode)
+        transition_stats: Dict           # Per-group statistics (transition or resource)
 
     Key Methods:
-        detect(df) → None                # Main detection entry point
+        detect(df) → None                # Main detection entry point (mode-aware)
         visualize(df, fig) → Figure      # Add severity-colored gap overlays
         get_summary() → Dict             # Standardized pattern summary
+        get_gap_summary() → Dict         # Mode-specific gap statistics
+
+    Internal Methods:
+        _extract_transition_gaps(df, x_col, y_col) → List[Dict]  # Case-grouped extraction
+        _extract_resource_gaps(df, x_col) → List[Dict]           # Resource-grouped extraction
+        _compute_normality_per_group(gaps, group_key) → Dict     # Generic threshold computation
 
     Static Methods:
         _severity_to_color(severity) → str    # Map severity to RGBA color
         _severity_to_width(severity) → float  # Map severity to line width
         _format_duration(seconds) → str       # Human-readable duration format
+
+    Mode-Specific Output Fields:
+        Transition Mode:
+            - total_transitions, transitions_with_anomalies
+            - gap['transition'], gap['case_id'], gap['activity_from'], gap['activity_to']
+        Resource Inactivity Mode:
+            - total_resources, resources_with_anomalies
+            - gap['resource'], gap['case_from'], gap['case_to']
     """
 ```
 
@@ -675,7 +826,7 @@ Both patterns are tested on the Hospital_log.xes dataset to ensure:
 
 ---
 
-*Document Version: 1.2*
+*Document Version: 1.3*
 *Last Updated: January 2026*
 *Authors: Visual Pattern Detection Team*
 
@@ -686,3 +837,4 @@ Both patterns are tested on the Hospital_log.xes dataset to ensure:
 | 1.0 | 2026-01-08 | Initial version with Gap Detection and Mann-Kendall Trend Analysis |
 | 1.1 | 2026-01-08 | Added Prophet integration for seasonality and changepoint detection |
 | 1.2 | 2026-01-08 | Enhanced Gap Detection: MIN_SAMPLES=15, severity-based visualization, display limiting, grouped traces |
+| 1.3 | 2026-01-09 | **Two Gap Detection Modes:** Added `resource_inactivity` mode alongside existing `transition` mode. Modes are mutually exclusive with mode-specific thresholds, hover text, and UI labels. Resource inactivity explicitly marked as "not a process-flow gap." |
