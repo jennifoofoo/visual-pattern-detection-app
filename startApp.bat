@@ -1,7 +1,7 @@
 @echo off
 
 :: Define the path to your virtual environment's activation script
-set "VENV_ACTIVATE=C:\GitRepos\ProcessMining\venv3.13.9\Scripts\activate.bat"
+set "VENV_ACTIVATE=\.venv\Scripts\activate.bat"
 
 :: Define the command to run your Streamlit application
 set "STREAMLIT_CMD=streamlit run app.py"

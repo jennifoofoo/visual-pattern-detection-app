@@ -163,15 +163,6 @@ def main():
             else:
                 st.caption("Plot a chart first")
 
-        st.divider()
-
-        with st.expander("AI Description"):
-            if st.button(
-                "Describe Chart",
-                disabled=not st.session_state.get("data_loaded", False),
-            ):
-                app_handler.ollama_description_button()
-
     # -----------------------------
     # MAIN CONTENT
     # -----------------------------

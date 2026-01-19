@@ -126,31 +126,24 @@ This is a **Streamlit-based web application** for detecting visual patterns in P
 │  │  │  - Uses Plotly Express for scatter plots                      │  │   │
 │  │  │  - Integrates with Pattern.visualize() for overlays           │  │   │
 │  │  └───────────────────────────────────────────────────────────────┘  │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                                                                                │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │           AI EVALUATION & INSIGHTS (core/evaluation/)                 │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                            │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │            SUMMARY GENERATION                                       │   │
 │  │  ┌───────────────────────────────────────────────────────────────┐  │   │
-│  │  │  ollama.py                                                     │  │   │
-│  │  │  class OllamaEvaluator:                                        │  │   │
-│  │  │    - describe_chart()  : Generate AI descriptions             │  │   │
-│  │  │    - Calls Ollama API (localhost:11434)                       │  │   │
-│  │  │    - Models: llama2, qwen2.5, etc.                            │  │   │
-│  │  └───────────────────────────────────────────────────────────────┘  │   │
-│  │  ┌───────────────────────────────────────────────────────────────┐  │   │
-│  │  │  summary_generator.py                                          │  │   │
+│  │  │  summary_generator.py                                         │  │   │
 │  │  │  - summarize_event_log(df) : Generate log statistics          │  │   │
 │  │  │    • Number of cases/events                                   │  │   │
 │  │  │    • Start/end activities                                     │  │   │
 │  │  │    • Average duration                                         │  │   │
 │  │  │    • Log date range                                           │  │   │
 │  │  └───────────────────────────────────────────────────────────────┘  │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                                                                                │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │                  UTILITIES (core/utils/)                              │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                            │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                  UTILITIES (core/utils/)                            │   │
 │  │  ┌───────────────────────────────────────────────────────────────┐  │   │
-│  │  │  demo_sampling.py                                              │  │   │
+│  │  │  demo_sampling.py                                             │  │   │
 │  │  │  - sample_small_eventlog() : Sample for demo mode             │  │   │
 │  │  │    • Limits to 100 cases                                      │  │   │
 │  │  │    • Max events per case                                      │  │   │
@@ -249,7 +242,6 @@ Central orchestrator for all UI operations:
 - `display_chart()`: Persistent chart display with pattern overlays
 - `auto_detect_patterns()`: Trigger all meaningful pattern detections based on matrix
 - `sidebar_pattern_layer_controls()`: Manage visibility toggles
-- `ollama_description_button()`: Trigger AI description generation
 
 **Caching**:
 - `@st.cache_data` for `load_xes_log()` (1 hour TTL)
@@ -348,11 +340,6 @@ class Pattern(ABC):
 
 #### **AI Evaluation** ([core/evaluation/](core/evaluation/))
 
-**ollama.py**:
-- `OllamaEvaluator` class
-- `describe_chart()`: Generate natural language insights
-- Calls Ollama API (localhost:11434)
-- Supports models: llama2, qwen2.5, etc.
 
 **summary_generator.py**:
 - `summarize_event_log(df)`: Compute statistics
@@ -583,7 +570,6 @@ display_chart()
 | **Event Log Parsing**| PM4Py                               |
 | **Clustering**       | scikit-learn (DBSCAN, OPTICS)       |
 | **Outlier Detection**| scipy.stats, sklearn.ensemble       |
-| **AI/LLM**           | Ollama API (localhost:11434)        |
 | **Testing**          | pytest                              |
 | **Language**         | Python 3.9+                         |
 
@@ -706,7 +692,6 @@ streamlit run app.py
 - pm4py
 - scikit-learn
 - scipy
-- requests (for Ollama)
 
 ---
 
