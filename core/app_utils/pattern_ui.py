@@ -75,11 +75,11 @@ def list_to_multicheckbox(item_list: list, title: str, key_prefix: str) -> list:
 
 
 def dict_to_multicheckbox(
-    data_dict: dict, 
-    title: str, 
-    key_prefix: str, 
+    data_dict: dict,
+    title: str,
+    key_prefix: str,
     default_checked: bool = True
-    ) -> list:
+) -> list:
     """Render multi-checkbox UI for a dictionary."""
     if not data_dict:
         return []
@@ -267,10 +267,42 @@ def _display_outlier_tab():
     subtab1, subtab2 = st.tabs(["Overview", "Selection"])
 
     with subtab1:
-        if summary['details'].get('outlier_details'):
-            for otype, details in summary['details']['outlier_details'].items():
+        # Get detailed summary
+        detailed_summary = outlier_pattern.get_outlier_summary()
+
+        # Top reasons for outliers
+        if 'top_reasons' in detailed_summary:
+            st.subheader("🔍 Most Common Anomaly Types")
+            for reason_info in detailed_summary['top_reasons']:
                 st.caption(
-                    f"- {otype.replace('_', ' ').title()}: {details['count']} ({details['percentage']:.1f}%)")
+                    f"**{reason_info['reason']}**: {reason_info['count']} events "
+                    f"({reason_info['percentage']:.1f}% of outliers)"
+                )
+
+        # Most common specific explanations
+        if 'most_common_explanations' in detailed_summary and detailed_summary['most_common_explanations']:
+            st.subheader("💡 Most Frequent Specific Reasons")
+            for exp_info in detailed_summary['most_common_explanations']:
+                st.caption(
+                    f"• *{exp_info['explanation']}* — {exp_info['count']} times "
+                    f"({exp_info['percentage']:.1f}%)"
+                )
+
+        # Top affected cases
+        if 'top_outlier_cases' in detailed_summary and detailed_summary['top_outlier_cases']:
+            st.subheader("📋 Most Affected Cases")
+            top_cases = detailed_summary['top_outlier_cases'][:5]
+            for case_info in top_cases:
+                st.caption(
+                    f"• Case **{case_info['case_id']}**: {case_info['outlier_events']} outlier events")
+
+        # Top affected activities
+        if 'outlier_activities' in detailed_summary and detailed_summary['outlier_activities']:
+            st.subheader("📊 Most Affected Activities")
+            top_activities = detailed_summary['outlier_activities'][:5]
+            for activity_info in top_activities:
+                st.caption(
+                    f"• **{activity_info['activity']}**: {activity_info['outlier_count']} outliers")
 
     with subtab2:
         # --- Select individual outliers ---
@@ -279,9 +311,9 @@ def _display_outlier_tab():
 
         if all_indices:
             df = outlier_pattern.df
-            case_col = outlier_pattern._has_column(
+            case_col = outlier_pattern._find_column(
                 'case_id', 'case:concept:name', 'caseid', 'trace_id')
-            activity_col = outlier_pattern._has_column(
+            activity_col = outlier_pattern._find_column(
                 'activity', 'concept:name', 'event_name', 'activity_name')
             score_dict = outlier_pattern.outlier_scores if hasattr(
                 outlier_pattern, 'outlier_scores') else {}
@@ -297,19 +329,12 @@ def _display_outlier_tab():
                                   activity_col] if activity_col and activity_col in df.columns else 'N/A'
                 score = round(score_dict.get(idx, 0), 3)
 
-                # Get human-readable explanations
-                explanations = outlier_explanations.get(idx, {})
-                reasons = []
-                for feature, explanation in explanations.items():
-                    if isinstance(explanation, dict):
-                        reasons.append(explanation.get('text', ''))
-                    else:
-                        reasons.append(str(explanation))
-                reasons_str = ' | '.join(
-                    reasons) if reasons else 'No reason available'
+                # Get explanation (now a simple string)
+                explanation = outlier_explanations.get(
+                    idx, 'No reason available')
 
-                # Create display label with case, activity, reasons, and score
-                label = f"Case {case_id}| {reasons_str} (Score: {score})"
+                # Create display label with case, activity, reason, and score
+                label = f"Case {case_id} | {activity} | {explanation} (Score: {score})"
                 outlier_dict[label] = idx
 
             selected_indices = dict_to_multicheckbox(
@@ -348,7 +373,8 @@ def _display_gap_tab():
     if selected_mode == "transition":
         st.caption("*Process-flow gaps: delays between activities within a case*")
     else:
-        st.caption("*Resource timeline gaps: periods without events (not process-flow)*")
+        st.caption(
+            "*Resource timeline gaps: periods without events (not process-flow)*")
         if not has_resource_col:
             st.warning("Resource inactivity requires 'resource' column in data")
 
@@ -380,7 +406,8 @@ def _display_gap_tab():
     layer_visible = st.session_state.get('visible_gap', True)
 
     # Compute severity distribution
-    sev_counts = {'Mild (1-2x)': 0, 'Moderate (2-3x)': 0, 'Severe (3-5x)': 0, 'Critical (>5x)': 0}
+    sev_counts = {'Mild (1-2x)': 0, 'Moderate (2-3x)': 0,
+                  'Severe (3-5x)': 0, 'Critical (>5x)': 0}
     worst_severity = 0
     for gap in abnormal_gaps:
         sev = gap.get('severity', 1)
@@ -402,9 +429,11 @@ def _display_gap_tab():
         if gap_mode == 'resource_inactivity':
             st.metric("Resources", details.get('resources_with_anomalies', 0))
         else:
-            st.metric("Transitions", details.get('transitions_with_anomalies', 0))
+            st.metric("Transitions", details.get(
+                'transitions_with_anomalies', 0))
     with col3:
-        st.metric("Worst", f"{worst_severity:.1f}x" if worst_severity > 0 else "-")
+        st.metric(
+            "Worst", f"{worst_severity:.1f}x" if worst_severity > 0 else "-")
     with col4:
         with st.popover("..."):
             current = st.session_state.get('gap_min_samples', 15)
@@ -442,11 +471,13 @@ def _display_gap_tab():
                     if resource not in worst_per_group or gap['severity'] > worst_per_group[resource]['severity']:
                         worst_per_group[resource] = gap
 
-                sorted_worst = sorted(worst_per_group.values(), key=lambda g: g['severity'], reverse=True)[:3]
+                sorted_worst = sorted(worst_per_group.values(
+                ), key=lambda g: g['severity'], reverse=True)[:3]
                 for gap in sorted_worst:
                     dur_h = gap['duration'] / 3600
                     dur_str = f"{dur_h:.1f}h" if dur_h < 24 else f"{dur_h/24:.1f}d"
-                    st.caption(f"⚠️ {gap['resource']}: {dur_str} ({gap['severity']:.1f}x)")
+                    st.caption(
+                        f"⚠️ {gap['resource']}: {dur_str} ({gap['severity']:.1f}x)")
             else:
                 st.caption("**Worst by Transition**")
                 worst_per_trans = {}
@@ -455,24 +486,29 @@ def _display_gap_tab():
                     if trans not in worst_per_trans or gap['severity'] > worst_per_trans[trans]['severity']:
                         worst_per_trans[trans] = gap
 
-                sorted_worst = sorted(worst_per_trans.values(), key=lambda g: g['severity'], reverse=True)[:3]
+                sorted_worst = sorted(worst_per_trans.values(
+                ), key=lambda g: g['severity'], reverse=True)[:3]
                 for gap in sorted_worst:
                     dur_h = gap['duration'] / 3600
                     dur_str = f"{dur_h:.1f}h" if dur_h < 24 else f"{dur_h/24:.1f}d"
-                    st.caption(f"⚠️ {gap.get('transition', 'N/A')}: {dur_str} ({gap['severity']:.1f}x)")
+                    st.caption(
+                        f"⚠️ {gap.get('transition', 'N/A')}: {dur_str} ({gap['severity']:.1f}x)")
 
     with subtab2:
-        group_stats = details.get('group_stats', details.get('transition_stats', {}))
+        group_stats = details.get(
+            'group_stats', details.get('transition_stats', {}))
         if group_stats:
             if gap_mode == 'resource_inactivity':
                 # Resource selection
-                resource_dict = {f"{r} ({s['count']})": r for r, s in group_stats.items()}
+                resource_dict = {
+                    f"{r} ({s['count']})": r for r, s in group_stats.items()}
                 selected = dict_to_multicheckbox(
                     resource_dict, "Select Resources", "gap_resource")
                 st.session_state['selected_gap_resources'] = selected
             else:
                 # Transition selection
-                trans_dict = {f"{t} ({s['count']})": t for t, s in group_stats.items()}
+                trans_dict = {f"{t} ({s['count']})": t for t,
+                              s in group_stats.items()}
                 selected = dict_to_multicheckbox(
                     trans_dict, "Select Transitions", "gap_transition")
                 st.session_state['selected_gap_transitions'] = selected
