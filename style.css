@@ -275,3 +275,255 @@ div[data-testid="stVerticalBlockBorderWrapper"] .stButton:first-child button:hov
 div[data-testid="stVerticalBlockBorderWrapper"] .stButton button:disabled {
   opacity: 0.4 !important;
 }
+/* ----------------------------------------------------------------
+   PATTERN MATRIX VIEWER
+   ---------------------------------------------------------------- */
+
+/* Matrix Introduction */
+.matrix-intro {
+  margin-bottom: 2rem;
+}
+
+.matrix-intro h2 {
+  color: var(--accent);
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.matrix-intro p {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Matrix Legend */
+.matrix-legend {
+  display: flex;
+  gap: 2rem;
+  padding: 1rem;
+  background: var(--bg-accent-muted);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  margin-top: 1rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.legend-symbol {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 1.1rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Matrix Container */
+.pattern-matrix-container {
+  width: 100%;
+  overflow-x: auto;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+/* Matrix Table */
+.pattern-matrix {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.9rem;
+}
+
+.pattern-matrix thead {
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  z-index: 10;
+}
+
+.pattern-matrix th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--accent);
+  background: var(--bg-secondary);
+}
+
+.matrix-header-col {
+  min-width: 320px;
+  position: sticky;
+  left: 0;
+  background: var(--bg-secondary);
+  z-index: 11;
+}
+
+.matrix-header-pattern {
+  text-align: center !important;
+  min-width: 120px;
+  color: var(--accent);
+}
+
+/* Matrix Body */
+.pattern-matrix tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.pattern-matrix tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+.pattern-matrix tbody tr.matrix-row-non-meaningful {
+  background: #fef3f2;
+}
+
+.pattern-matrix tbody tr.matrix-row-non-meaningful:hover {
+  background: #fee4e2;
+}
+
+.pattern-matrix td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.matrix-view-label {
+  font-weight: 500;
+  color: var(--text-primary);
+  position: sticky;
+  left: 0;
+  background: inherit;
+  z-index: 5;
+  white-space: nowrap;
+}
+
+.matrix-cell-container {
+  text-align: center;
+  padding: 0.5rem !important;
+}
+
+/* Matrix Cell */
+.matrix-cell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  cursor: help;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.matrix-cell:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  z-index: 20;
+}
+
+.matrix-symbol {
+  font-size: 1.3rem;
+  font-weight: bold;
+}
+
+/* Tooltip */
+.matrix-tooltip {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  background: #1f2937;
+  color: white;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+  z-index: 1000;
+  min-width: 280px;
+  max-width: 400px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  text-align: left;
+  pointer-events: none;
+  white-space: normal;
+}
+
+.matrix-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 8px solid transparent;
+  border-top-color: #1f2937;
+}
+
+.matrix-cell:hover .matrix-tooltip {
+  display: block;
+}
+
+/* Tooltip text formatting */
+.matrix-tooltip strong {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.matrix-tooltip em {
+  color: #93c5fd;
+  font-style: normal;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .pattern-matrix-container {
+    font-size: 0.85rem;
+  }
+  
+  .matrix-cell {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .matrix-header-col {
+    min-width: 280px;
+  }
+}
+
+/* Tab styling */
+.stTabs [data-baseweb="tab-list"] {
+  gap: 1rem;
+  background: transparent;
+  border-bottom: 2px solid var(--border-subtle);
+}
+
+.stTabs [data-baseweb="tab"] {
+  padding: 0.75rem 1.5rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  border: none;
+  background: transparent;
+}
+
+.stTabs [data-baseweb="tab"]:hover {
+  color: var(--accent);
+  background: var(--bg-hover);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.stTabs [aria-selected="true"] {
+  color: var(--accent) !important;
+  border-bottom: 2px solid var(--accent);
+}

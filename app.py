@@ -16,9 +16,13 @@ st.set_page_config(
 # -------------------------------------------------
 # LOAD GLOBAL CSS (SINGLE SOURCE OF TRUTH)
 # -------------------------------------------------
+
+
 def load_css():
     css_file = Path(__file__).parent / "style.css"
-    st.markdown(f"<style>{css_file.read_text()}</style>", unsafe_allow_html=True)
+    st.markdown(f"<style>{css_file.read_text()}</style>",
+                unsafe_allow_html=True)
+
 
 load_css()
 
@@ -55,6 +59,8 @@ st.markdown(
 # -------------------------------------------------
 # MAIN APP
 # -------------------------------------------------
+
+
 def main():
 
     # -----------------------------
@@ -73,12 +79,8 @@ def main():
         unsafe_allow_html=True,
     )
 
+    # Sampling Strategy Selection (only shown when demo mode is enabled)
 
-
-
-        
-        # Sampling Strategy Selection (only shown when demo mode is enabled)
-        
     # -----------------------------
     # STATE INIT
     # -----------------------------
@@ -91,10 +93,10 @@ def main():
     with st.sidebar:
         with st.expander("Load Data", expanded=st.session_state.ui_step == "load"):
             demo_mode = st.checkbox(
-            "Demo Mode", 
-            value=True,
-            help="Enable sampling for faster analysis. Choose a sampling strategy below."
-        )
+                "Demo Mode",
+                value=True,
+                help="Enable sampling for faster analysis. Choose a sampling strategy below."
+            )
             sampling_mode = SamplingMode.FULL  # Default
             if demo_mode:
                 sampling_options = {
@@ -103,7 +105,7 @@ def main():
                     "Optimized (~70%)": SamplingMode.OPTIMIZED,
                     "Legacy (first-N)": SamplingMode.LEGACY,
                 }
-                
+
                 selected_strategy = st.selectbox(
                     "Sampling Strategy:",
                     options=list(sampling_options.keys()),
@@ -124,9 +126,11 @@ def main():
                 disabled=demo_mode,
             )
 
-            st.markdown("<div style='height: 0.5rem'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='height: 0.5rem'></div>",
+                        unsafe_allow_html=True)
             if st.button("Load Data", type="primary"):
-                app_handler.load_data_button(xes_path, demo_mode=demo_mode, sampling_mode=sampling_mode)
+                app_handler.load_data_button(
+                    xes_path, demo_mode=demo_mode, sampling_mode=sampling_mode)
                 st.session_state.ui_step = "config"
                 st.rerun()
 
@@ -134,10 +138,12 @@ def main():
 
         with st.expander("Chart Configuration", expanded=st.session_state.ui_step == "config"):
             x_axis, y_axis, dots_config_label = app_handler.get_chart_config_with_selectboxes()
-            st.markdown("<div style='height: 0.5rem'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='height: 0.5rem'></div>",
+                        unsafe_allow_html=True)
             if st.button("Re-plot Chart", type="primary"):
                 if "df" in st.session_state:
-                    app_handler.plot_chart_button(x_axis, y_axis, dots_config_label)
+                    app_handler.plot_chart_button(
+                        x_axis, y_axis, dots_config_label)
                     st.session_state.ui_step = "layers"
                     st.rerun()
                 else:
@@ -164,16 +170,25 @@ def main():
                 st.caption("Plot a chart first")
 
     # -----------------------------
-    # MAIN CONTENT
+    # MAIN CONTENT WITH TABS
     # -----------------------------
-    if not st.session_state.get("data_loaded", False):
-        return
+    tab1, tab2 = st.tabs(["📊 Pattern Detection", "🔍 Pattern Matrix Explorer"])
 
-    app_handler.display_chart()
+    with tab1:
+        # Original main content
+        if not st.session_state.get("data_loaded", False):
+            st.info("👈 Load data from the sidebar to get started")
+        else:
+            app_handler.display_chart()
 
-    if st.session_state.get("chart_plotted", False):
-        st.divider()
-        pattern_ui.handle_pattern_detection()
+            if st.session_state.get("chart_plotted", False):
+                st.divider()
+                pattern_ui.handle_pattern_detection()
+
+    with tab2:
+        # Pattern Matrix Viewer
+        from core.app_utils.matrix_viewer import display_matrix_viewer
+        display_matrix_viewer()
 
 
 # -------------------------------------------------
