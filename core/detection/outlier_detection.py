@@ -100,6 +100,11 @@ class OutlierDetectionPattern(Pattern):
             # For backward compatibility
             self.outliers['combined'] = self.outlier_indices
 
+            # Add outlier_reason column to dataframe for hover display
+            self.df['outlier_reason'] = ''
+            for idx, explanation in self.outlier_explanations.items():
+                self.df.at[idx, 'outlier_reason'] = explanation
+
             # Calculate statistics
             self._calculate_statistics(feature_names)
 
@@ -204,11 +209,20 @@ class OutlierDetectionPattern(Pattern):
 
                 elif feat_name == 'day_of_week':
                     days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-                    day = days[int(raw_val)]
-                    if int(raw_val) >= 5:
-                        reasons.append(f"Weekend activity ({day})")
+                    try:
+                        day_index = int(raw_val)
+                    except (TypeError, ValueError):
+                        # Skip invalid day values gracefully
+                        continue
+                    if 0 <= day_index < len(days):
+                        day = days[day_index]
+                        if day_index >= 5:
+                            reasons.append(f"Weekend activity ({day})")
+                        else:
+                            reasons.append(f"Unusual weekday ({day})")
                     else:
-                        reasons.append(f"Unusual weekday ({day})")
+                        # Skip out-of-range day values gracefully
+                        continue
 
                 elif feat_name == 'time_offset':
                     hours = raw_val
@@ -234,6 +248,10 @@ class OutlierDetectionPattern(Pattern):
                         reasons.append(
                             f"Resource handles few events ({int(raw_val)})")
 
+        # If we found extreme features, return them
+        if reasons:
+            return " • ".join(reasons)
+
         # If no extreme features found, show top contributors
         if not reasons:
             # Get top 3 features by absolute scaled value
@@ -252,7 +270,8 @@ class OutlierDetectionPattern(Pattern):
                     reasons.append(f"At {int(raw_val)}:00")
                 elif feat_name == 'day_of_week':
                     days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-                    reasons.append(f"On {days[int(raw_val)]}")
+                    if raw_val >= 0 and raw_val < len(days):
+                        reasons.append(f"On {days[int(raw_val)]}")
                 elif feat_name == 'time_offset':
                     reasons.append(f"{raw_val:.0f}h from start")
                 elif feat_name == 'activity_frequency':
@@ -326,7 +345,7 @@ class OutlierDetectionPattern(Pattern):
         # Filter outliers based on session state selection if available
         import streamlit as st
         selected_outliers = st.session_state.get(
-            'selected_outliers_individual', [])
+            'selected_outlier_indices', [])
 
         if selected_outliers:
             display_indices = [
@@ -453,25 +472,36 @@ class OutlierDetectionPattern(Pattern):
             key=lambda x: x[1],
             reverse=True
         )
-        summary['top_reasons'] = [
-            {'reason': reason, 'count': count, 'percentage': (
-                count / len(self.outlier_indices) * 100)}
-            for reason, count in top_reasons[:5]
-        ]
-
+        outlier_count = len(self.outlier_indices)
+        if outlier_count == 0:
+            summary['top_reasons'] = []
+        else:
+            summary['top_reasons'] = [
+                {
+                    'reason': reason,
+                    'count': count,
+                    'percentage': (count / outlier_count * 100),
+                }
+                for reason, count in top_reasons[:5]
+            ]
         # Most common specific explanations
         from collections import Counter
         # Filter out None values before counting
         valid_explanations = [
             exp for exp in self.outlier_explanations.values() if exp]
         explanation_counts = Counter(valid_explanations)
-        summary['most_common_explanations'] = [
-            {'explanation': explanation, 'count': count, 'percentage': (
-                count / len(self.outlier_indices) * 100)}
-            for explanation, count in explanation_counts.most_common(5)
-            if explanation  # Additional safety check
-        ]
-
+        if outlier_count == 0:
+            summary['most_common_explanations'] = []
+        else:
+            summary['most_common_explanations'] = [
+                {
+                    'explanation': explanation,
+                    'count': count,
+                    'percentage': (count / outlier_count * 100),
+                }
+                for explanation, count in explanation_counts.most_common(5)
+                if explanation  # Additional safety check
+            ]
         # Top outlier cases
         if case_col and case_col in self.df.columns:
             outlier_cases = self.df.loc[self.outlier_indices,

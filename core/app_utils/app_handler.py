@@ -184,7 +184,7 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
     with st.spinner("Rendering chart..."):
         # Build hover columns (exclude axes and color to avoid redundancy)
         hover_cols = []
-        for col in ['case_id', 'activity', 'resource', 'actual_time']:
+        for col in ['case_id', 'activity', 'resource', 'actual_time', 'outlier_reason']:
             if col in df_selected.columns and col not in [x_col, y_col, dots_config_col]:
                 hover_cols.append(col)
 
