@@ -20,9 +20,6 @@ from core.utils.demo_sampling import (
     SamplingMode,
     SAMPLING_CONFIGS
 )
-from core.evaluation.ollama import OllamaEvaluator
-
-
 
 
 # =============================================================================
@@ -606,24 +603,3 @@ def sidebar_pattern_layer_controls():
     show_pattern("Sequences", seq_count, 'visible_sequence', 'sequence_version', 'checkbox_sequence_', 'sequence', seq_exp)
     show_pattern("Case Arrival Trend", 1 if st.session_state.get('case_arrival_trend_detected') else 0, 'visible_case_arrival_trend', 'case_arrival_trend_version', 'checkbox_case_arrival_trend_', 'case_arrival_trend', "Detected via Mann-Kendall trend test.")
 
-
-# =============================================================================
-# === AI Description ===
-# =============================================================================
-
-def ollama_description_button():
-    """Generate AI description of chart."""
-    with st.spinner("Generating description..."):
-        try:
-            plot_config = st.session_state.get('current_plot_config', {})
-            if not plot_config:
-                st.warning("Please plot a chart first")
-                return
-            df = get_active_view_df(plot_config)
-            summary = summarize_event_log(df)
-            summary_text = "\n".join([f"{k}: {v}" for k, v in summary.items()])
-            evaluator = OllamaEvaluator(model="qwen2.5:3b-instruct-q4_0")
-            description = evaluator.describe_chart(summary_text, df)
-            st.write(description)
-        except Exception as e:
-            st.error(f"Error generating description: {e}")
