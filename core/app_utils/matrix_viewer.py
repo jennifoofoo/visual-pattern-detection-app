@@ -13,12 +13,13 @@ from typing import List, Dict, Tuple
 
 
 # Define the pattern order and display names
-PATTERNS = ["gap", "burst", "outlier", "cluster"]
+PATTERNS = ["gap", "burst", "outlier", "cluster", "sequence"]
 PATTERN_DISPLAY_NAMES = {
     "gap": "Gap",
     "burst": "Burst",
     "outlier": "Outlier",
-    "cluster": "Cluster"
+    "cluster": "Cluster",
+    "sequence": "Sequence"
 }
 
 # Map pattern names in matrix to display pattern names
@@ -27,7 +28,7 @@ PATTERN_NAME_MAPPING = {
     "gap": "gap",
     "outlier": "outlier",
     "cluster": "cluster",
-    "sequence": "sequence"  # We'll exclude this for now unless needed
+    "sequence": "sequence"
 }
 
 
@@ -100,18 +101,8 @@ def get_pattern_status(view_config: Tuple[str, str, str], pattern: str) -> Dict:
     # Build detailed tooltip for meaningful patterns
     tooltip_parts = []
 
-    if "interpretation" in info:
-        interp = info["interpretation"]
-        if isinstance(interp, dict):
-            # Handle multi-mode interpretations (like gap patterns)
-            tooltip_parts.append("**Interpretation:**")
-            for mode, text in interp.items():
-                tooltip_parts.append(f"- *{mode}*: {text}")
-        else:
-            tooltip_parts.append(f"**Interpretation:**\n{interp}")
-
     if "use_case" in info:
-        tooltip_parts.append(f"\n**Use Case:**\n{info['use_case']}")
+        tooltip_parts.append(f"**Use Case:**\n{info['use_case']}")
 
     if "visual" in info:
         tooltip_parts.append(f"\n**Visual:**\n{info['visual']}")
@@ -245,14 +236,33 @@ def render_pattern_matrix():
                 cell.addEventListener('mouseenter', function(e) {
                     tooltip.style.display = 'block';
                     
-                    // Position tooltip
+                    // Position tooltip using fixed positioning
                     const rect = cell.getBoundingClientRect();
                     const tooltipRect = tooltip.getBoundingClientRect();
                     
-                    // Adjust position if tooltip goes off-screen
-                    if (rect.left + tooltipRect.width > window.innerWidth) {
+                    // Position below the cell by default
+                    let topPos = rect.bottom + 8;
+                    
+                    // If tooltip would go below viewport, show above instead
+                    if (topPos + tooltipRect.height > window.innerHeight - 10) {
+                        topPos = rect.top - tooltipRect.height - 8;
+                    }
+                    
+                    tooltip.style.top = topPos + 'px';
+                    
+                    // Center horizontally, adjust if goes off-screen
+                    let leftPos = rect.left + (rect.width / 2);
+                    
+                    if (leftPos + (tooltipRect.width / 2) > window.innerWidth - 10) {
                         tooltip.style.left = 'auto';
-                        tooltip.style.right = '0';
+                        tooltip.style.right = '10px';
+                        tooltip.style.transform = 'translateY(0)';
+                    } else if (leftPos - (tooltipRect.width / 2) < 10) {
+                        tooltip.style.left = '10px';
+                        tooltip.style.transform = 'translateY(0)';
+                    } else {
+                        tooltip.style.left = leftPos + 'px';
+                        tooltip.style.transform = 'translateX(-50%) translateY(0)';
                     }
                 });
                 

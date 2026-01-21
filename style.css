@@ -37,6 +37,19 @@ html, body, [data-testid="stAppViewContainer"] {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+/* Lower z-index of Streamlit header elements */
+header[data-testid="stHeader"] {
+  z-index: 100 !important;
+}
+
+[data-testid="stToolbar"] {
+  z-index: 100 !important;
+}
+
+[data-testid="stDecoration"] {
+  z-index: 100 !important;
+}
+
 /* ----------------------------------------------------------------
    MAIN – FULL WIDTH, NO CONSTRAINTS
    ---------------------------------------------------------------- */
@@ -387,11 +400,11 @@ div[data-testid="stVerticalBlockBorderWrapper"] .stButton button:disabled {
 }
 
 .pattern-matrix tbody tr.matrix-row-non-meaningful {
-  background: #fef3f2;
+  background: inherit;
 }
 
 .pattern-matrix tbody tr.matrix-row-non-meaningful:hover {
-  background: #fee4e2;
+  background: var(--bg-hover);
 }
 
 .pattern-matrix td {
@@ -431,7 +444,8 @@ div[data-testid="stVerticalBlockBorderWrapper"] .stButton button:disabled {
 .matrix-cell:hover {
   transform: scale(1.1);
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  z-index: 20;
+  z-index: 999998 !important;
+  position: relative;
 }
 
 .matrix-symbol {
@@ -442,8 +456,8 @@ div[data-testid="stVerticalBlockBorderWrapper"] .stButton button:disabled {
 /* Tooltip */
 .matrix-tooltip {
   display: none;
-  position: absolute;
-  bottom: 100%;
+  position: fixed;
+  bottom: auto;
   left: 50%;
   transform: translateX(-50%) translateY(-8px);
   background: #1f2937;
@@ -451,7 +465,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] .stButton button:disabled {
   padding: 1rem;
   border-radius: 8px;
   box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-  z-index: 1000;
+  z-index: 999999 !important;
   min-width: 280px;
   max-width: 400px;
   font-size: 0.85rem;
@@ -459,16 +473,6 @@ div[data-testid="stVerticalBlockBorderWrapper"] .stButton button:disabled {
   text-align: left;
   pointer-events: none;
   white-space: normal;
-}
-
-.matrix-tooltip::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 8px solid transparent;
-  border-top-color: #1f2937;
 }
 
 .matrix-cell:hover .matrix-tooltip {
