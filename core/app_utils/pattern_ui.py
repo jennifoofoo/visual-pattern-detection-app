@@ -276,10 +276,25 @@ def _display_outlier_tab():
         # Top reasons for outliers
         if 'top_reasons' in detailed_summary:
             st.subheader("🔍 Most Common Anomaly Types")
+            
+            anomaly_explanations = {
+                'Timing issues': "Event occurred at an unusual hour (e.g. night shift vs day shift).",
+                'Case complexity': "Case has unusually high or low number of events.",
+                'Rare activities': "This activity appears very infrequently in the log.",
+                'Resource workload': "Resource is handling an unusually high or low volume of work.",
+                'Weekend/unusual days': "Event occurred on a weekend or a day not typical for this process.",
+                'Position anomalies': "Event happened much earlier or later in the case sequence than normal.",
+                'Timeline anomalies': "Event occurred very early or late relative to the overall process timeline.",
+                'Combined patterns': "Anomalous across multiple features simultaneously."
+            }
+            
             for reason_info in detailed_summary['top_reasons']:
+                r_text = reason_info['reason']
+                help_text = anomaly_explanations.get(r_text, "Statistical anomaly detected by Isolation Forest.")
                 st.caption(
-                    f"**{reason_info['reason']}**: {reason_info['count']} events "
-                    f"({reason_info['percentage']:.1f}% of outliers)"
+                    f"**{r_text}**: {reason_info['count']} events "
+                    f"({reason_info['percentage']:.1f}% of outliers)",
+                    help=help_text
                 )
 
         # Most common specific explanations
