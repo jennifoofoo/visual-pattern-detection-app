@@ -558,9 +558,14 @@ def _display_sequence_tab():
     if not layer_visible:
         st.caption("Hidden - enable in sidebar")
 
+
+    st.caption("**Identifies frequent event patterns (e.g. A->B).**")
+
     # Strict Mode Toggle
     is_strict = st.session_state.get('sequence_strict_mode', False)
-    if st.checkbox("Strict Matching (No Gaps)", value=is_strict, key="seq_strict_toggle"):
+    if st.checkbox("Strict Matching ", value=is_strict, key="seq_strict_toggle",
+                   help="Strict Matching: patterns are found only if events occur consecutively (A immediately followed by B).  \n"
+                        "Turn off to detect sequences that may have other events in between (A followed eventually by B)."):
         if not is_strict:
             st.session_state['sequence_strict_mode'] = True
             # Trigger re-detection
@@ -584,8 +589,6 @@ def _display_sequence_tab():
                      plot_config['df_selected']
                  )
             st.rerun()
-
-    st.caption("**Identifies frequent event patterns (e.g. A->B).**")
     # Top-level metrics
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -602,40 +605,79 @@ def _display_sequence_tab():
     subtab1, subtab2 = st.tabs(["Overview", "Selection"])
 
     with subtab1:
-        col_a, col_b = st.columns(2)
+        # --- Detailed Statistics ---
+        st.markdown("#### 📊 Statistics")
+        stat_col1, stat_col2 = st.columns(2)
         
-        with col_a:
+        with stat_col1:
+            st.markdown("**Pattern Lengths**")
+            st.caption(
+                f"• Range: **{summary.get('min_pattern_length', 0)} - {summary.get('max_pattern_length', 0)}** items\n"
+                f"• Average: **{summary.get('avg_pattern_length', 0):.1f}** items"
+            )
+            
             # Pattern Length Distribution
             length_dist = summary.get('length_distribution', {})
             if length_dist:
-                st.markdown("**Pattern Length Distribution**")
                 max_len = max(length_dist.values()) if length_dist else 1
                 for length, count in sorted(length_dist.items()):
-                    # Simple ASCII bar chart
-                    bar_len = int((count / max_len) * 20)
-                    bar = "█" * bar_len + "░" * (20 - bar_len)
+                    bar_len = int((count / max_len) * 15)
+                    bar = "█" * bar_len + "░" * (15 - bar_len)
                     st.caption(f"Length {length}: `{bar}` ({count})")
-            
-            # Additional stats
-            event_cov = summary.get('event_coverage', 0)
-            st.markdown("**Coverage Stats**")
-            st.caption(f"• Event Coverage: {event_cov:.1%}")
-            
+
+        with stat_col2:
+            st.markdown("**Support & Coverage**")
             min_sup = summary.get('min_support_found', 0)
             max_sup = summary.get('max_support_found', 0)
             min_pct = summary.get('min_support_percentage', 0)
             max_pct = summary.get('max_support_percentage', 0)
             
-            support_range = f"{min_sup} ({min_pct:.1%}) - {max_sup} ({max_pct:.1%})"
-            st.caption(f"• Support Range: {support_range}")
+            st.caption(
+                f"• Support Range: **{min_sup} ({min_pct:.1%}) - {max_sup} ({max_pct:.1%})**\n"
+                f"• Event Coverage: **{summary.get('event_coverage', 0):.1%}**"
+            )
 
-        with col_b:
             # Top Frequent Elements
             top_elements = summary.get('top_frequent_elements', {})
             if top_elements:
-                st.markdown("**Most Frequent Elements in Patterns**")
-                for element, count in top_elements.items():
+                st.markdown("**Common Elements**")
+                for element, count in list(top_elements.items())[:5]:
                     st.caption(f"• **{element}**: {count}")
+
+        # --- Top Patterns Table ---
+        st.divider()
+        st.markdown("#### 🏆 Top Detected Patterns")
+        
+        pattern_stats = details.get('pattern_stats', {})
+        if pattern_stats:
+            # Create a list of dictionaries for the table
+            table_data = []
+            for pat_str, stats in pattern_stats.items():
+                table_data.append({
+                    "Pattern Sequence": pat_str,
+                    "Support": stats['count'],
+                    "Support %": f"{stats.get('support_percentile', 0):.1%}",
+                    "Length": len(stats.get('sequence', []))
+                })
+            
+            # Sort by support count descending
+            table_data.sort(key=lambda x: x['Support'], reverse=True)
+            
+            # Show top 10
+            top_10 = table_data[:10]
+            st.dataframe(
+                top_10,
+                column_config={
+                    "Pattern Sequence": st.column_config.TextColumn("Sequence", width="large"),
+                    "Support": st.column_config.NumberColumn("Count", format="%d"),
+                    "Support %": st.column_config.TextColumn("Freq"),
+                    "Length": st.column_config.NumberColumn("Len")
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+        else:
+            st.caption("No pattern statistics available.")
 
     with subtab2:
         pattern_stats = details.get('pattern_stats', {})
