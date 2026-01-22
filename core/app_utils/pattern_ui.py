@@ -367,6 +367,11 @@ def _display_outlier_tab():
 def _display_gap_tab():
     """Display Gap Detection pattern details with mode selection and severity distribution."""
     from core.app_utils.pattern_detection import _detect_gaps
+    
+    # Description moved to top
+    st.caption("**Identifies abnormally long time gaps using statistical normality learning.**", 
+               help="Gap Detection learns what is 'normal' for each transition or resource from the data itself. "
+                    "It then flags any duration that significantly exceeds this normal range (e.g. > 3x longer than usual).")
 
     # Mode selection dropdown
     gap_mode_options = {
@@ -442,8 +447,6 @@ def _display_gap_tab():
             sev_counts['Mild (1-2x)'] += 1
 
     # Header metrics - mode-specific labels
-    st.caption("**Detects statistically significant time delays between events.**", 
-               help="Gap Detection identifies interruptions in the process flow or resource usage. It uses statistical analysis (Modified Z-Score) to find durations that are significantly longer than the median.")
 
     col1, col2, col3, col4 = st.columns([1, 1, 1, 0.3])
     with col1:
