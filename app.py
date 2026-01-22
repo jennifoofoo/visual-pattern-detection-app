@@ -109,9 +109,9 @@ def main():
                     options=list(sampling_options.keys()),
                     index=1,  # Default to Balanced
                     help="""
-                    **Minimal**: 1-2 traces per variant - ultra fast demos
-                    **Balanced (√n)**: Keeps √n traces for frequent variants, all rare variants - recommended
-                    **Optimized**: ~70% of data, preserves variant distribution - gentle reduction  
+                    **Minimal**: 1-2 traces per variant - ultra fast demos\n\n
+                    **Balanced (√n)**: Keeps √n traces for frequent variants, all rare variants - recommended\n\n
+                    **Optimized**: ~70% of data, preserves variant distribution - gentle reduction\n\n
                     **Legacy**: First 100 cases - original sampling method
                     """,
                     key='sampling_strategy'
