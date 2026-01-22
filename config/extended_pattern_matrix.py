@@ -1226,7 +1226,7 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Sequence detection requires temporal ordering which relative_ratio does not provide.",
             "use_case": "Use actual_time or relative_time for sequence detection",
             "output": "N/A"
-        }},
+        },
     # RELATIVE_RATIO × CASE_ID
     #
     # ========================================================================
@@ -2241,7 +2241,7 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         }
     }
 }
-
+}
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================

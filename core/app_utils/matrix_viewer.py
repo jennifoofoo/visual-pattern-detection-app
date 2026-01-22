@@ -5,7 +5,6 @@ Displays all view configurations with pattern support status and hover tooltips.
 
 import streamlit as st
 from config.extended_pattern_matrix import (
-    EXTENDED_PATTERN_MATRIX,
     get_all_view_combinations,
     get_pattern_info
 )

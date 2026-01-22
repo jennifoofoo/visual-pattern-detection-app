@@ -3,6 +3,7 @@ from core.app_utils import pattern_ui
 import core.app_utils.app_handler as app_handler
 from core.utils.demo_sampling import SamplingMode
 from pathlib import Path
+from core.app_utils.matrix_viewer import display_matrix_viewer
 
 # -------------------------------------------------
 # PAGE CONFIG
@@ -187,7 +188,6 @@ def main():
 
     with tab2:
         # Pattern Matrix Viewer
-        from core.app_utils.matrix_viewer import display_matrix_viewer
         display_matrix_viewer()
 
 
