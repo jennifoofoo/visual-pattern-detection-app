@@ -442,7 +442,8 @@ def _display_gap_tab():
             sev_counts['Mild (1-2x)'] += 1
 
     # Header metrics - mode-specific labels
-    st.caption("**Detects statistically significant time delays between events.**")
+    st.caption("**Detects statistically significant time delays between events.**", 
+               help="Gap Detection identifies interruptions in the process flow or resource usage. It uses statistical analysis (Modified Z-Score) to find durations that are significantly longer than the median.")
 
     col1, col2, col3, col4 = st.columns([1, 1, 1, 0.3])
     with col1:
@@ -477,7 +478,12 @@ def _display_gap_tab():
     with subtab1:
         # Severity distribution
         if abnormal_gaps:
-            st.caption("**Severity Distribution**")
+            st.caption("**Severity Distribution**", 
+                       help="Severity indicates how much longer a gap is compared to the normal duration.\n\n"
+                            "• **Mild (1-2x)**: Slightly delayed.\n\n"
+                            "• **Moderate (2-3x)**: Noticeable delay.\n\n"
+                            "• **Severe (3-5x)**: Significant interruption.\n\n"
+                            "• **Critical (>5x)**: Extreme delay (requires attention).")
             for label, count in sev_counts.items():
                 if count > 0:
                     bar_len = min(count, 20)
