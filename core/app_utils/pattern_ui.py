@@ -527,18 +527,99 @@ def _display_sequence_tab():
     if not layer_visible:
         st.caption("Hidden - enable in sidebar")
 
-    st.metric("Sequences", summary['count'])
+    # Strict Mode Toggle
+    is_strict = st.session_state.get('sequence_strict_mode', False)
+    if st.checkbox("Strict Matching (No Gaps)", value=is_strict, key="seq_strict_toggle"):
+        if not is_strict:
+            st.session_state['sequence_strict_mode'] = True
+            # Trigger re-detection
+            from core.app_utils.pattern_detection import _detect_sequences
+            plot_config = st.session_state.get('current_plot_config', {})
+            if plot_config:
+                 _detect_sequences(
+                     plot_config['x_col'], plot_config['y_col'], plot_config['dots_config_col'], 
+                     plot_config['df_selected']
+                 )
+            st.rerun()
+    else:
+        if is_strict:
+            st.session_state['sequence_strict_mode'] = False
+            # Trigger re-detection
+            from core.app_utils.pattern_detection import _detect_sequences
+            plot_config = st.session_state.get('current_plot_config', {})
+            if plot_config:
+                 _detect_sequences(
+                     plot_config['x_col'], plot_config['y_col'], plot_config['dots_config_col'], 
+                     plot_config['df_selected']
+                 )
+            st.rerun()
+
+    # Top-level metrics
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Unique Patterns", summary.get('unique_patterns_count', '-'))
+    with col2:
+        st.metric("Total Instances", summary['count'])
+    with col3:
+        group_cov = summary.get('group_coverage', 0)
+        st.metric("Group Coverage", f"{group_cov:.1%}")
+    with col4:
+        avg_sup = summary.get('avg_support', 0)
+        st.metric("Avg Support", f"{avg_sup:.1f}")
 
     subtab1, subtab2 = st.tabs(["Overview", "Selection"])
 
     with subtab1:
-        pass  # TODO: Add overview content
+        col_a, col_b = st.columns(2)
+        
+        with col_a:
+            # Pattern Length Distribution
+            length_dist = summary.get('length_distribution', {})
+            if length_dist:
+                st.markdown("**Pattern Length Distribution**")
+                max_len = max(length_dist.values()) if length_dist else 1
+                for length, count in sorted(length_dist.items()):
+                    # Simple ASCII bar chart
+                    bar_len = int((count / max_len) * 20)
+                    bar = "█" * bar_len + "░" * (20 - bar_len)
+                    st.caption(f"Length {length}: `{bar}` ({count})")
+            
+            # Additional stats
+            event_cov = summary.get('event_coverage', 0)
+            st.markdown("**Coverage Stats**")
+            st.caption(f"• Event Coverage: {event_cov:.1%}")
+            
+            min_sup = summary.get('min_support_found', 0)
+            max_sup = summary.get('max_support_found', 0)
+            min_pct = summary.get('min_support_percentage', 0)
+            max_pct = summary.get('max_support_percentage', 0)
+            
+            support_range = f"{min_sup} ({min_pct:.1%}) - {max_sup} ({max_pct:.1%})"
+            st.caption(f"• Support Range: {support_range}")
+
+        with col_b:
+            # Top Frequent Elements
+            top_elements = summary.get('top_frequent_elements', {})
+            if top_elements:
+                st.markdown("**Most Frequent Elements in Patterns**")
+                for element, count in top_elements.items():
+                    st.caption(f"• **{element}**: {count}")
 
     with subtab2:
         pattern_stats = details.get('pattern_stats', {})
         if pattern_stats:
-            seq_dict = {f"{p} ({s['count']} cases)": p for p,
-                        s in pattern_stats.items()}
+            # Sort by support count for better UX
+            sorted_patterns = sorted(
+                pattern_stats.items(), 
+                key=lambda item: item[1]['count'], 
+                reverse=True
+            )
+            
+            seq_dict = {
+                f"{p} (Support: {data['count']})": p 
+                for p, data in sorted_patterns
+            }
+            
             selected = dict_to_multicheckbox(
                 seq_dict, "Select Sequences", "seq_pattern", default_checked=False)
             st.session_state['selected_seq_patterns'] = selected

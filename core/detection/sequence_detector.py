@@ -29,11 +29,13 @@ class HorizontalSequencePatternDetector(Pattern):
         dot_color: str,
         df: pd.DataFrame,
         min_support: int = 50,
+        is_strict: bool = False,
     ) -> None:
         # Initialize configuration
         self.x_axis_df_key = x_axis
         self.y_axis_df_key = y_axis
         self.dot_df_key = dot_color
+        self.is_strict = is_strict
         
         # Store data
         self.full_df = df
@@ -66,16 +68,20 @@ class HorizontalSequencePatternDetector(Pattern):
         self.df_found_patterns = pd.DataFrame()
         self.results = pd.DataFrame()
         self.topkresults = pd.DataFrame()
-    
+
     def detect(self) -> bool:
         """Main detection method."""
         if self.warn_grouping_key_dot_config:
             return False
             
         # 1. Prepare data for PrefixSpan
+        # (Preprocessing is same for strict/non-strict: based on grouped timestamps)
         self.df_sorted, sequence_data = self._prepare_data_for_prefixspan()
         
         # 2. Extract subsequences using PrefixSpan
+        # Note: PrefixSpan finds frequent loose subsequences. 
+        # For strict mode, we still use this as a candidate generator, 
+        # and strictness is enforced during mapping/validation.
         found_subsequences = self._extract_subsequences(sequence_data)
         
         # 3. Post-process results to map patterns to original indices
@@ -83,11 +89,15 @@ class HorizontalSequencePatternDetector(Pattern):
         
         # 4. Store results
         self.df_found_patterns = pattern_map_df
-        self.results = self._join_with_original_context(pattern_map_df)
-        self.detected = True
+        if not pattern_map_df.empty:
+            self.results = self._join_with_original_context(pattern_map_df)
+            self.detected = True
+        else:
+            self.detected = False
+            self.results = pd.DataFrame()
         
-        return True
-    
+        return self.detected
+
     def _prepare_data_for_prefixspan(self) -> Tuple[pd.DataFrame, List[List[Any]]]:
         """
         Prepare sorted data and sequences for PrefixSpan.
@@ -244,42 +254,66 @@ class HorizontalSequencePatternDetector(Pattern):
                             })
         
         return pd.DataFrame(mapping_data).set_index('index')
-    
+
     def _find_subsequence_matches(self, sub: List[Any], seq: List[Any]) -> List[List[int]]:
         """
         Find all non-overlapping occurrences of sub in seq.
         Returns list of lists with indices of matches.
+        
+        If self.is_strict is True, enforces elements to be strictly consecutive (gap=0).
         """
         matches = []
-        start_index = 0
+        if not sub:
+            return []
+            
+        sub_len = len(sub)
+        seq_len = len(seq)
         
-        while start_index < len(seq):
-            try:
-                current_match_start = seq.index(sub[0], start_index)
-            except ValueError:
-                break
-                
-            # Check the rest of the sub-sequence
-            is_match = True
-            match_indices = [current_match_start]
-            current_seq_search_index = current_match_start + 1
+        if self.is_strict:
+            # STRICT MODE: Elements must be adjacent in the preprocessed sequence list
+            # Note: The 'seq' here is a list of itemsets (events at same timestamp).
             
-            for item in sub[1:]:
+            # Re-implement strict with while loop for non-overlapping
+            matches = []
+            i = 0
+            while i <= seq_len - sub_len:
+                if seq[i : i + sub_len] == sub:
+                    matches.append(list(range(i, i + sub_len)))
+                    i += sub_len # Skip past this match
+                else:
+                    i += 1
+            return matches
+
+        else:
+            # LOOSE MODE (Existing Logic)
+            start_index = 0
+            while start_index < len(seq):
                 try:
-                    current_seq_search_index = seq.index(item, current_seq_search_index)
-                    match_indices.append(current_seq_search_index)
-                    current_seq_search_index += 1
+                    current_match_start = seq.index(sub[0], start_index)
                 except ValueError:
-                    is_match = False
                     break
-            
-            if is_match:
-                matches.append(match_indices)
-                start_index = match_indices[-1] + 1
-            else:
-                start_index = current_match_start + 1
+                    
+                # Check the rest of the sub-sequence
+                is_match = True
+                match_indices = [current_match_start]
+                current_seq_search_index = current_match_start + 1
                 
-        return matches
+                for item in sub[1:]:
+                    try:
+                        current_seq_search_index = seq.index(item, current_seq_search_index)
+                        match_indices.append(current_seq_search_index)
+                        current_seq_search_index += 1
+                    except ValueError:
+                        is_match = False
+                        break
+                
+                if is_match:
+                    matches.append(match_indices)
+                    start_index = match_indices[-1] + 1
+                else:
+                    start_index = current_match_start + 1
+                    
+            return matches
     
     def _join_with_original_context(self, pattern_map_df: pd.DataFrame) -> pd.DataFrame:
         """Join pattern information with original dataframe."""
@@ -397,6 +431,8 @@ class HorizontalSequencePatternDetector(Pattern):
             'avg_support': float(avg_support) if not supports.empty else 0.0,
             'min_support_found': int(min_support_val) if not supports.empty else 0,
             'max_support_found': int(max_support_val) if not supports.empty else 0,
+            'min_support_percentage': float(min_support_val / total_groups) if not supports.empty and total_groups > 0 else 0.0,
+            'max_support_percentage': float(max_support_val / total_groups) if not supports.empty and total_groups > 0 else 0.0,
             'group_coverage': float(group_coverage),
             'event_coverage': float(event_coverage),
             'length_distribution': length_dist,
@@ -575,7 +611,7 @@ class HorizontalSequencePatternDetector(Pattern):
         # Initialize detector
         print("\n" + "=" * 80)
         print("STEP 1: Initializing detector...")
-        detector = HorizontalSequencePatternDetector2(
+        detector = HorizontalSequencePatternDetector(
             x_axis=x_axis,
             y_axis=y_axis,
             dot_color=dot_color,
