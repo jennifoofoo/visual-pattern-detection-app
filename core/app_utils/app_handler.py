@@ -585,6 +585,8 @@ def sidebar_pattern_layer_controls():
             return count, f"Detected via OPTICS clustering algorithm."
         elif detector_key == 'sequence_detector':
             return count, f"Detected via PrefixSpan with {details.get('min_support', 80)}% min support."
+        elif detector_key == 'temporal_clusters':
+            return count, "Detected via DBSCAN on time axis."
         return count, None
 
     def show_pattern(label, count, visibility_key, version_key, checkbox_key, matrix_key, explanation=None):
@@ -598,9 +600,9 @@ def sidebar_pattern_layer_controls():
     outlier_count, outlier_exp = get_detector_info('outlier_pattern')
     cluster_count, cluster_exp = get_detector_info('cluster_detector')
     seq_count, seq_exp = get_detector_info('sequence_detector')
-    temporal_count = len(st.session_state.get('temporal_clusters', {}).get('clusters', [])) if st.session_state.get('temporal_detected') else 0
+    temporal_count, temporal_exp = get_detector_info('temporal_clusters')
 
-    show_pattern("Temporal Clusters", temporal_count, 'visible_temporal_cluster', 'temporal_cluster_version', 'checkbox_temporal_cluster_', 'temporal', "Detected via DBSCAN on time axis.")
+    show_pattern("Temporal Clusters", temporal_count, 'visible_temporal_cluster', 'temporal_cluster_version', 'checkbox_temporal_cluster_', 'temporal', temporal_exp)
     show_pattern("Clusters", cluster_count, 'visible_cluster', 'cluster_version', 'checkbox_cluster_', 'cluster', cluster_exp)
     show_pattern("Outliers", outlier_count, 'visible_outlier', 'outlier_type_version', 'checkbox_outlier_type_', 'outlier', outlier_exp)
     show_pattern("Gaps", gap_count, 'visible_gap', 'gap_transition_version', 'checkbox_gap_transition_', 'gap', gap_exp)
