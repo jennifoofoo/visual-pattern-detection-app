@@ -96,7 +96,7 @@ def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df
         if x_col == 'actual_time':
             _detect_case_arrival_trend(x_col, df_selected)
         if is_pattern_meaningful(x_col, y_col, color_col, 'sequence'):
-            _detect_sequences()
+            _detect_sequences(x_col, y_col, color_col, df_selected)
 
 
 # =============================================================================
@@ -204,17 +204,24 @@ def _detect_case_arrival_trend(x_col, df_selected):
     except Exception as e:
         st.warning(f"Case arrival trend detection skipped: {str(e)}")
 
-def _detect_sequences(top_k: int = 5):
-    """
-    Detect horizontal sequences using PrefixSpan and filter to top k.
+def _detect_sequences(x_col: str, y_col: str, color_col: str, df_selected, top_k: int = 5):
+    """Detect horizontal sequences using PrefixSpan and filter to top k.
 
-    Parameters
-    ----------
-    top_k : int
-        Number of top patterns by support_count to keep (default: 10).
+    Args:
+        x_col: Column key for the x-axis (sequence detection axis).
+        y_col: Column key for the y-axis (grouping key).
+        color_col: Column key for the dot color (event key).
+        df_selected: DataFrame containing the event log data.
+        top_k: Number of top patterns by support_count to keep (default: 5).
     """
     try:
-        sequence_detector = HorizontalSequencePatternDetector(min_support=80)
+        sequence_detector = HorizontalSequencePatternDetector(
+            x_axis=x_col,
+            y_axis=y_col,
+            dot_color=color_col,
+            df=df_selected,
+            min_support=50
+        )
         if sequence_detector.detect():
             # Apply top k filtering immediately
             sequence_detector.get_top_k_sequences(top_k)
