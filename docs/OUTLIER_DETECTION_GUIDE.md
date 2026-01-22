@@ -4,19 +4,19 @@
 **Outlier Detection Pattern**
 
 ## Description
-Automatically detects anomalous events, cases, and behaviors in process mining event logs across multiple dimensions. This pattern identifies unusual occurrences that deviate significantly from normal process execution patterns, helping analysts spot process deviations, data quality issues, and exceptional cases that require attention on the met level.
+Automatically detects anomalous events in process mining event logs using machine learning (Isolation Forest algorithm). This pattern identifies unusual occurrences that deviate significantly from normal process execution patterns by analyzing multiple features simultaneously. It helps analysts spot process deviations, data quality issues, and exceptional cases that require attention, with human-readable explanations for each detected outlier.
 
 
 ## Visual Representation
-- **Markers**: Red circles with dark red borders overlaying the main dotted chart
-- **Size**: Larger markers (size=10) to ensure visibility against background data
-- **Color**: Semi-transparent red fill (`rgba(255, 0, 0, 0.2)`) with thick dark red borders
-- **Legend**: Shows "Max Score Outliers (X)" where X is the confidence score
-- **Annotation**: Statistics box displaying outlier counts and detection methods used
-- **Hover Info**: Detailed explanations of why each event was flagged as an outlier, including:
+- **Markers**: Red 'X' symbols overlaying the main visualization
+- **Size**: 12pt markers with 2pt borders for visibility
+- **Color**: Red with dark red borders
+- **Legend**: Shows "Outliers (X)" where X is the number of outliers detected
+- **Hover Info**: Detailed explanations for each outlier, including:
   - Case ID and Activity name
-  - Confidence score (e.g., "3/6" meaning detected by 3 out of 6 methods)
-  - Specific detection reasons with user-friendly explanations
+  - Anomaly Score (lower = more anomalous)
+  - **Why it's an outlier**: Human-readable explanation highlighting which features are extreme (e.g., "Case has unusually many events (45) • Very late in timeline (127h from start)")
+  - Specific reasons based on feature deviations (timing, case complexity, rare activities, etc.)
 
 ## Impossible Configurations + Explanation
 
@@ -24,17 +24,31 @@ Automatically detects anomalous events, cases, and behaviors in process mining e
 
 The outlier detection pattern is designed to be universally applicable. It adapts its detection methods based on available data columns and can identify anomalies regardless of the chosen X and Y axes. The pattern will highlight outliers within whatever view configuration is selected, making all axis combinations meaningful.
 
-## Types of Outlier detection 
-**View-Independent (always detected):**
-- Case duration outliers
-- Activity frequency outliers
-- Resource workload outliers
-- Case complexity outliers
-- View-Dependent (change based on axes):
+## Types of Outlier Detection
 
-**Time-based outliers :**
-- Position/sequence outliers (adapt to X-axis type)
-- Workload visualization overlays (adapt to Y-axis type)
+**Automatic Feature-Based Detection:**
+
+The pattern automatically builds features from available data columns and uses Isolation Forest to detect anomalies across multiple dimensions simultaneously:
+
+1. **Case-Level Patterns**
+   - Events per case (case complexity)
+   - Position within case (early/late event anomalies)
+
+2. **Temporal Patterns**
+   - Hour of day (off-hours work)
+   - Day of week (weekend activities)
+   - Time offset from process start
+
+3. **Activity Patterns**
+   - Activity frequency (rare vs. common activities)
+
+4. **Resource Patterns**
+   - Resource workload (over/under-utilized resources)
+
+**Adaptive Detection:**
+- Works with any subset of available columns
+- Requires at least 2 features for detection
+- Gracefully handles missing data
 
 ## Possible Configurations + Interpretation
 
@@ -57,119 +71,144 @@ The outlier detection pattern is designed to be universally applicable. It adapt
 
 ## Algorithm Explanation
 
-The outlier detection employs **6 parallel detection methods** that run simultaneously and combine results using a multi-criteria approach:
+The outlier detection uses **Isolation Forest**, a state-of-the-art machine learning algorithm designed specifically for anomaly detection. It automatically analyzes multiple features simultaneously to identify events that deviate from normal patterns.
 
-### 1. **Time-Based Outliers** (O(n))
+### Isolation Forest Algorithm
+
+**Core Principle:** 
+Anomalies are rare and different, making them easier to isolate than normal points. The algorithm builds random decision trees that partition the data, and outliers require fewer splits to be isolated.
+
+**Algorithm Parameters:**
 ```python
-# Identifies events occurring at unusual hours/days
-df_time['hour'] = df_time[time_col].dt.hour
-hour_counts = df_time['hour'].value_counts()
-rare_threshold = max(1, hour_counts.quantile(0.05))  # Bottom 5%
-rare_hours = hour_counts[hour_counts <= rare_threshold].index
+IsolationForest(
+    contamination=0.05,    # Expect ~5% outliers
+    random_state=42,       # Reproducible results
+    n_estimators=100,      # Number of trees
+    max_samples='auto'     # Sample size per tree
+)
 ```
-- Extracts hour and day-of-week from timestamps
-- Flags events occurring in the bottom 5% of temporal frequency distribution
-- Detects off-hours work, weekend activities, or unusual scheduling patterns
 
-### 2. **Case Duration Outliers** (O(n))
+### Feature Engineering Process
+
+The algorithm automatically builds features from available columns:
+
+#### 1. **Case-Level Features** (when case_id available)
 ```python
-# Uses extremely strict IQR method (3×IQR instead of standard 1.5×IQR)
-Q1 = case_stats['duration_seconds'].quantile(0.25)
-Q3 = case_stats['duration_seconds'].quantile(0.75)
-IQR = Q3 - Q1
-outliers = case_stats[
-    (case_stats['duration_seconds'] < Q1 - 3.0 * IQR) |
-    (case_stats['duration_seconds'] > Q3 + 3.0 * IQR)
-]
-```
-- Calculates case start-to-end duration for each process instance
-- Uses extremely strict IQR method (3×IQR) to find only the most extreme duration anomalies
-- Identifies cases that complete too quickly or take exceptionally long
+# Events per case - identifies unusually simple/complex cases
+case_counts = df.groupby(case_col).size()
+features.append(df[case_col].map(case_counts).values)
 
-### 3. **Activity Frequency Outliers** (O(n))
+# Position in case - detects early/late event anomalies  
+case_position = df.groupby(case_col).cumcount()
+features.append(case_position.values)
+```
+- **Events per case**: Total events in each case (detects simple/complex cases)
+- **Position in case**: Event sequence number within case (detects unusual positions)
+
+#### 2. **Temporal Features** (when timestamp available)
 ```python
-# Activities occurring less than 1% of total events
-total_events = len(df)
-rare_threshold = max(1, total_events * 0.01)
-rare_activities = activity_counts[activity_counts < rare_threshold]
-```
-- Identifies activities that occur very infrequently (< 1% of total events)
-- Flags rare or exceptional process steps that deviate from standard workflows
+# Extract time components
+hours = df[time_col].dt.hour.fillna(12).values
+day_of_week = df[time_col].dt.dayofweek.fillna(2).values
 
-### 4. **Resource Behavior Outliers** (O(n))
+# Calculate offset from process start
+min_time = df[time_col].min()
+hours_from_start = (df[time_col] - min_time).dt.total_seconds() / 3600
+```
+- **Hour**: Hour of day (0-23) - detects off-hours work
+- **Day of week**: 0=Monday, 6=Sunday - detects weekend activities
+- **Time offset**: Hours from process start - detects temporal outliers
+
+#### 3. **Activity Features** (when activity column available)
 ```python
-# Resource workload using 3×IQR method
-resource_counts = df.groupby('resource').size()
-Q1 = resource_counts.quantile(0.25)
-Q3 = resource_counts.quantile(0.75)
-IQR = Q3 - Q1
-outliers = resource_counts[
-    (resource_counts < Q1 - 3.0 * IQR) |
-    (resource_counts > Q3 + 3.0 * IQR)
-]
+# Activity frequency - how common is this activity?
+activity_freq = df[activity_col].value_counts()
+features.append(df[activity_col].map(activity_freq).values)
 ```
-- Detects resources with extremely high or low workloads compared to peers
-- Identifies overloaded resources or those with suspiciously low activity
+- **Activity frequency**: Number of times this activity appears - detects rare activities
 
-### 5. **Sequence Outliers** (O(n²) worst case)
+#### 4. **Resource Features** (when resource column available)
 ```python
-# Finds rare activity transitions (bottom 1%)
-transitions = {}
-for case_id, activities in case_sequences.items():
-    for i in range(len(activities) - 1):
-        transition = (activities[i], activities[i+1])
-        transitions[transition] = transitions.get(transition, 0) + 1
-
-# Flag bottom 1% of all transition patterns
-transition_counts = pd.Series(transitions)
-rare_threshold = max(1, transition_counts.quantile(0.01))
+# Resource workload - how busy is this resource?
+resource_freq = df[resource_col].value_counts()
+features.append(df[resource_col].map(resource_freq).values)
 ```
-- Builds activity transition frequency map across all cases
-- Flags events involved in the bottom 1% of transition patterns
-- Detects unusual workflow sequences that deviate from standard process flows
+- **Resource workload**: Total events handled by resource - detects over/under-utilized resources
 
-### 6. **Case Complexity Outliers** (O(n))
+### Feature Normalization
+
 ```python
-# Multiple complexity metrics using IQR
-for case_id in df['case_id'].unique():
-    case_events = df[df['case_id'] == case_id]
-    metrics = {
-        'event_count': len(case_events),
-        'unique_activities': len(case_events['activity'].unique()),
-        'time_span_hours': (max_time - min_time).total_seconds() / 3600
-    }
-    # Apply 3×IQR filtering on each metric
+# Standardize features to zero mean and unit variance
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
 ```
-- Analyzes multiple case complexity dimensions:
-  - **Event Count**: Total number of events per case
-  - **Activity Diversity**: Number of unique activities performed
-  - **Time Span**: Total duration from case start to finish
-- Uses 2-3×IQR thresholds depending on the metric
-- Identifies cases that are unusually simple or complex
+- All features are standardized to ensure equal weight in anomaly detection
+- Prevents features with larger scales from dominating the algorithm
+
+### Outlier Detection Process
+
+1. **Build Feature Matrix**: Construct features from available columns (minimum 2 required)
+2. **Normalize Features**: Standardize to zero mean and unit variance
+3. **Train Isolation Forest**: Build 100 random isolation trees
+4. **Score Events**: Calculate anomaly scores for each event (lower = more anomalous)
+5. **Identify Outliers**: Events with prediction = -1 are flagged as outliers
+6. **Generate Explanations**: Analyze which features caused the anomaly
+
+### Explanation Generation
+
+For each outlier, the algorithm explains **why** it's anomalous:
+
+```python
+# Check each feature - if >2 std devs from mean, it's extreme
+for feat_name, scaled_val, raw_val in zip(feature_names, scaled_features, raw_features):
+    if abs(scaled_val) > 2.0:  # More than 2 standard deviations
+        # Generate human-readable explanation
+        if feat_name == 'events_per_case':
+            reasons.append(f"Case has unusually many events ({int(raw_val)})")
+```
+
+**Explanation Categories:**
+- **Case complexity**: "Case has unusually many events (45)" or "Case has very few events (2)"
+- **Position anomalies**: "Very late position in case (#34)" or "Very early in case (#1)"
+- **Timing issues**: "Off-hours timing (23:00)" or "Weekend activity (Sat)"
+- **Rare activities**: "Rare activity (only 3 occurrences)"
+- **Resource anomalies**: "Resource handles many events (234)" or "Resource handles few events (1)"
+- **Timeline anomalies**: "Very late in timeline (127h from start)"
+
+If no feature exceeds 2 standard deviations, the top 3 contributing features are combined:
+- Example: "Combined pattern: 45 events in case • Position #34 in case • At 23:00"
 
 ### How Does It Detect the Pattern?
 
-**Multi-Criteria Scoring System:**
-1. Each detection method runs independently and flags potential outliers
-2. Events receive scores based on how many detection methods flagged them (1-6 points)
-3. Only events with the **maximum score** are visualized to reduce noise
-4. If more than 10% of events are flagged, additional filtering keeps only the most extreme outliers
+**Single Robust Method:**
+- Uses Isolation Forest, a proven machine learning algorithm for anomaly detection
+- No arbitrary thresholds or rules - learns what's normal from the data itself
+- Handles multi-dimensional patterns that traditional statistical methods miss
 
-**Adaptive Filtering:**
+**Adaptive to Data:**
 ```python
-# Safety mechanism - if too many outliers detected
-if outlier_percentage > 10:
-    self._filter_extreme_outliers()  # Keep only top 5% by score
-
-# Only show maximum confidence outliers
-max_score = max(self.outlier_scores.values())
-max_score_indices = [idx for idx in all_outliers 
-                    if self.outlier_scores.get(idx, 0) == max_score]
+# Works with any subset of features
+if case_col: 
+    # Add case features
+if time_col:
+    # Add temporal features
+if activity_col:
+    # Add activity features
+# ... gracefully degrades based on available columns
 ```
 
-**Graceful Degradation:**
-- Works with minimal columns (just case_id + activity)
-- Automatically skips detection methods if required columns are missing
+**Performance Characteristics:**
+- **Time Complexity**: O(n log n) for training and scoring
+- **Space Complexity**: O(n × f) where f = number of features (typically 3-7)
+- **Scalability**: Efficiently handles thousands of events
+
+**Safety Mechanisms:**
+- Requires minimum 2 features to avoid false positives
+- Limits visualization to top 500 outliers for performance
 - Provides meaningful results even with incomplete data
 
-**Output**: Events flagged by multiple detection methods with detailed explanations of why each event is considered anomalous, helping analysts focus on the most significant process deviations.
+**Output:** 
+Events that deviate from normal patterns with:
+- Anomaly scores (lower = more anomalous)
+- Human-readable explanations of which features are extreme
+- Visual highlighting in any view configuration
