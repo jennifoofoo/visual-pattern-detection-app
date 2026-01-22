@@ -204,24 +204,120 @@ def _display_temporal_cluster_tab():
 
     detector = st.session_state.temporal_clusters
     summary = detector.get_summary()
+    details = summary['details']
+    clusters = details.get('clusters', {})
     layer_visible = st.session_state.get('visible_temporal_cluster', True)
 
     if not layer_visible:
         st.caption("Hidden - enable in sidebar")
 
-    st.caption("**Detects time periods with unusually high event density (bursts of activity).**")
-    st.metric("Clusters", summary['count'], help="The number of distinct 'burst' periods identified.")
+    st.caption("**Detects time periods with unusually high event density (bursts of activity) and activity-specific temporal patterns.**", 
+               help="Temporal Burst Detection identifies periods when significantly more events happen than usual. "
+                    "Activity-Time Clustering finds activities that occur in specific 'blocks' of time.")
+
+    # Calculate refined metrics from bursts
+    bursts = clusters.get('temporal_bursts', [])
+    total_relevant_events = sum(b['event_count'] for b in bursts)
+    
+    earliest_b = min(bursts, key=lambda x: x['start_time']) if bursts else None
+    latest_b = max(bursts, key=lambda x: x['start_time']) if bursts else None
+    maximal_b = max(bursts, key=lambda x: x['event_count']) if bursts else None
+    smallest_b = min(bursts, key=lambda x: x['event_count']) if bursts else None
+
+    # Top-level metrics - Summary Row (Simplified)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Clusters", summary['count'], help="Total number of distinct temporal patterns found (Bursts + Activity Clusters).")
+    with col2:
+        st.metric("Relevant Events", total_relevant_events, help="Total number of events contained within all detected burst periods.")
+    with col3:
+        activity_clusters = clusters.get('activity_time', {})
+        st.metric("Activity Clusters", len(activity_clusters), help="Number of activities that show significant temporal clustering.")
 
     subtab1, subtab2 = st.tabs(["Overview", "Selection"])
 
     with subtab1:
-        st.caption(summary['details']['summary_text'])
+        # --- Timeline and Magnitude Metrics (Moved here) ---
+        m_col1, m_col2 = st.columns(2)
+        
+        def format_time(t):
+            if hasattr(t, 'strftime'):
+                return t.strftime('%Y-%m-%d %H:%M')
+            return f"{t:.2f}"
+
+        with m_col1:
+            st.markdown("**Burst Timeline**")
+            e_time = format_time(earliest_b['start_time']) if earliest_b else "N/A"
+            l_time = format_time(latest_b['start_time']) if latest_b else "N/A"
+            st.caption(f"🕒 **Earliest:** {e_time}", help="The start time/position of the first detected burst.")
+            st.caption(f"🕕 **Latest:** {l_time}", help="The start time/position of the last detected burst.")
+
+        with m_col2:
+            st.markdown("**Burst Magnitude**")
+            max_val = maximal_b['event_count'] if maximal_b else 0
+            min_val = smallest_b['event_count'] if smallest_b else 0
+            st.caption(f"📈 **Maximal:** {max_val} events", help="The highest number of events found in a single burst.")
+            st.caption(f"📉 **Smallest:** {min_val} events", help="The lowest number of events in a burst (meeting the minimum threshold).")
+
+        st.divider()
+
+        # --- Temporal Bursts ---
+        if bursts:
+            st.markdown("#### ⚡ Top Temporal Bursts")
+            st.caption("Periods of intense activity across cases/activities.", 
+                       help="A burst is a short period with a high concentration of events. "
+                            "These often indicate batch processing, shift handovers, or system-wide events.")
+            
+            # Show top 5 by event count
+            sorted_bursts = sorted(bursts, key=lambda x: x['event_count'], reverse=True)[:5]
+            
+            for i, burst in enumerate(sorted_bursts):
+                with st.expander(f"Burst {i+1}: {burst['event_count']} events"):
+                    dur = burst['duration_seconds']
+                    dur_str = f"{dur:.1f}s" if dur < 60 else (f"{dur/60:.1f}m" if dur < 3600 else f"{dur/3600:.1f}h")
+                    
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        st.write(f"**Start:** {burst['start_time']}")
+                        st.write(f"**Duration:** {dur_str}")
+                    with c2:
+                        st.write(f"**Events:** {burst['event_count']}")
+                        st.write(f"**Unique {details.get('y_axis', 'Y')}:** {burst.get(f'unique_{details.get('y_axis')}', 'N/A')}")
+                    
+                    # Concrete Events Table
+                    if hasattr(detector, 'cluster_point_indices'):
+                        cluster_id = burst.get('cluster_id')
+                        indices = detector.cluster_point_indices.get(cluster_id, [])
+                        if indices:
+                            # Show relevant columns from original df
+                            df_burst = detector.df.loc[indices]
+                            cols_to_show = ['case_id', 'activity', 'timestamp']
+                            # Filter only existing columns
+                            existing_cols = [c for c in cols_to_show if c in df_burst.columns]
+                            if not existing_cols:
+                                # Fallback to first few columns if standard ones not found
+                                existing_cols = df_burst.columns[:3].tolist()
+                            
+                            with st.expander("🔍 View Concrete Events"):
+                                st.dataframe(df_burst[existing_cols], hide_index=True, use_container_width=True)
+
+        # --- Activity-Time Patterns ---
+        if activity_clusters:
+            st.markdown("#### 🎯 Activity-Time Patterns")
+            st.caption("Activities that cluster at specific times.", 
+                       help="These patterns show when specific activities (like 'Approve') tend to be grouped together in time, "
+                            "revealing periodic behavior or specific processing windows.")
+            
+            for activity, activity_clusters_list in list(activity_clusters.items())[:5]:
+                st.write(f"**{activity}**: {len(activity_clusters_list)} clusters")
+                # Show a small summary for the largest cluster of this activity
+                max_c = max(activity_clusters_list, key=lambda x: x['event_count'])
+                st.caption(f"  • Largest cluster: {max_c['event_count']} events")
 
     with subtab2:
-        if hasattr(detector, 'clusters') and 'temporal_bursts' in detector.clusters:
-            cluster_list = detector.clusters['temporal_bursts']
+        if bursts:
             selected = list_to_multicheckbox(
-                cluster_list, "Select Clusters", "temporal_cluster")
+                bursts, "Select Clusters", "temporal_cluster")
             st.session_state['selected_temporal_clusters'] = selected
 
 
