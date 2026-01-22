@@ -47,6 +47,7 @@ class ClusterPattern(Pattern):
         # Results storage
         self.detected = None
         self.original_indices = None
+        self.total_input_points = 0
 
     def _set_default_params(self):
         """Set optimal default parameters for each algorithm."""
@@ -83,7 +84,10 @@ class ClusterPattern(Pattern):
         """
         if df.empty:
             self.detected = None
+            self.total_input_points = 0
             return
+
+        self.total_input_points = len(df)
 
         try:
             # Create view_config for preprocessor
@@ -302,9 +306,9 @@ class ClusterPattern(Pattern):
             'algorithm': self.algorithm,
             'parameters': self.algorithm_params,
             'total_clusters': len(unique_labels),
-            'total_points': len(labels),
-            'clustered_points': np.sum(labels >= 0),
-            'noise_points': np.sum(labels == -1),
+            'total_points': self.total_input_points,
+            'clustered_points': int(np.sum(labels >= 0)),
+            'noise_count': int(self.total_input_points - np.sum(labels >= 0)),
             'clusters': {}
         }
 
