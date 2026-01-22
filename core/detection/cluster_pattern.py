@@ -188,7 +188,7 @@ class ClusterPattern(Pattern):
             print(f"Clustering failed: {e}")
             return np.full(len(X), -1)
 
-    def visualize(self, df: pd.DataFrame, fig: go.Figure) -> go.Figure:
+    def visualize(self, df: pd.DataFrame, fig: go.Figure, selected_clusters: list = None) -> go.Figure:
         """
         Add simple cluster visualization with different colors.
 
@@ -198,11 +198,8 @@ class ClusterPattern(Pattern):
             Original dataframe
         fig : go.Figure
             Plotly figure to annotate
-
-        Returns
-        -------
-        go.Figure
-            Figure with cluster overlays
+        selected_clusters : list, optional
+            List of cluster IDs to display. If None, uses st.session_state.
         """
         if self.detected is None:
             return fig
@@ -210,6 +207,11 @@ class ClusterPattern(Pattern):
         labels = self.detected['labels']
         original_indices = self.detected['original_indices']
         unique_labels = np.unique(labels[labels >= 0])
+
+        # Check for selected clusters filter
+        import streamlit as st
+        if selected_clusters is None:
+            selected_clusters = st.session_state.get('selected_OPTICS_clusters', None)
 
         # Simple color palette for clusters
         colors = [
@@ -240,6 +242,9 @@ class ClusterPattern(Pattern):
 
         # Add cluster points with different colors
         for i, label in enumerate(unique_labels):
+            if selected_clusters is not None and int(label) not in selected_clusters:
+                continue
+                
             mask = labels == label
             if not np.any(mask):
                 continue
@@ -271,26 +276,27 @@ class ClusterPattern(Pattern):
         # Add noise points if any
         noise_mask = labels == -1
         if np.any(noise_mask):
-            noise_indices = original_indices[noise_mask]
-            noise_data = df.loc[noise_indices]
+            if selected_clusters is None or -1 in selected_clusters:
+                noise_indices = original_indices[noise_mask]
+                noise_data = df.loc[noise_indices]
 
-            hover_texts = build_hover_text(noise_data, 'Noise')
+                hover_texts = build_hover_text(noise_data, 'Noise')
 
-            fig.add_trace(go.Scatter(
-                x=noise_data[x_col],
-                y=noise_data[y_col],
-                mode='markers',
-                marker=dict(
-                    size=4,
-                    color='lightgray',
-                    symbol='x',
-                    opacity=0.5
-                ),
-                name=f"Noise ({len(noise_data)})",
-                showlegend=True,
-                text=hover_texts,
-                hovertemplate='%{text}<extra></extra>'
-            ))
+                fig.add_trace(go.Scatter(
+                    x=noise_data[x_col],
+                    y=noise_data[y_col],
+                    mode='markers',
+                    marker=dict(
+                        size=4,
+                        color='lightgray',
+                        symbol='x',
+                        opacity=0.5
+                    ),
+                    name=f"Noise ({len(noise_data)})",
+                    showlegend=True,
+                    text=hover_texts,
+                    hovertemplate='%{text}<extra></extra>'
+                ))
 
         return fig
 

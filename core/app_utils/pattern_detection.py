@@ -81,6 +81,8 @@ def auto_detect_patterns(x_col, y_col, color_col, x_axis_label, y_axis_label, df
         del st.session_state['selected_outlier_types']
     if 'selected_temporal_clusters' in st.session_state:
         del st.session_state['selected_temporal_clusters']
+    if 'selected_OPTICS_clusters' in st.session_state:
+        del st.session_state['selected_OPTICS_clusters']
 
     # Flag to reset visibility on next rerun (before widgets render)
     st.session_state['_reset_pattern_visibility'] = True

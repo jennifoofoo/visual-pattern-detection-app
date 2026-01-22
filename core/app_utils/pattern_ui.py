@@ -19,7 +19,9 @@ def _get_parent_visibility(key_prefix: str) -> bool:
     prefix_to_sidebar = {
         'temporal_cluster': 'visible_temporal_cluster',
         'outlier_type': 'visible_outlier',
-        'gap_transition': 'visible_gap'
+        'gap_transition': 'visible_gap',
+        'OPTICS_cluster': 'visible_cluster',
+        'sequence': 'visible_sequence'
     }
     sidebar_key = prefix_to_sidebar.get(key_prefix)
     return st.session_state.get(sidebar_key, True) if sidebar_key else True
@@ -39,7 +41,7 @@ def _sync_sidebar_checkbox(key_prefix: str, value: bool):
     #     st.session_state[sidebar_key] = value
 
 
-def list_to_multicheckbox(item_list: list, title: str, key_prefix: str) -> list:
+def list_to_multicheckbox(item_list: list, title: str, key_prefix: str, label_func=None) -> list:
     """Render multi-checkbox UI for a list of items."""
     if not item_list:
         return []
@@ -70,7 +72,9 @@ def list_to_multicheckbox(item_list: list, title: str, key_prefix: str) -> list:
             state_key = f"list_checkbox_{key_prefix}_{index}"
             if state_key not in st.session_state:
                 st.session_state[state_key] = True
-            if st.checkbox(str(item), key=state_key):
+            
+            label = label_func(item, index) if label_func else str(item)
+            if st.checkbox(label, key=state_key):
                 selected_items.append(item)
 
     return selected_items
@@ -316,8 +320,11 @@ def _display_temporal_cluster_tab():
 
     with subtab2:
         if bursts:
+            def burst_label(b, i):
+                return f"Burst {i+1} ({b['event_count']} events)"
+            
             selected = list_to_multicheckbox(
-                bursts, "Select Clusters", "temporal_cluster")
+                bursts, "Select Clusters", "temporal_cluster", label_func=burst_label)
             st.session_state['selected_temporal_clusters'] = selected
 
 
@@ -328,21 +335,96 @@ def _display_cluster_tab():
 
     detector = st.session_state.cluster_detector
     summary = detector.get_summary()
+    details = summary.get('details', {})
     layer_visible = st.session_state.get('visible_cluster', True)
 
     if not layer_visible:
         st.caption("Hidden - enable in sidebar")
 
-    st.caption("**Finds dense groups of points based on visual proximity (X/Y coordinates).**")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Clusters", summary.get('count', 0), help="Number of dense regions found.")
-    with col2:
-        noise_count = summary.get('details', {}).get('noise_count', 0)
-        st.metric("Noise Points", noise_count, help="Number of points that do not belong to any cluster (outliers/noise).")
+    st.caption("**Shows dense groups of points based on visual proximity (X/Y coordinates).**", 
+               help="Point Clustering identifies regions where many events are concentrated. "
+                    "This helps find common process paths or hotspot regions in the visualization.")
 
-    st.caption(
-        f"Algorithm: {summary.get('details', {}).get('algorithm', 'OPTICS')}")
+    # Top-level metrics
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Clusters", summary.get('count', 0), help="Number of dense regions accurately identified.")
+    with col2:
+        noise_count = details.get('noise_count', 0)
+        st.metric("Noise Points", noise_count, help="Number of points that do not belong to any cluster (outliers/noise).")
+    with col3:
+        total = details.get('total_points', 1)
+        clustered = details.get('clustered_points', 0)
+        coverage = (clustered / total) if total > 0 else 0
+        st.metric("Cluster Coverage", f"{coverage:.1%}", help="Percentage of total events that are part of a cluster.")
+
+    subtab1, subtab2 = st.tabs(["Overview", "Selection"])
+
+    with subtab1:
+        # --- Quality and Algorithm ---
+        q_col1, q_col2 = st.columns(2)
+        with q_col1:
+            st.markdown("**Pattern Quality**")
+            score = details.get('silhouette_score')
+            if score is not None:
+                st.caption(f"✨ **Silhouette Score:** {score:.3f}", 
+                           help="Silhouette Score measures how similar a point is to its own cluster compared to other clusters. "
+                                "Values closer to 1 indicate well-defined clusters.")
+            else:
+                st.caption("✨ **Silhouette Score:** N/A")
+        
+        with q_col2:
+            st.markdown("**Algorithm Details**")
+            algo = details.get('algorithm', 'OPTICS').upper()
+            st.caption(f"🤖 **Algorithm:** {algo}")
+            # Show top params
+            params = details.get('parameters', {})
+            if params:
+                param_str = ", ".join([f"{k}={v}" for k, v in list(params.items())[:2]])
+                st.caption(f"⚙️ **Params:** {param_str}")
+
+        st.divider()
+
+        # --- Cluster Breakdown ---
+        clusters_data = details.get('clusters', {})
+        if clusters_data:
+            st.markdown("#### 📊 Cluster Breakdown")
+            
+            # Prepare data for table
+            table_data = []
+            for cid, stats in clusters_data.items():
+                table_data.append({
+                    "ID": cid,
+                    "Size": stats['size'],
+                    "Share %": f"{stats['percentage']:.1f}%"
+                })
+            
+            st.dataframe(
+                table_data,
+                column_config={
+                    "ID": st.column_config.NumberColumn("Cluster ID"),
+                    "Size": st.column_config.NumberColumn("Events"),
+                    "Share %": st.column_config.TextColumn("Dataset Share")
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+
+    with subtab2:
+        clusters_data = details.get('clusters', {})
+        if clusters_data:
+            # Create dict for multi-checkbox
+            cluster_dict = {f"Cluster {cid} ({stats['size']} events)": cid for cid, stats in clusters_data.items()}
+            
+            # Add Noise Points as an item
+            noise_count = details.get('noise_count', 0)
+            if noise_count > 0:
+                cluster_dict[f"Noise Points ({noise_count} events)"] = -1
+            
+            selected = dict_to_multicheckbox(cluster_dict, "Select Clusters", "OPTICS_cluster")
+            st.session_state['selected_OPTICS_clusters'] = selected
+        else:
+            st.caption("No clusters available for selection.")
 
 
 def _display_outlier_tab():

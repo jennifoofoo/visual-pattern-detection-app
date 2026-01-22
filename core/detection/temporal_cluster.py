@@ -264,7 +264,7 @@ class TemporalClusterPattern(Pattern):
 
     # ==================== Visualization Support ====================
 
-    def visualize(self, df: pd.DataFrame, fig: go.Figure) -> go.Figure:
+    def visualize(self, df: pd.DataFrame, fig: go.Figure, selected_clusters: list = None) -> go.Figure:
         # FOR NOW ONLY ACTIVITY BURSTS IS VISUALISED
         """
         Add cluster visualizations to the figure.
@@ -275,18 +275,13 @@ class TemporalClusterPattern(Pattern):
             Event log dataframe
         fig : go.Figure
             Plotly figure to annotate
+        selected_clusters : list, optional
+            List of selected burst dicts to display. If None, uses st.session_state.
 
         Returns
         -------
         go.Figure
             Figure with cluster overlays
-
-        Args:
-            df: DataFrame (uses self.df if not provided)
-            fig: Plotly figure to annotate (creates metadata dict if None)
-
-        Returns:
-            Plotly Figure with cluster overlays, or Dict with cluster metadata
         """
         if df is None:
             df = self.df
@@ -305,8 +300,9 @@ class TemporalClusterPattern(Pattern):
 
         # Check for selected clusters filter
         import streamlit as st
-        selected_clusters = st.session_state.get(
-            'selected_temporal_clusters', None)
+        if selected_clusters is None:
+            selected_clusters = st.session_state.get(
+                'selected_temporal_clusters', None)
 
         # Visualize temporal bursts
         if 'temporal_bursts' in self.clusters:
