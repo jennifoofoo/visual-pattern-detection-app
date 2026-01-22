@@ -41,8 +41,15 @@ def _sync_sidebar_checkbox(key_prefix: str, value: bool):
     #     st.session_state[sidebar_key] = value
 
 
-def list_to_multicheckbox(item_list: list, title: str, key_prefix: str, label_func=None) -> list:
-    """Render multi-checkbox UI for a list of items."""
+def list_to_multicheckbox(
+    item_list: list, 
+    title: str, 
+    key_prefix: str, 
+    label_func=None,
+    sort_metadata: dict = None,
+    default_sort: str = "Default"
+) -> list:
+    """Render multi-checkbox UI for a list of items with sorting."""
     if not item_list:
         return []
 
@@ -54,28 +61,54 @@ def list_to_multicheckbox(item_list: list, title: str, key_prefix: str, label_fu
         return []
 
     with st.container(border=True):
-        col_a, col_b = st.columns(2)
-        with col_a:
+        col_sort, col_all, col_none = st.columns([2, 1, 1])
+        
+        # Prepare items with labels and metadata for sorting
+        labeled_items = []
+        for i, item in enumerate(item_list):
+            label = label_func(item, i) if label_func else str(item)
+            meta = {k: v[i] for k, v in sort_metadata.items()} if sort_metadata else {}
+            labeled_items.append({'item': item, 'label': label, 'index': i, 'meta': meta})
+
+        # Sorting UI
+        sort_options = ["Default", "A-Z", "Z-A"]
+        if sort_metadata:
+            sort_options.extend(list(sort_metadata.keys()))
+        
+        # Determine default index
+        def_idx = sort_options.index(default_sort) if default_sort in sort_options else 0
+        
+        sort_by = col_sort.selectbox(
+            "Sort by", options=sort_options, index=def_idx, key=f"{key_prefix}_sort_by", label_visibility="collapsed")
+
+        # Apply Sorting
+        if sort_by == "A-Z":
+            labeled_items.sort(key=lambda x: x['label'])
+        elif sort_by == "Z-A":
+            labeled_items.sort(key=lambda x: x['label'], reverse=True)
+        elif sort_by in (sort_metadata or {}):
+            labeled_items.sort(key=lambda x: x['meta'].get(sort_by, 0), reverse=True)
+
+        with col_all:
             if st.button("All", key=f"{key_prefix}_select_all", use_container_width=True):
-                for index in range(len(item_list)):
-                    st.session_state[f"list_checkbox_{key_prefix}_{index}"] = True
+                for entry in labeled_items:
+                    st.session_state[f"list_checkbox_{key_prefix}_{entry['index']}"] = True
                 _sync_sidebar_checkbox(key_prefix, True)
                 st.rerun()
-        with col_b:
+        with col_none:
             if st.button("None", key=f"{key_prefix}_deselect_all", use_container_width=True):
-                for index in range(len(item_list)):
-                    st.session_state[f"list_checkbox_{key_prefix}_{index}"] = False
+                for entry in labeled_items:
+                    st.session_state[f"list_checkbox_{key_prefix}_{entry['index']}"] = False
                 _sync_sidebar_checkbox(key_prefix, False)
                 st.rerun()
 
-        for index, item in enumerate(item_list):
-            state_key = f"list_checkbox_{key_prefix}_{index}"
+        for entry in labeled_items:
+            state_key = f"list_checkbox_{key_prefix}_{entry['index']}"
             if state_key not in st.session_state:
                 st.session_state[state_key] = True
             
-            label = label_func(item, index) if label_func else str(item)
-            if st.checkbox(label, key=state_key):
-                selected_items.append(item)
+            if st.checkbox(entry['label'], key=state_key):
+                selected_items.append(entry['item'])
 
     return selected_items
 
@@ -84,9 +117,11 @@ def dict_to_multicheckbox(
     data_dict: dict,
     title: str,
     key_prefix: str,
-    default_checked: bool = True
+    default_checked: bool = True,
+    sort_metadata: dict = None,
+    default_sort: str = "Default"
 ) -> list:
-    """Render multi-checkbox UI for a dictionary."""
+    """Render multi-checkbox UI for a dictionary with sorting."""
     if not data_dict:
         return []
 
@@ -98,26 +133,52 @@ def dict_to_multicheckbox(
         return []
 
     with st.container(border=True):
-        col_a, col_b = st.columns(2)
-        with col_a:
+        col_sort, col_all, col_none = st.columns([2, 1, 1])
+        
+        # Prepare items for sorting
+        labeled_items = []
+        for i, (key, value) in enumerate(data_dict.items()):
+            meta = {k: v[i] if isinstance(v, list) else v.get(key) for k, v in (sort_metadata or {}).items()}
+            labeled_items.append({'key': key, 'value': value, 'index': i, 'meta': meta})
+
+        # Sorting UI
+        sort_options = ["Default", "A-Z", "Z-A"]
+        if sort_metadata:
+            sort_options.extend(list(sort_metadata.keys()))
+        
+        # Determine default index
+        def_idx = sort_options.index(default_sort) if default_sort in sort_options else 0
+            
+        sort_by = col_sort.selectbox(
+            "Sort by", options=sort_options, index=def_idx, key=f"{key_prefix}_sort_by", label_visibility="collapsed")
+
+        # Apply Sorting
+        if sort_by == "A-Z":
+            labeled_items.sort(key=lambda x: x['key'])
+        elif sort_by == "Z-A":
+            labeled_items.sort(key=lambda x: x['key'], reverse=True)
+        elif sort_by in (sort_metadata or {}):
+            labeled_items.sort(key=lambda x: x['meta'].get(sort_by, 0), reverse=True)
+
+        with col_all:
             if st.button("All", key=f"{key_prefix}_select_all", use_container_width=True):
-                for key in data_dict.keys():
-                    st.session_state[f"dict_checkbox_{key_prefix}_{key}"] = True
+                for entry in labeled_items:
+                    st.session_state[f"dict_checkbox_{key_prefix}_{entry['key']}"] = True
                 _sync_sidebar_checkbox(key_prefix, True)
                 st.rerun()
-        with col_b:
+        with col_none:
             if st.button("None", key=f"{key_prefix}_deselect_all", use_container_width=True):
-                for key in data_dict.keys():
-                    st.session_state[f"dict_checkbox_{key_prefix}_{key}"] = False
+                for entry in labeled_items:
+                    st.session_state[f"dict_checkbox_{key_prefix}_{entry['key']}"] = False
                 _sync_sidebar_checkbox(key_prefix, False)
                 st.rerun()
 
-        for key, value in data_dict.items():
-            state_key = f"dict_checkbox_{key_prefix}_{key}"
+        for entry in labeled_items:
+            state_key = f"dict_checkbox_{key_prefix}_{entry['key']}"
             if state_key not in st.session_state:
                 st.session_state[state_key] = default_checked
-            if st.checkbox(key, key=state_key):
-                selected_items.append(value)
+            if st.checkbox(entry['key'], key=state_key):
+                selected_items.append(entry['value'])
 
     return selected_items
 
@@ -323,8 +384,10 @@ def _display_temporal_cluster_tab():
             def burst_label(b, i):
                 return f"Burst {i+1} ({b['event_count']} events)"
             
+            sort_meta = {"Events ↓": [b['event_count'] for b in bursts]}
             selected = list_to_multicheckbox(
-                bursts, "Select Clusters", "temporal_cluster", label_func=burst_label)
+                bursts, "Select Clusters", "temporal_cluster", label_func=burst_label, 
+                sort_metadata=sort_meta, default_sort="Events ↓")
             st.session_state['selected_temporal_clusters'] = selected
 
 
@@ -415,13 +478,17 @@ def _display_cluster_tab():
         if clusters_data:
             # Create dict for multi-checkbox
             cluster_dict = {f"Cluster {cid} ({stats['size']} events)": cid for cid, stats in clusters_data.items()}
+            sort_meta = {"Events ↓": {f"Cluster {cid} ({stats['size']} events)": stats['size'] for cid, stats in clusters_data.items()}}
             
             # Add Noise Points as an item
             noise_count = details.get('noise_count', 0)
             if noise_count > 0:
-                cluster_dict[f"Noise Points ({noise_count} events)"] = -1
+                label = f"Noise Points ({noise_count} events)"
+                cluster_dict[label] = -1
+                sort_meta["Events ↓"][label] = noise_count
             
-            selected = dict_to_multicheckbox(cluster_dict, "Select Clusters", "OPTICS_cluster")
+            selected = dict_to_multicheckbox(
+                cluster_dict, "Select Clusters", "OPTICS_cluster", sort_metadata=sort_meta, default_sort="Events ↓")
             st.session_state['selected_OPTICS_clusters'] = selected
         else:
             st.caption("No clusters available for selection.")
@@ -520,6 +587,8 @@ def _display_outlier_tab():
 
             # Create dict for multi-checkbox selection
             outlier_dict = {}
+            sort_meta = {"Case ID ↓": {}, "Score ↓": {}}
+            
             for idx in all_indices:
                 case_id = df.loc[idx,
                                  case_col] if case_col and case_col in df.columns else 'N/A'
@@ -534,9 +603,19 @@ def _display_outlier_tab():
                 # Create display label with case, activity, reason, and score
                 label = f"Case {case_id} | {activity} | {explanation} (Score: {score})"
                 outlier_dict[label] = idx
+                
+                # Sorting metadata - try to convert case_id to numeric if possible for better sorting
+                try:
+                    c_id_val = float(case_id)
+                except (ValueError, TypeError):
+                    c_id_val = str(case_id)
+                
+                sort_meta["Case ID ↓"][label] = c_id_val
+                sort_meta["Score ↓"][label] = score
 
             selected_indices = dict_to_multicheckbox(
-                outlier_dict, "Select Outliers", "outlier_individual")
+                outlier_dict, "Select Outliers", "outlier_individual", 
+                sort_metadata=sort_meta, default_sort="Score ↓")
             st.session_state['selected_outlier_indices'] = selected_indices
         else:
             st.caption("No outliers found.")
@@ -709,17 +788,51 @@ def _display_gap_tab():
         if group_stats:
             if gap_mode == 'resource_inactivity':
                 # Resource selection
-                resource_dict = {
-                    f"{r} ({s['count']})": r for r, s in group_stats.items()}
+                resource_dict = {}
+                sort_meta = {"Occurrences ↓": {}, "Max Severity ↓": {}}
+                
+                # Fetch max severity per group for sorting
+                max_sevs = {}
+                for g_idx in abnormal_gaps:
+                    r = g_idx.get('resource')
+                    sev = g_idx.get('severity', 0)
+                    if r not in max_sevs or sev > max_sevs[r]:
+                        max_sevs[r] = sev
+
+                for r, s in group_stats.items():
+                    m_sev = max_sevs.get(r, 0)
+                    label = f"{r} ({s['count']}) - Max Sev: {m_sev:.1f}x"
+                    resource_dict[label] = r
+                    sort_meta["Occurrences ↓"][label] = s['count']
+                    sort_meta["Max Severity ↓"][label] = m_sev
+
                 selected = dict_to_multicheckbox(
-                    resource_dict, "Select Resources", "gap_resource")
+                    resource_dict, "Select Resources", "gap_resource", 
+                    sort_metadata=sort_meta, default_sort="Max Severity ↓")
                 st.session_state['selected_gap_resources'] = selected
             else:
                 # Transition selection
-                trans_dict = {f"{t} ({s['count']})": t for t,
-                              s in group_stats.items()}
+                trans_dict = {}
+                sort_meta = {"Occurrences ↓": {}, "Max Severity ↓": {}}
+                
+                # Fetch max severity per transition for sorting
+                max_sevs = {}
+                for g_idx in abnormal_gaps:
+                    t = g_idx.get('transition')
+                    sev = g_idx.get('severity', 0)
+                    if t not in max_sevs or sev > max_sevs[t]:
+                        max_sevs[t] = sev
+
+                for t, s in group_stats.items():
+                    m_sev = max_sevs.get(t, 0)
+                    label = f"{t} ({s['count']}) - Max Sev: {m_sev:.1f}x"
+                    trans_dict[label] = t
+                    sort_meta["Occurrences ↓"][label] = s['count']
+                    sort_meta["Max Severity ↓"][label] = m_sev
+
                 selected = dict_to_multicheckbox(
-                    trans_dict, "Select Transitions", "gap_transition")
+                    trans_dict, "Select Transitions", "gap_transition", 
+                    sort_metadata=sort_meta, default_sort="Max Severity ↓")
                 st.session_state['selected_gap_transitions'] = selected
 
 
@@ -860,20 +973,19 @@ def _display_sequence_tab():
     with subtab2:
         pattern_stats = details.get('pattern_stats', {})
         if pattern_stats:
-            # Sort by support count for better UX
-            sorted_patterns = sorted(
-                pattern_stats.items(), 
-                key=lambda item: item[1]['count'], 
-                reverse=True
-            )
+            seq_dict = {}
+            sort_meta = {"Support ↓": {}, "Length ↓": {}}
             
-            seq_dict = {
-                f"{p} (Support: {data['count']})": p 
-                for p, data in sorted_patterns
-            }
+            for p, data in pattern_stats.items():
+                p_len = len(data.get('sequence', []))
+                label = f"{p} (Support: {data['count']}, Len: {p_len})"
+                seq_dict[label] = p
+                sort_meta["Support ↓"][label] = data['count']
+                sort_meta["Length ↓"][label] = p_len
             
             selected = dict_to_multicheckbox(
-                seq_dict, "Select Sequences", "seq_pattern", default_checked=False)
+                seq_dict, "Select Sequences", "seq_pattern", default_checked=False, 
+                sort_metadata=sort_meta, default_sort="Support ↓")
             st.session_state['selected_seq_patterns'] = selected
 
 
