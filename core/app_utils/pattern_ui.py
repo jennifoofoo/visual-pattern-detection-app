@@ -27,14 +27,16 @@ def _get_parent_visibility(key_prefix: str) -> bool:
 
 def _sync_sidebar_checkbox(key_prefix: str, value: bool):
     """Sync sidebar checkbox with tab selection."""
-    prefix_to_sidebar = {
-        'temporal_cluster': 'visible_temporal_cluster',
-        'outlier_type': 'visible_outlier',
-        'gap_transition': 'visible_gap'
-    }
-    sidebar_key = prefix_to_sidebar.get(key_prefix)
-    if sidebar_key:
-        st.session_state[sidebar_key] = value
+    # causes crash when selecting all/none in tabs
+    pass
+    # prefix_to_sidebar = {
+    #     'temporal_cluster': 'visible_temporal_cluster',
+    #     'outlier_type': 'visible_outlier',
+    #     'gap_transition': 'visible_gap'
+    # }
+    # sidebar_key = prefix_to_sidebar.get(key_prefix)
+    # if sidebar_key:
+    #     st.session_state[sidebar_key] = value
 
 
 def list_to_multicheckbox(item_list: list, title: str, key_prefix: str) -> list:
