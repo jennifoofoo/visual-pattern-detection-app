@@ -326,12 +326,13 @@ class HorizontalSequencePatternDetector(Pattern):
         """Get standardized pattern summary."""
         sequences_summary = self._get_sequences_summary()
         
-        return {
-            'pattern_type': 'sequence',
-            'detected': self.detected,
-            'count': sequences_summary['total_patterns_found'],
-            'details': sequences_summary['details']
-        }
+        # Add standard fields
+        sequences_summary['pattern_type'] = 'sequence'
+        sequences_summary['detected'] = self.detected
+        # 'count' is often used by UI as the main metric
+        sequences_summary['count'] = sequences_summary.get('total_patterns_found', 0)
+        
+        return sequences_summary
     
     def _get_sequences_summary(self) -> Dict[str, Any]:
         """
@@ -352,6 +353,30 @@ class HorizontalSequencePatternDetector(Pattern):
             'pattern_instance_id': 'nunique'
         })
         
+        # Additional Metrics
+        unique_patterns_count = len(pattern_groups)
+        
+        total_groups = self.df_by_configuration[self.grouping_key].nunique()
+        groups_with_pattern = source_df['group_id'].nunique()
+        group_coverage = groups_with_pattern / total_groups if total_groups > 0 else 0.0
+        
+        total_events = len(self.df_by_configuration)
+        events_in_pattern = len(df_stats)
+        event_coverage = events_in_pattern / total_events if total_events > 0 else 0.0
+        
+        supports = pattern_groups['support_count']
+        avg_support = supports.mean()
+        min_support_val = supports.min()
+        max_support_val = supports.max()
+        
+        pattern_lengths = pattern_groups.index.map(len)
+        length_dist = pattern_lengths.value_counts().sort_index().to_dict()
+        
+        # Element frequency
+        # Use existing indices to fetch actual event values
+        event_values = self.df_by_configuration.loc[source_df.index, self.event_key]
+        element_counts = event_values.value_counts().head(10).to_dict()
+        
         pattern_stats = {}
         for pattern_tuple, row in pattern_groups.iterrows():
             pattern_str = " -> ".join(map(str, pattern_tuple))
@@ -365,9 +390,17 @@ class HorizontalSequencePatternDetector(Pattern):
             
         return {
             'total_patterns_found': len(source_df['pattern_instance_id'].unique()),
-            'max_pattern_length': source_df['pattern'].apply(len).max(),
-            'min_pattern_length': source_df['pattern'].apply(len).min(),
-            'avg_pattern_length': source_df['pattern'].apply(len).mean(),
+            'unique_patterns_count': unique_patterns_count,
+            'max_pattern_length': int(source_df['pattern'].apply(len).max()) if not source_df.empty else 0,
+            'min_pattern_length': int(source_df['pattern'].apply(len).min()) if not source_df.empty else 0,
+            'avg_pattern_length': float(source_df['pattern'].apply(len).mean()) if not source_df.empty else 0.0,
+            'avg_support': float(avg_support) if not supports.empty else 0.0,
+            'min_support_found': int(min_support_val) if not supports.empty else 0,
+            'max_support_found': int(max_support_val) if not supports.empty else 0,
+            'group_coverage': float(group_coverage),
+            'event_coverage': float(event_coverage),
+            'length_distribution': length_dist,
+            'top_frequent_elements': element_counts,
             'top_k_sequences': self.topk,
             'min_support': self.min_support,
             'details': {
