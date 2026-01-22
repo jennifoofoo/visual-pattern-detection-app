@@ -538,7 +538,7 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "can_be_found": True,
             "makes_sense": False,
             "visual": "Colored rectangles or highlights showing detected clusters of events based on resource and time. Case coloring shows which cases are in each cluster.",
-            "interpretation": "f you use case ID as color, you’ll get a unique color per case, which is visually overwhelming and not useful for pattern discovery.",
+            "interpretation": "If you use case ID as color, you’ll get a unique color per case, which is visually overwhelming and not useful for pattern discovery.",
             "use_case": "Not recommended.",
             "output": "N/A"
         },
