@@ -20,9 +20,6 @@ from core.utils.demo_sampling import (
     SamplingMode,
     SAMPLING_CONFIGS
 )
-from core.evaluation.ollama import OllamaEvaluator
-
-
 
 
 # =============================================================================
@@ -154,11 +151,23 @@ def load_data_button(xes_path, demo_mode=False, sampling_mode: SamplingMode = Sa
 # === Chart Configuration ===
 # =============================================================================
 
-def get_chart_config_with_selectboxes():
-    """Render chart configuration selectboxes."""
-    x_axis = st.selectbox('X-Axis', list(X_AXIS_COLUMN_MAP.keys()))
-    y_axis = st.selectbox('Y-Axis', list(Y_AXIS_COLUMN_MAP.keys()))
-    dots_config_label = st.selectbox('Dot Color', list(DOTS_COLOR_MAP.keys()))
+def get_chart_config_with_selectboxes(default_x=None, default_y=None, default_color=None):
+    """Render chart configuration selectboxes with optional defaults."""
+    x_options = list(X_AXIS_COLUMN_MAP.keys())
+    y_options = list(Y_AXIS_COLUMN_MAP.keys())
+    color_options = list(DOTS_COLOR_MAP.keys())
+
+    x_index = x_options.index(default_x) if default_x in x_options else 0
+    y_index = y_options.index(default_y) if default_y in y_options else 0
+    color_index = color_options.index(default_color) if default_color in color_options else 0
+
+    x_axis = st.selectbox('X-Axis', x_options, index=x_index,
+        help="Time-based axes reveal temporal patterns (gaps, trends). Use 'Actual time' for most analyses.")
+    y_axis = st.selectbox('Y-Axis', y_options, index=y_index,
+        help="Choose what to compare: Cases show individual progressions, Resources show workload, Activities show process flow.")
+    dots_config_label = st.selectbox('Dot Color', color_options, index=color_index,
+        help="Color coding adds a third dimension. Color by Activity to see what happens, by Resource to see who does it.")
+
     return x_axis, y_axis, dots_config_label
 
 
@@ -266,11 +275,15 @@ def display_chart():
     # Keep original df for pattern visualization (preserves original indices)
     df_for_patterns = df_display.copy()
 
-    # Create mapping from original indices to new indices before reset
-    original_to_new_idx = {orig: new for new, orig in enumerate(df_display.index)}
+    # Use _point_id for mapping instead of df_display.index
+    # Pattern indices from detectors match _point_id values from df_selected
+    point_ids = df_display['_point_id'].values  # Save before reset
 
     df_display = df_display.reset_index(drop=True)
-    df_display['_point_id'] = df_display.index
+    df_display['_point_id'] = df_display.index  # Renumber for display
+
+    # Create mapping from pattern indices (_point_id values) to display positions
+    point_id_to_display_idx = {pid: new_idx for new_idx, pid in enumerate(point_ids)}
 
     x_col = plot_config['x_col']
     y_col = plot_config['y_col']
@@ -293,8 +306,10 @@ def display_chart():
         from core.utils.pattern_indices import get_all_pattern_indices
         original_focus_indices = get_all_pattern_indices(st.session_state)
         if original_focus_indices:
-            # Map original indices to reset indices
-            focus_indices = {original_to_new_idx[idx] for idx in original_focus_indices if idx in original_to_new_idx}
+            # Map pattern indices (which equal _point_id values) to display indices
+            focus_indices = {point_id_to_display_idx[idx] for idx in original_focus_indices if idx in point_id_to_display_idx}
+            if not focus_indices:  # Empty set means no patterns in view
+                focus_indices = None  # Disable focus mode
             if focus_indices:
                 title += " [PATTERN FOCUS]"
 
@@ -335,7 +350,11 @@ def display_chart():
     if st.session_state.get('visible_cluster', True):
         if st.session_state.get('cluster_detected', False) and 'cluster_detector' in st.session_state:
             fig = st.session_state.cluster_detector.visualize(df_for_patterns, fig)
-
+   
+    if st.session_state.get('visible_sequence', True):
+        if st.session_state.get('sequence_detected', False) and 'sequence_detector' in st.session_state:
+            fig = st.session_state.sequence_detector.visualize(df_for_patterns, fig)
+    
     # Display chart
     selection = st.plotly_chart(fig, use_container_width=True, on_select="rerun", key="main_chart")
     st.session_state['fig'] = fig
@@ -489,6 +508,8 @@ def sidebar_focus_controls():
         st.caption("Plot a chart first")
         return
 
+    st.caption("Select points with lasso/box on chart, then Focus to zoom in")
+
     is_focus_view = st.session_state.get('focus_df') is not None
     selected_indices = st.session_state.get('_selected_point_indices', [])
     df_display = st.session_state.get('_current_df_display')
@@ -548,7 +569,7 @@ def _get_pattern_not_detected_reason(pattern_key: str, x_col: str, y_col: str, c
 def sidebar_focus_mode_toggle():
     st.checkbox("Pattern Focus Mode", key="pattern_focus_mode",
                 disabled=not _is_any_pattern_detected(),
-                help="Gray out non-pattern points")
+                help="Highlight only pattern points. Non-pattern points are grayed out to reduce visual clutter.")
 
 
 def sidebar_pattern_layer_controls():
@@ -602,24 +623,3 @@ def sidebar_pattern_layer_controls():
     show_pattern("Sequences", seq_count, 'visible_sequence', 'sequence_version', 'checkbox_sequence_', 'sequence', seq_exp)
     show_pattern("Case Arrival Trend", 1 if st.session_state.get('case_arrival_trend_detected') else 0, 'visible_case_arrival_trend', 'case_arrival_trend_version', 'checkbox_case_arrival_trend_', 'case_arrival_trend', "Detected via Mann-Kendall trend test.")
 
-
-# =============================================================================
-# === AI Description ===
-# =============================================================================
-
-def ollama_description_button():
-    """Generate AI description of chart."""
-    with st.spinner("Generating description..."):
-        try:
-            plot_config = st.session_state.get('current_plot_config', {})
-            if not plot_config:
-                st.warning("Please plot a chart first")
-                return
-            df = get_active_view_df(plot_config)
-            summary = summarize_event_log(df)
-            summary_text = "\n".join([f"{k}: {v}" for k, v in summary.items()])
-            evaluator = OllamaEvaluator(model="qwen2.5:3b-instruct-q4_0")
-            description = evaluator.describe_chart(summary_text, df)
-            st.write(description)
-        except Exception as e:
-            st.error(f"Error generating description: {e}")
