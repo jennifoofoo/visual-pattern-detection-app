@@ -11,8 +11,9 @@ This module handles all pattern detection algorithms:
 """
 
 import streamlit as st
-from core.detection import OutlierDetectionPattern, TemporalClusterPattern, CaseArrivalTrendPattern, ClusterPattern, HorizontalSequencePatternDetector
+from core.detection import OutlierDetectionPattern, TemporalClusterPattern, CaseArrivalTrendPattern, ClusterPattern
 from core.detection.gap_pattern import GapPattern
+from core.detection.sequence_detector import HorizontalSequencePatternDetector
 from config.extended_pattern_matrix import is_pattern_meaningful
 
 
