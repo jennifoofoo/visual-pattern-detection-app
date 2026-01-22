@@ -344,10 +344,8 @@ class OutlierDetectionPattern(Pattern):
 
         # Filter outliers based on session state selection if available
         import streamlit as st
-        selected_outliers = st.session_state.get(
-            'selected_outlier_indices', [])
-
-        if selected_outliers:
+        if 'selected_outlier_indices' in st.session_state:
+            selected_outliers = st.session_state['selected_outlier_indices']
             display_indices = [
                 idx for idx in self.outlier_indices if idx in selected_outliers]
         else:
