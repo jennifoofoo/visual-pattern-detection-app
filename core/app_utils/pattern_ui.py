@@ -207,7 +207,8 @@ def _display_temporal_cluster_tab():
     if not layer_visible:
         st.caption("Hidden - enable in sidebar")
 
-    st.metric("Clusters", summary['count'])
+    st.caption("**Detects time periods with unusually high event density (bursts of activity).**")
+    st.metric("Clusters", summary['count'], help="The number of distinct 'burst' periods identified.")
 
     subtab1, subtab2 = st.tabs(["Overview", "Selection"])
 
@@ -234,12 +235,13 @@ def _display_cluster_tab():
     if not layer_visible:
         st.caption("Hidden - enable in sidebar")
 
+    st.caption("**Finds dense groups of points based on visual proximity (X/Y coordinates).**")
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Clusters", summary.get('count', 0))
+        st.metric("Clusters", summary.get('count', 0), help="Number of dense regions found.")
     with col2:
         noise_count = summary.get('details', {}).get('noise_count', 0)
-        st.metric("Noise Points", noise_count)
+        st.metric("Noise Points", noise_count, help="Number of points that do not belong to any cluster (outliers/noise).")
 
     st.caption(
         f"Algorithm: {summary.get('details', {}).get('algorithm', 'OPTICS')}")
@@ -257,12 +259,13 @@ def _display_outlier_tab():
     if not layer_visible:
         st.caption("Hidden - enable in sidebar")
 
+    st.caption("**Identifies individual events that are anomalous (statistical outliers).**")
     stats = summary['details'].get('statistics', {})
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Outliers", summary['count'])
+        st.metric("Outliers", summary['count'], help="Total count of anomalous events detected.")
     with col2:
-        st.metric("Percentage", f"{stats.get('outlier_percentage', 0):.1f}%")
+        st.metric("Percentage", f"{stats.get('outlier_percentage', 0):.1f}%", help="Proportion of the dataset flagged as outliers.")
 
     subtab1, subtab2 = st.tabs(["Overview", "Selection"])
 
@@ -422,18 +425,20 @@ def _display_gap_tab():
             sev_counts['Mild (1-2x)'] += 1
 
     # Header metrics - mode-specific labels
+    st.caption("**Detects statistically significant time delays between events.**")
+
     col1, col2, col3, col4 = st.columns([1, 1, 1, 0.3])
     with col1:
-        st.metric("Gaps", summary['count'])
+        st.metric("Gaps", summary['count'], help="Total detected delays.")
     with col2:
         if gap_mode == 'resource_inactivity':
-            st.metric("Resources", details.get('resources_with_anomalies', 0))
+            st.metric("Resources", details.get('resources_with_anomalies', 0), help="Number of resources with abnormal idle time.")
         else:
             st.metric("Transitions", details.get(
-                'transitions_with_anomalies', 0))
+                'transitions_with_anomalies', 0), help="Number of process steps with delays.")
     with col3:
         st.metric(
-            "Worst", f"{worst_severity:.1f}x" if worst_severity > 0 else "-")
+            "Worst", f"{worst_severity:.1f}x" if worst_severity > 0 else "-", help="Severity multiplier (e.g. 5x normal duration).")
     with col4:
         with st.popover("..."):
             current = st.session_state.get('gap_min_samples', 15)
@@ -554,18 +559,19 @@ def _display_sequence_tab():
                  )
             st.rerun()
 
+    st.caption("**Identifies frequent event patterns (e.g. A->B).**")
     # Top-level metrics
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Unique Patterns", summary.get('unique_patterns_count', '-'))
+        st.metric("Unique Patterns", summary.get('unique_patterns_count', '-'), help="Number of distinct sequence types found.")
     with col2:
-        st.metric("Total Instances", summary['count'])
+        st.metric("Total Instances", summary['count'], help="Total occurrence count of all patterns.")
     with col3:
         group_cov = summary.get('group_coverage', 0)
-        st.metric("Group Coverage", f"{group_cov:.1%}")
+        st.metric("Group Coverage", f"{group_cov:.1%}", help="Percentage of cases that contain at least one pattern.")
     with col4:
         avg_sup = summary.get('avg_support', 0)
-        st.metric("Avg Support", f"{avg_sup:.1f}")
+        st.metric("Avg Support", f"{avg_sup:.1f}", help="Average frequency of patterns.")
 
     subtab1, subtab2 = st.tabs(["Overview", "Selection"])
 
@@ -637,6 +643,8 @@ def _display_case_arrival_trend_tab():
     if not layer_visible:
         st.caption("Hidden - enable in sidebar")
 
+    st.caption("**Analyzes the rate of new cases over time (increasing/decreasing).**")
+
     direction = summary.get('direction', 'no_trend')
     slope_pct = summary.get('slope_percent', 0)
     p_value = summary.get('p_value', 1.0)
@@ -644,12 +652,12 @@ def _display_case_arrival_trend_tab():
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Cases", total_cases)
+        st.metric("Cases", total_cases, help="Total number of cases analyzed.")
     with col2:
         slope_str = f"{slope_pct:+.1f}%" if abs(slope_pct) >= 0.1 else "~0%"
-        st.metric("Change/week", slope_str)
+        st.metric("Change/week", slope_str, help="Estimated percentage growth (+) or decline (-) in case volume per week.")
     with col3:
-        st.metric("p-value", f"{p_value:.4f}")
+        st.metric("p-value", f"{p_value:.4f}", help="Statistical significance (values < 0.05 indicate a strong trend).")
 
     direction_labels = {
         'increasing': '↗ Increasing',
