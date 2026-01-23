@@ -109,8 +109,7 @@ class OutlierDetectionPattern(Pattern):
             self._calculate_statistics(feature_names)
 
             self.detected = len(self.outlier_indices) > 0
-            print(
-                f"Isolation Forest detected {len(self.outlier_indices)} outliers using {len(feature_names)} features")
+           
             return self.detected
 
         except Exception as e:

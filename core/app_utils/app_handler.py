@@ -111,15 +111,15 @@ def load_data_button(xes_path, demo_mode=False, sampling_mode: SamplingMode = Sa
                 time_col='actual_time',
                 random_state=42
             )
-            
+
             # Build info message based on sampling mode
             config = SAMPLING_CONFIGS[sampling_mode]
             reduction_pct = (1 - sampling_stats['reduction_ratio']) * 100
-            
+
             variant_info = ""
             if sampling_stats.get('variants_total'):
                 variant_info = f" | {sampling_stats['variants_total']} variants"
-            
+
             st.info(
                 f"🎬 **{config.name}:** {sampling_stats['sampled_events']:,} events "
                 f"({sampling_stats['sampled_traces']} traces{variant_info}) "
@@ -127,7 +127,7 @@ def load_data_button(xes_path, demo_mode=False, sampling_mode: SamplingMode = Sa
                 f"({reduction_pct:.0f}% reduction). "
                 f"{config.description}"
             )
-            
+
             # Store sampling stats for later reference
             st.session_state.sampling_stats = sampling_stats
 
@@ -191,13 +191,15 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
             y=y_col,
             color=dots_config_col,
             title=f"Dotted Chart: {y_axis} vs {x_axis} ({total_points:,} points)",
-            labels={x_col: x_axis, y_col: y_axis, dots_config_col: dots_config_label},
+            labels={x_col: x_axis, y_col: y_axis,
+                    dots_config_col: dots_config_label},
             hover_data=hover_cols,
             custom_data=['_point_id']
         )
         fig.update_traces(marker=dict(size=5, opacity=0.8))
         fig.update_layout(
-            showlegend=(dots_config_col is not None and dots_config_col != 'case_id'),
+            showlegend=(
+                dots_config_col is not None and dots_config_col != 'case_id'),
             hovermode='closest',
             template='plotly_white',
             yaxis=dict(autorange='reversed')
@@ -214,12 +216,14 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
         'total_points': total_points
     }
     st.session_state['fig'] = fig
-    st.session_state['view_config'] = {'x': x_col, 'y': y_col, 'color': dots_config_col}
+    st.session_state['view_config'] = {
+        'x': x_col, 'y': y_col, 'color': dots_config_col}
     st.session_state['chart_plotted'] = True
     st.session_state.focus_df = None
 
     st.success("Chart created successfully!")
-    auto_detect_patterns(x_col, y_col, dots_config_col, x_axis, y_axis, get_active_view_df(st.session_state['current_plot_config']))
+    auto_detect_patterns(x_col, y_col, dots_config_col, x_axis, y_axis,
+                         get_active_view_df(st.session_state['current_plot_config']))
 
 
 # =============================================================================
@@ -264,7 +268,8 @@ def display_chart():
     df_for_patterns = df_display.copy()
 
     # Create mapping from original indices to new indices before reset
-    original_to_new_idx = {orig: new for new, orig in enumerate(df_display.index)}
+    original_to_new_idx = {orig: new for new,
+                           orig in enumerate(df_display.index)}
 
     df_display = df_display.reset_index(drop=True)
     df_display['_point_id'] = df_display.index
@@ -291,7 +296,8 @@ def display_chart():
         original_focus_indices = get_all_pattern_indices(st.session_state)
         if original_focus_indices:
             # Map original indices to reset indices
-            focus_indices = {original_to_new_idx[idx] for idx in original_focus_indices if idx in original_to_new_idx}
+            focus_indices = {
+                original_to_new_idx[idx] for idx in original_focus_indices if idx in original_to_new_idx}
             if focus_indices:
                 title += " [PATTERN FOCUS]"
 
@@ -302,7 +308,8 @@ def display_chart():
         y=y_col,
         color=dots_config_col,
         title=title,
-        labels={x_col: x_axis, y_col: y_axis, dots_config_col: dots_config_label},
+        labels={x_col: x_axis, y_col: y_axis,
+                dots_config_col: dots_config_label},
         hover_data=['activity', 'actual_time'],
         custom_data=['_point_id'],
         focus_mode_indices=focus_indices
@@ -310,7 +317,8 @@ def display_chart():
     fig.update_traces(marker=dict(size=5, opacity=0.8))
     fig.update_layout(
         height=600,
-        showlegend=(dots_config_col is not None and dots_config_col != 'case_id'),
+        showlegend=(
+            dots_config_col is not None and dots_config_col != 'case_id'),
         hovermode='closest',
         template='plotly_white',
         yaxis=dict(autorange='reversed')
@@ -319,26 +327,32 @@ def display_chart():
     # Add pattern overlays (use df_for_patterns to preserve original indices)
     if st.session_state.get('visible_gap', True):
         if 'gap_detector' in st.session_state and st.session_state['gap_detector'].detected is not None:
-            fig = st.session_state['gap_detector'].visualize(df_for_patterns, fig)
+            fig = st.session_state['gap_detector'].visualize(
+                df_for_patterns, fig)
 
     if st.session_state.get('visible_outlier', True):
         if st.session_state.get('outlier_detected', False) and 'outlier_pattern' in st.session_state:
-            fig = st.session_state.outlier_pattern.visualize(df_for_patterns, fig)
+            fig = st.session_state.outlier_pattern.visualize(
+                df_for_patterns, fig)
 
     if st.session_state.get('visible_temporal_cluster', True):
         if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
-            fig = st.session_state.temporal_clusters.visualize(df_for_patterns, fig)
+            fig = st.session_state.temporal_clusters.visualize(
+                df_for_patterns, fig)
 
     if st.session_state.get('visible_cluster', True):
         if st.session_state.get('cluster_detected', False) and 'cluster_detector' in st.session_state:
-            fig = st.session_state.cluster_detector.visualize(df_for_patterns, fig)
-   
+            fig = st.session_state.cluster_detector.visualize(
+                df_for_patterns, fig)
+
     if st.session_state.get('visible_sequence', True):
         if st.session_state.get('sequence_detected', False) and 'sequence_detector' in st.session_state:
-            fig = st.session_state.sequence_detector.visualize(df_for_patterns, fig)
-    
+            fig = st.session_state.sequence_detector.visualize(
+                df_for_patterns, fig)
+
     # Display chart
-    selection = st.plotly_chart(fig, use_container_width=True, on_select="rerun", key="main_chart")
+    selection = st.plotly_chart(
+        fig, width='stretch', on_select="rerun", key="main_chart")
     st.session_state['fig'] = fig
 
     # Store selection data for sidebar controls
@@ -375,7 +389,8 @@ def display_chart():
 
 def _apply_focus_selection(selected_point_ids, df_display, plot_config):
     """Apply focus to selected points."""
-    st.session_state.focus_df = df_display[df_display['_point_id'].isin(selected_point_ids)].copy()
+    st.session_state.focus_df = df_display[df_display['_point_id'].isin(
+        selected_point_ids)].copy()
     _reset_pattern_detection_state()
     auto_detect_patterns(
         plot_config['x_col'], plot_config['y_col'], plot_config['dots_config_col'],
@@ -407,10 +422,12 @@ def _render_pattern_checkbox(label: str, visibility_key: str, version_key: str, 
         st.session_state[visibility_key] = True
 
     prev_state = st.session_state[visibility_key]
-    st.checkbox(label, key=visibility_key, help=help_text or f"Show/hide {label.lower()}")
+    st.checkbox(label, key=visibility_key,
+                help=help_text or f"Show/hide {label.lower()}")
 
     if st.session_state[visibility_key] != prev_state:
-        st.session_state[version_key] = st.session_state.get(version_key, 0) + 1
+        st.session_state[version_key] = st.session_state.get(
+            version_key, 0) + 1
         for key in [k for k in list(st.session_state.keys()) if checkbox_key_pattern in k]:
             del st.session_state[key]
         st.rerun()
@@ -455,9 +472,10 @@ def sidebar_time_filter():
 
     col_apply, col_clear = st.columns(2)
     with col_apply:
-        if st.button("Apply", key="apply_time_filter", type="primary", use_container_width=True):
+        if st.button("Apply", key="apply_time_filter", type="primary", width='stretch'):
             start_dt = pd.Timestamp(start_date)
-            end_dt = pd.Timestamp(end_date).replace(hour=23, minute=59, second=59, microsecond=999999)
+            end_dt = pd.Timestamp(end_date).replace(
+                hour=23, minute=59, second=59, microsecond=999999)
             st.session_state.time_filter_range = (start_dt, end_dt)
             _reset_pattern_detection_state()
             auto_detect_patterns(
@@ -467,8 +485,8 @@ def sidebar_time_filter():
             )
             st.rerun()
     with col_clear:
-        if st.button("Clear", key="clear_time_filter", use_container_width=True,
-                    disabled=st.session_state.get('time_filter_range') is None):
+        if st.button("Clear", key="clear_time_filter", width='stretch',
+                     disabled=st.session_state.get('time_filter_range') is None):
             st.session_state.time_filter_range = None
             _reset_pattern_detection_state()
             auto_detect_patterns(
@@ -480,7 +498,8 @@ def sidebar_time_filter():
 
     if st.session_state.get('time_filter_range'):
         start, end = st.session_state.time_filter_range
-        st.caption(f"**Active:** {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}")
+        st.caption(
+            f"**Active:** {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}")
 
 
 def sidebar_focus_controls():
@@ -496,11 +515,14 @@ def sidebar_focus_controls():
 
     if is_focus_view:
         full_count = len(plot_config['df_selected'])
-        focus_count = len(st.session_state.focus_df) if st.session_state.focus_df is not None else 0
+        focus_count = len(
+            st.session_state.focus_df) if st.session_state.focus_df is not None else 0
         if selected_indices:
-            st.caption(f"**Focus View:** {focus_count:,} pts | **{len(selected_indices):,} selected**")
+            st.caption(
+                f"**Focus View:** {focus_count:,} pts | **{len(selected_indices):,} selected**")
         else:
-            st.caption(f"**Focus View:** {focus_count:,} of {full_count:,} points")
+            st.caption(
+                f"**Focus View:** {focus_count:,} of {full_count:,} points")
     else:
         if selected_indices:
             st.caption(f"**{len(selected_indices):,} points selected**")
@@ -510,11 +532,12 @@ def sidebar_focus_controls():
     col1, col2 = st.columns(2)
     with col1:
         # Allow re-focusing within focus view (nested selection)
-        if st.button("Focus", disabled=not selected_indices, key="focus_btn", type="primary", use_container_width=True):
+        if st.button("Focus", disabled=not selected_indices, key="focus_btn", type="primary", width='stretch'):
             if df_display is not None:
-                _apply_focus_selection(selected_indices, df_display, plot_config)
+                _apply_focus_selection(
+                    selected_indices, df_display, plot_config)
     with col2:
-        if st.button("Reset", disabled=not is_focus_view, key="reset_focus_btn", use_container_width=True):
+        if st.button("Reset", disabled=not is_focus_view, key="reset_focus_btn", width='stretch'):
             _reset_focus_view(plot_config)
 
 
@@ -585,21 +608,30 @@ def sidebar_pattern_layer_controls():
 
     def show_pattern(label, count, visibility_key, version_key, checkbox_key, matrix_key, explanation=None):
         if count:
-            _render_pattern_checkbox(f"{label} ({count})", visibility_key, version_key, checkbox_key, explanation)
+            _render_pattern_checkbox(
+                f"{label} ({count})", visibility_key, version_key, checkbox_key, explanation)
         else:
-            reason = _get_pattern_not_detected_reason(matrix_key, x_col, y_col, color_col)
-            st.checkbox(label, value=False, disabled=True, help=f"Not detected: {reason}")
+            reason = _get_pattern_not_detected_reason(
+                matrix_key, x_col, y_col, color_col)
+            st.checkbox(label, value=False, disabled=True,
+                        help=f"Not detected: {reason}")
 
     gap_count, gap_exp = get_detector_info('gap_detector')
     outlier_count, outlier_exp = get_detector_info('outlier_pattern')
     cluster_count, cluster_exp = get_detector_info('cluster_detector')
     seq_count, seq_exp = get_detector_info('sequence_detector')
-    temporal_count = len(st.session_state.get('temporal_clusters', {}).get('clusters', [])) if st.session_state.get('temporal_detected') else 0
+    temporal_count = sum(len(clusters) for clusters in getattr(st.session_state.get(
+        'temporal_clusters'), 'clusters', {}).values()) if st.session_state.get('temporal_detected') else 0
 
-    show_pattern("Temporal Clusters", temporal_count, 'visible_temporal_cluster', 'temporal_cluster_version', 'checkbox_temporal_cluster_', 'temporal', "Detected via DBSCAN on time axis.")
-    show_pattern("Clusters", cluster_count, 'visible_cluster', 'cluster_version', 'checkbox_cluster_', 'cluster', cluster_exp)
-    show_pattern("Outliers", outlier_count, 'visible_outlier', 'outlier_type_version', 'checkbox_outlier_type_', 'outlier', outlier_exp)
-    show_pattern("Gaps", gap_count, 'visible_gap', 'gap_transition_version', 'checkbox_gap_transition_', 'gap', gap_exp)
-    show_pattern("Sequences", seq_count, 'visible_sequence', 'sequence_version', 'checkbox_sequence_', 'sequence', seq_exp)
-    show_pattern("Case Arrival Trend", 1 if st.session_state.get('case_arrival_trend_detected') else 0, 'visible_case_arrival_trend', 'case_arrival_trend_version', 'checkbox_case_arrival_trend_', 'case_arrival_trend', "Detected via Mann-Kendall trend test.")
-
+    show_pattern("Temporal Clusters", temporal_count, 'visible_temporal_cluster', 'temporal_cluster_version',
+                 'checkbox_temporal_cluster_', 'temporal', "Detected via DBSCAN on time axis.")
+    show_pattern("Clusters", cluster_count, 'visible_cluster',
+                 'cluster_version', 'checkbox_cluster_', 'cluster', cluster_exp)
+    show_pattern("Outliers", outlier_count, 'visible_outlier',
+                 'outlier_type_version', 'checkbox_outlier_type_', 'outlier', outlier_exp)
+    show_pattern("Gaps", gap_count, 'visible_gap', 'gap_transition_version',
+                 'checkbox_gap_transition_', 'gap', gap_exp)
+    show_pattern("Sequences", seq_count, 'visible_sequence',
+                 'sequence_version', 'checkbox_sequence_', 'sequence', seq_exp)
+    show_pattern("Case Arrival Trend", 1 if st.session_state.get('case_arrival_trend_detected') else 0, 'visible_case_arrival_trend',
+                 'case_arrival_trend_version', 'checkbox_case_arrival_trend_', 'case_arrival_trend', "Detected via Mann-Kendall trend test.")

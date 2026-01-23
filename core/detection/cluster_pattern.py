@@ -8,7 +8,7 @@ from .pattern_base import Pattern
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from sklearn.cluster import OPTICS, DBSCAN, KMeans
+from sklearn.cluster import OPTICS, DBSCAN
 from sklearn.metrics import silhouette_score
 from typing import Dict, Any
 import warnings
@@ -19,8 +19,9 @@ class ClusterPattern(Pattern):
     """
     Simple cluster detection for dotted charts.
 
-    Supports OPTICS, DBSCAN, and K-means clustering algorithms.
+    Supports OPTICS and DBSCAN clustering algorithms.
     Uses DataPreprocessor for consistent data handling.
+    Dynamic hyperparameters adapt to dataset characteristics.
     """
 
     def __init__(self, view_config: Dict[str, str], algorithm: str = 'optics', **kwargs):
@@ -32,7 +33,7 @@ class ClusterPattern(Pattern):
         view_config : dict
             Configuration with "x" and "y" keys for chart dimensions
         algorithm : str, default 'optics'
-            Clustering algorithm: 'optics', 'dbscan', or 'kmeans'
+            Clustering algorithm: 'optics' or 'dbscan'
         **kwargs : dict
             Algorithm-specific parameters
         """
@@ -61,16 +62,70 @@ class ClusterPattern(Pattern):
                 'eps': 0.3,
                 'min_samples': 3
             },
-            'kmeans': {
-                'n_clusters': 8,
-                'random_state': 42,
-                'n_init': 10
-            }
         }
 
         for param, value in defaults[self.algorithm].items():
             if param not in self.algorithm_params:
                 self.algorithm_params[param] = value
+
+    def _calculate_dynamic_params(self, X: np.ndarray, df: pd.DataFrame) -> None:
+        """
+        Calculate dynamic hyperparameters based on data characteristics.
+        
+        Similar to temporal clustering, adapts parameters to dataset size and distribution.
+        
+        Parameters
+        ----------
+        X : np.ndarray
+            Coordinate matrix for clustering
+        df : pd.DataFrame
+            Original dataframe for context
+        """
+        n_points = len(X)
+        
+        # Dynamic min_samples: sqrt-based but capped at reasonable values
+        dynamic_min_samples = min(20, max(3, int(np.sqrt(n_points) / 3)))
+        
+        if self.algorithm == 'optics':
+            # Update min_samples if not explicitly provided by user
+            if 'min_samples' not in self.algorithm_params or self.algorithm_params.get('min_samples') == 3:
+                self.algorithm_params['min_samples'] = dynamic_min_samples
+            
+            # Update min_cluster_size if not explicitly provided
+            if 'min_cluster_size' not in self.algorithm_params or self.algorithm_params.get('min_cluster_size') == 5:
+                self.algorithm_params['min_cluster_size'] = dynamic_min_samples
+            
+            # Auto-calculate max_eps based on data spread if not provided
+            if 'max_eps' not in self.algorithm_params or self.algorithm_params.get('max_eps') == 0.5:
+                # Calculate pairwise distances for a sample of points
+                sample_size = min(1000, n_points)
+                sample_indices = np.random.choice(n_points, sample_size, replace=False)
+                sample_X = X[sample_indices]
+                
+                # Calculate standard deviation of coordinates as proxy for spread
+                std_x = np.std(sample_X[:, 0])
+                std_y = np.std(sample_X[:, 1])
+                avg_std = (std_x + std_y) / 2
+                
+                # Set max_eps as a fraction of the average std
+                self.algorithm_params['max_eps'] = min(2.0, max(0.1, avg_std * 0.3))
+        
+        elif self.algorithm == 'dbscan':
+            # Update min_samples if not explicitly provided by user
+            if 'min_samples' not in self.algorithm_params or self.algorithm_params.get('min_samples') == 3:
+                self.algorithm_params['min_samples'] = dynamic_min_samples
+            
+            # Auto-calculate eps based on data distribution if not provided
+            if 'eps' not in self.algorithm_params or self.algorithm_params.get('eps') == 0.3:
+                # Calculate pairwise distances using std-based approach
+                # Calculate standard deviation of coordinates as proxy for spread
+                std_x = np.std(X[:, 0])
+                std_y = np.std(X[:, 1])
+                avg_std = (std_x + std_y) / 2
+                
+                # Set eps as a fraction of the average std
+                # Use a conservative value that adapts to data spread
+                self.algorithm_params['eps'] = min(1.0, max(0.05, avg_std * 0.2))
 
     def detect(self, df: pd.DataFrame) -> None:
         """
@@ -138,13 +193,10 @@ class ClusterPattern(Pattern):
             if len(X) < 2:
                 self.detected = None
                 return
-
-            # Debug: Check data types and values
-            print(f"Data shape: {X.shape}, X dtype: {X.dtype}")
-            print(f"X column: {x_processed_col}, Y column: {y_processed_col}")
-            print(
-                f"X range: [{np.min(X[:, 0])}, {np.max(X[:, 0])}], Y range: [{np.min(X[:, 1])}, {np.max(X[:, 1])}]")
-
+            
+            # Calculate dynamic hyperparameters based on data characteristics
+            self._calculate_dynamic_params(X, processed_df)
+            
             # Apply clustering
             labels = self._apply_clustering(X)
 
