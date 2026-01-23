@@ -223,7 +223,7 @@ def _detect_sequences(x_col: str, y_col: str, color_col: str, df_selected, top_k
             y_axis=y_col,
             dot_color=color_col,
             df=df_selected,
-            min_support=50,
+            min_support=30,
             is_strict=st.session_state.get('sequence_strict_mode', False)
         )
         if sequence_detector.detect():
