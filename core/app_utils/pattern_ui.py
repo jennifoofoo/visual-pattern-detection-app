@@ -52,13 +52,13 @@ def list_to_multicheckbox(item_list: list, title: str, key_prefix: str) -> list:
     with st.container(border=True):
         col_a, col_b = st.columns(2)
         with col_a:
-            if st.button("All", key=f"{key_prefix}_select_all", width='stretch'):
+            if st.button("All", key=f"{key_prefix}_select_all", use_container_width=True):
                 for index in range(len(item_list)):
                     st.session_state[f"list_checkbox_{key_prefix}_{index}"] = True
                 _sync_sidebar_checkbox(key_prefix, True)
                 st.rerun()
         with col_b:
-            if st.button("None", key=f"{key_prefix}_deselect_all", width='stretch'):
+            if st.button("None", key=f"{key_prefix}_deselect_all", use_container_width=True):
                 for index in range(len(item_list)):
                     st.session_state[f"list_checkbox_{key_prefix}_{index}"] = False
                 _sync_sidebar_checkbox(key_prefix, False)
@@ -94,13 +94,13 @@ def dict_to_multicheckbox(
     with st.container(border=True):
         col_a, col_b = st.columns(2)
         with col_a:
-            if st.button("All", key=f"{key_prefix}_select_all", width='stretch'):
+            if st.button("All", key=f"{key_prefix}_select_all", use_container_width=True):
                 for key in data_dict.keys():
                     st.session_state[f"dict_checkbox_{key_prefix}_{key}"] = True
                 _sync_sidebar_checkbox(key_prefix, True)
                 st.rerun()
         with col_b:
-            if st.button("None", key=f"{key_prefix}_deselect_all", width='stretch'):
+            if st.button("None", key=f"{key_prefix}_deselect_all", use_container_width=True):
                 for key in data_dict.keys():
                     st.session_state[f"dict_checkbox_{key_prefix}_{key}"] = False
                 _sync_sidebar_checkbox(key_prefix, False)

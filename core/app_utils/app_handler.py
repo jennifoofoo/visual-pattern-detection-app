@@ -472,7 +472,7 @@ def sidebar_time_filter():
 
     col_apply, col_clear = st.columns(2)
     with col_apply:
-        if st.button("Apply", key="apply_time_filter", type="primary", width='stretch'):
+        if st.button("Apply", key="apply_time_filter", type="primary", use_container_width=True):
             start_dt = pd.Timestamp(start_date)
             end_dt = pd.Timestamp(end_date).replace(
                 hour=23, minute=59, second=59, microsecond=999999)
@@ -485,7 +485,7 @@ def sidebar_time_filter():
             )
             st.rerun()
     with col_clear:
-        if st.button("Clear", key="clear_time_filter", width='stretch',
+        if st.button("Clear", key="clear_time_filter", use_container_width=True,
                      disabled=st.session_state.get('time_filter_range') is None):
             st.session_state.time_filter_range = None
             _reset_pattern_detection_state()
@@ -532,12 +532,12 @@ def sidebar_focus_controls():
     col1, col2 = st.columns(2)
     with col1:
         # Allow re-focusing within focus view (nested selection)
-        if st.button("Focus", disabled=not selected_indices, key="focus_btn", type="primary", width='stretch'):
+        if st.button("Focus", disabled=not selected_indices, key="focus_btn", type="primary", use_container_width=True):
             if df_display is not None:
                 _apply_focus_selection(
                     selected_indices, df_display, plot_config)
     with col2:
-        if st.button("Reset", disabled=not is_focus_view, key="reset_focus_btn", width='stretch'):
+        if st.button("Reset", disabled=not is_focus_view, key="reset_focus_btn", use_container_width=True):
             _reset_focus_view(plot_config)
 
 
