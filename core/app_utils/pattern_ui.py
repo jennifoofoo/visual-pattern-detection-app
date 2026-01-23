@@ -510,13 +510,14 @@ def _display_outlier_tab():
     if not layer_visible:
         st.caption("Hidden - enable in sidebar")
 
-    st.caption("**Identifies individual events that are anomalous (statistical outliers).**")
     stats = summary['details'].get('statistics', {})
     col1, col2 = st.columns(2)
     with col1:
         st.metric("Outliers", summary['count'], help="Total count of anomalous events detected.")
     with col2:
         st.metric("Percentage", f"{stats.get('outlier_percentage', 0):.1f}%", help="Proportion of the dataset flagged as outliers.")
+
+    st.caption("**Identifies individual events that are anomalous (statistical outliers).**")
 
     subtab1, subtab2 = st.tabs(["Overview", "Selection"])
 
@@ -525,53 +526,93 @@ def _display_outlier_tab():
         detailed_summary = outlier_pattern.get_outlier_summary()
 
         # Top reasons for outliers
-        if 'top_reasons' in detailed_summary:
-            st.subheader("🔍 Most Common Anomaly Types")
+        if 'top_reasons' in detailed_summary and detailed_summary['top_reasons']:
+            st.subheader("🔍 Anomaly Type Distribution")
             
-            anomaly_explanations = {
-                'Timing issues': "Event occurred at an unusual hour (e.g. night shift vs day shift).",
-                'Case complexity': "Case has unusually high or low number of events.",
-                'Rare activities': "This activity appears very infrequently in the log.",
-                'Resource workload': "Resource is handling an unusually high or low volume of work.",
-                'Weekend/unusual days': "Event occurred on a weekend or a day not typical for this process.",
-                'Position anomalies': "Event happened much earlier or later in the case sequence than normal.",
-                'Timeline anomalies': "Event occurred very early or late relative to the overall process timeline.",
-                'Combined patterns': "Anomalous across multiple features simultaneously."
-            }
-            
+            anomaly_data = []
             for reason_info in detailed_summary['top_reasons']:
-                r_text = reason_info['reason']
-                help_text = anomaly_explanations.get(r_text, "Statistical anomaly detected by Isolation Forest.")
-                st.caption(
-                    f"**{r_text}**: {reason_info['count']} events "
-                    f"({reason_info['percentage']:.1f}% of outliers)",
-                    help=help_text
-                )
+                anomaly_data.append({
+                    "Type": reason_info['reason'],
+                    "Count": reason_info['count'],
+                    "Percentage": f"{reason_info['percentage']:.1f}%"
+                })
+            
+            st.dataframe(
+                anomaly_data,
+                column_config={
+                    "Type": st.column_config.TextColumn("Anomaly Type", width="medium"),
+                    "Count": st.column_config.NumberColumn("Occurrences", format="%d"),
+                    "Percentage": st.column_config.TextColumn("Prop.")
+                },
+                hide_index=True,
+                use_container_width=True
+            )
 
         # Most common specific explanations
         if 'most_common_explanations' in detailed_summary and detailed_summary['most_common_explanations']:
-            st.subheader("💡 Most Frequent Specific Reasons")
+            st.subheader("💡 Top Specific Explanations")
+            
+            explanation_data = []
             for exp_info in detailed_summary['most_common_explanations']:
-                st.caption(
-                    f"• *{exp_info['explanation']}* — {exp_info['count']} times "
-                    f"({exp_info['percentage']:.1f}%)"
+                explanation_data.append({
+                    "Explanation": exp_info['explanation'],
+                    "Count": exp_info['count'],
+                    "Percentage": f"{exp_info['percentage']:.1f}%"
+                })
+                
+            st.dataframe(
+                explanation_data,
+                column_config={
+                    "Explanation": st.column_config.TextColumn("Reason", width="large"),
+                    "Count": st.column_config.NumberColumn("Count", format="%d"),
+                    "Percentage": st.column_config.TextColumn("Prop.")
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+
+        # Cases and Activities breakdown
+        col_c, col_a = st.columns(2)
+        
+        with col_c:
+            if 'top_outlier_cases' in detailed_summary and detailed_summary['top_outlier_cases']:
+                st.subheader("📋 Affected Cases")
+                case_data = []
+                for case_info in detailed_summary['top_outlier_cases'][:10]:
+                    case_data.append({
+                        "Case ID": str(case_info['case_id']),
+                        "Outliers": case_info['outlier_events']
+                    })
+                
+                st.dataframe(
+                    case_data,
+                    column_config={
+                        "Case ID": st.column_config.TextColumn("Case"),
+                        "Outliers": st.column_config.NumberColumn("Count", format="%d")
+                    },
+                    hide_index=True,
+                    use_container_width=True
                 )
 
-        # Top affected cases
-        if 'top_outlier_cases' in detailed_summary and detailed_summary['top_outlier_cases']:
-            st.subheader("📋 Most Affected Cases")
-            top_cases = detailed_summary['top_outlier_cases'][:5]
-            for case_info in top_cases:
-                st.caption(
-                    f"• Case **{case_info['case_id']}**: {case_info['outlier_events']} outlier events")
-
-        # Top affected activities
-        if 'outlier_activities' in detailed_summary and detailed_summary['outlier_activities']:
-            st.subheader("📊 Most Affected Activities")
-            top_activities = detailed_summary['outlier_activities'][:5]
-            for activity_info in top_activities:
-                st.caption(
-                    f"• **{activity_info['activity']}**: {activity_info['outlier_count']} outliers")
+        with col_a:
+            if 'outlier_activities' in detailed_summary and detailed_summary['outlier_activities']:
+                st.subheader("📊 Affected Activities")
+                activity_data = []
+                for activity_info in detailed_summary['outlier_activities'][:10]:
+                    activity_data.append({
+                        "Activity": activity_info['activity'],
+                        "Outliers": activity_info['outlier_count']
+                    })
+                
+                st.dataframe(
+                    activity_data,
+                    column_config={
+                        "Activity": st.column_config.TextColumn("Activity"),
+                        "Outliers": st.column_config.NumberColumn("Count", format="%d")
+                    },
+                    hide_index=True,
+                    use_container_width=True
+                )
 
     with subtab2:
         # --- Select individual outliers ---
@@ -754,37 +795,60 @@ def _display_gap_tab():
                     bar = "█" * bar_len + "░" * (20 - bar_len)
                     st.caption(f"`{bar}` {count} {label}")
 
-            # Worst gaps - mode-specific labels
-            if gap_mode == 'resource_inactivity':
-                st.caption("**Worst by Resource**")
-                worst_per_group = {}
+            # Worst gaps Table
+            if abnormal_gaps:
+                label = "Transition" if gap_mode == 'transition' else "Resource"
+                st.subheader(f"⚠️ Worst by {label}")
+                
+                # Aggregate data for the table
+                summary_map = {}
                 for gap in abnormal_gaps:
-                    resource = gap.get('resource', 'unknown')
-                    if resource not in worst_per_group or gap['severity'] > worst_per_group[resource]['severity']:
-                        worst_per_group[resource] = gap
+                    key = gap.get('transition' if gap_mode == 'transition' else 'resource', 'unknown')
+                    if key not in summary_map:
+                        summary_map[key] = {
+                            "Group": key,
+                            "Occurrences": 0,
+                            "Max Severity": 0,
+                            "Max Duration Sec": 0,
+                            "Example Case": gap.get('case_id' if gap_mode == 'transition' else 'case_from', 'N/A')
+                        }
+                    
+                    stats = summary_map[key]
+                    stats["Occurrences"] += 1
+                    stats["Max Severity"] = max(stats["Max Severity"], gap['severity'])
+                    if gap['duration'] > stats["Max Duration Sec"]:
+                        stats["Max Duration Sec"] = gap['duration']
+                        stats["Example Case"] = gap.get('case_id' if gap_mode == 'transition' else 'case_from', 'N/A')
 
-                sorted_worst = sorted(worst_per_group.values(
-                ), key=lambda g: g['severity'], reverse=True)[:3]
-                for gap in sorted_worst:
-                    dur_h = gap['duration'] / 3600
-                    dur_str = f"{dur_h:.1f}h" if dur_h < 24 else f"{dur_h/24:.1f}d"
-                    st.caption(
-                        f"⚠️ {gap['resource']}: {dur_str} ({gap['severity']:.1f}x)")
-            else:
-                st.caption("**Worst by Transition**")
-                worst_per_trans = {}
-                for gap in abnormal_gaps:
-                    trans = gap.get('transition', 'unknown')
-                    if trans not in worst_per_trans or gap['severity'] > worst_per_trans[trans]['severity']:
-                        worst_per_trans[trans] = gap
+                # Format for display
+                table_data = []
+                for entry in summary_map.values():
+                    dur = entry["Max Duration Sec"]
+                    dur_str = f"{dur:.1f}s" if dur < 60 else (f"{dur/60:.1f}m" if dur < 3600 else (f"{dur/3600:.1f}h" if dur < 86400 else f"{dur/86400:.1f}d"))
+                    
+                    table_data.append({
+                        label: entry["Group"],
+                        "Occurrences": entry["Occurrences"],
+                        "Max Severity": entry["Max Severity"],
+                        "Max Duration": dur_str,
+                        "Example Case": entry["Example Case"]
+                    })
 
-                sorted_worst = sorted(worst_per_trans.values(
-                ), key=lambda g: g['severity'], reverse=True)[:3]
-                for gap in sorted_worst:
-                    dur_h = gap['duration'] / 3600
-                    dur_str = f"{dur_h:.1f}h" if dur_h < 24 else f"{dur_h/24:.1f}d"
-                    st.caption(
-                        f"⚠️ {gap.get('transition', 'N/A')}: {dur_str} ({gap['severity']:.1f}x)")
+                # Sort by severity
+                table_data.sort(key=lambda x: x["Max Severity"], reverse=True)
+
+                st.dataframe(
+                    table_data[:10],
+                    column_config={
+                        label: st.column_config.TextColumn(label, width="medium"),
+                        "Occurrences": st.column_config.NumberColumn("Count"),
+                        "Max Severity": st.column_config.NumberColumn("Severity", format="%.1fx"),
+                        "Max Duration": st.column_config.TextColumn("Longest"),
+                        "Example Case": st.column_config.TextColumn("Case ID")
+                    },
+                    hide_index=True,
+                    use_container_width=True
+                )
 
     with subtab2:
         group_stats = details.get(
@@ -951,6 +1015,7 @@ def _display_sequence_tab():
                 table_data.append({
                     "Pattern Sequence": pat_str,
                     "Support": stats['count'],
+                    "Groups": ", ".join(map(str, stats.get('group_ids', []))),
                     "Support %": f"{stats.get('support_percentile', 0):.1%}",
                     "Length": len(stats.get('sequence', []))
                 })
@@ -963,10 +1028,11 @@ def _display_sequence_tab():
             st.dataframe(
                 top_10,
                 column_config={
-                    "Pattern Sequence": st.column_config.TextColumn("Sequence", width="large"),
+                    "Pattern Sequence": st.column_config.TextColumn("Sequence", width="medium"),
                     "Support": st.column_config.NumberColumn("Count", format="%d"),
-                    "Support %": st.column_config.TextColumn("Freq"),
-                    "Length": st.column_config.NumberColumn("Len")
+                    "Groups": st.column_config.TextColumn("Groups", width="large"),
+                    "Support %": st.column_config.TextColumn("Support Frequency"),
+                    "Length": st.column_config.NumberColumn("Length")
                 },
                 hide_index=True,
                 use_container_width=True
