@@ -102,10 +102,11 @@ def list_to_multicheckbox(
                 _sync_sidebar_checkbox(key_prefix, False)
                 st.rerun()
 
-        for entry in labeled_items:
+        for i, entry in enumerate(labeled_items):
             state_key = f"list_checkbox_{key_prefix}_{entry['index']}"
             if state_key not in st.session_state:
-                st.session_state[state_key] = True
+                # Default to selected for the first 5 items in the sorted list
+                st.session_state[state_key] = (i < 5)
             
             if st.checkbox(entry['label'], key=state_key):
                 selected_items.append(entry['item'])
@@ -173,10 +174,12 @@ def dict_to_multicheckbox(
                 _sync_sidebar_checkbox(key_prefix, False)
                 st.rerun()
 
-        for entry in labeled_items:
+        for i, entry in enumerate(labeled_items):
             state_key = f"dict_checkbox_{key_prefix}_{entry['key']}"
             if state_key not in st.session_state:
-                st.session_state[state_key] = default_checked
+                # Default to selected for the first 5 items in the sorted list
+                # only if default_checked is True (Respect False if provided)
+                st.session_state[state_key] = (i < 5) if default_checked else False
             if st.checkbox(entry['key'], key=state_key):
                 selected_items.append(entry['value'])
 
@@ -314,15 +317,19 @@ def _display_temporal_cluster_tab():
             st.markdown("**Burst Timeline**")
             e_time = format_time(earliest_b['start_time']) if earliest_b else "N/A"
             l_time = format_time(latest_b['start_time']) if latest_b else "N/A"
-            st.caption(f"🕒 **Earliest:** {e_time}", help="The start time/position of the first detected burst.")
-            st.caption(f"🕕 **Latest:** {l_time}", help="The start time/position of the last detected burst.")
+            e_id = f" (Burst {earliest_b['cluster_id']+1})" if earliest_b else ""
+            l_id = f" (Burst {latest_b['cluster_id']+1})" if latest_b else ""
+            st.caption(f"🕒 **Earliest{e_id}:** {e_time}", help="The start time/position of the first detected burst.")
+            st.caption(f"🕕 **Latest{l_id}:** {l_time}", help="The start time/position of the last detected burst.")
 
         with m_col2:
             st.markdown("**Burst Magnitude**")
             max_val = maximal_b['event_count'] if maximal_b else 0
             min_val = smallest_b['event_count'] if smallest_b else 0
-            st.caption(f"📈 **Maximal:** {max_val} events", help="The highest number of events found in a single burst.")
-            st.caption(f"📉 **Smallest:** {min_val} events", help="The lowest number of events in a burst (meeting the minimum threshold).")
+            max_id = f" (Burst {maximal_b['cluster_id']+1})" if maximal_b else ""
+            min_id = f" (Burst {smallest_b['cluster_id']+1})" if smallest_b else ""
+            st.caption(f"📈 **Maximal{max_id}:** {max_val} events", help="The highest number of events found in a single burst.")
+            st.caption(f"📉 **Smallest{min_id}:** {min_val} events", help="The lowest number of events in a burst (meeting the minimum threshold).")
 
         st.divider()
 
@@ -336,8 +343,9 @@ def _display_temporal_cluster_tab():
             # Show top 5 by event count
             sorted_bursts = sorted(bursts, key=lambda x: x['event_count'], reverse=True)[:5]
             
-            for i, burst in enumerate(sorted_bursts):
-                with st.expander(f"Burst {i+1}: {burst['event_count']} events"):
+            for burst in sorted_bursts:
+                b_id = burst['cluster_id'] + 1
+                with st.expander(f"Burst {b_id}: {burst['event_count']} events"):
                     dur = burst['duration_seconds']
                     dur_str = f"{dur:.1f}s" if dur < 60 else (f"{dur/60:.1f}m" if dur < 3600 else f"{dur/3600:.1f}h")
                     
@@ -382,7 +390,7 @@ def _display_temporal_cluster_tab():
     with subtab2:
         if bursts:
             def burst_label(b, i):
-                return f"Burst {i+1} ({b['event_count']} events)"
+                return f"Burst {b['cluster_id']+1} ({b['event_count']} events)"
             
             sort_meta = {"Events ↓": [b['event_count'] for b in bursts]}
             selected = list_to_multicheckbox(
@@ -451,27 +459,27 @@ def _display_cluster_tab():
         # --- Cluster Breakdown ---
         clusters_data = details.get('clusters', {})
         if clusters_data:
-            st.markdown("#### 📊 Cluster Breakdown")
+            st.markdown("#### 📊 Top 5 Cluster Breakdown")
             
-            # Prepare data for table
-            table_data = []
-            for cid, stats in clusters_data.items():
-                table_data.append({
-                    "ID": cid,
-                    "Size": stats['size'],
-                    "Share %": f"{stats['percentage']:.1f}%"
-                })
+            # Prepare data: Sort by size descending and take top 5
+            sorted_clusters = sorted(clusters_data.items(), key=lambda x: x[1]['size'], reverse=True)[:5]
             
-            st.dataframe(
-                table_data,
-                column_config={
-                    "ID": st.column_config.NumberColumn("Cluster ID"),
-                    "Size": st.column_config.NumberColumn("Events"),
-                    "Share %": st.column_config.TextColumn("Dataset Share")
-                },
-                hide_index=True,
-                use_container_width=True
-            )
+            for cid, stats in sorted_clusters:
+                with st.expander(f"Cluster {cid}: {stats['size']} events ({stats['percentage']:.1f}%)"):
+                    # Concrete Events Table
+                    mask = detector.detected['labels'] == cid
+                    indices = detector.detected['original_indices'][mask]
+                    
+                    if len(indices) > 0 and hasattr(detector, 'df') and detector.df is not None:
+                        df_cluster = detector.df.loc[indices]
+                        cols_to_show = ['case_id', 'activity', 'timestamp', 'resource']
+                        existing_cols = [c for c in cols_to_show if c in df_cluster.columns]
+                        if not existing_cols:
+                            existing_cols = df_cluster.columns[:3].tolist()
+                        
+                        st.dataframe(df_cluster[existing_cols], hide_index=True, use_container_width=True)
+                    else:
+                        st.caption("No event data available")
 
     with subtab2:
         clusters_data = details.get('clusters', {})
@@ -480,12 +488,8 @@ def _display_cluster_tab():
             cluster_dict = {f"Cluster {cid} ({stats['size']} events)": cid for cid, stats in clusters_data.items()}
             sort_meta = {"Events ↓": {f"Cluster {cid} ({stats['size']} events)": stats['size'] for cid, stats in clusters_data.items()}}
             
-            # Add Noise Points as an item
-            noise_count = details.get('noise_count', 0)
-            if noise_count > 0:
-                label = f"Noise Points ({noise_count} events)"
-                cluster_dict[label] = -1
-                sort_meta["Events ↓"][label] = noise_count
+            # Add Noise Points toggle
+            st.checkbox("Show Noise Points", key="show_cluster_noise", value=False, help="Show points that don't belong to any cluster with 'x' markers")
             
             selected = dict_to_multicheckbox(
                 cluster_dict, "Select Clusters", "OPTICS_cluster", sort_metadata=sort_meta, default_sort="Events ↓")

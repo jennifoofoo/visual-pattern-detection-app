@@ -373,7 +373,7 @@ class TemporalClusterPattern(Pattern):
                 hover_texts = []
                 for idx in cluster_events.index:
                     row = cluster_events.loc[idx]
-                    parts = [f"<b>Temporal Burst {i+1}</b> ({burst['event_count']} events)"]
+                    parts = [f"<b>Temporal Burst {cluster_id + 1}</b> ({burst['event_count']} events)"]
                     if 'case_id' in cluster_events.columns:
                         parts.append(f"Case: {row['case_id']}")
                     if 'activity' in cluster_events.columns:

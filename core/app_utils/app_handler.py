@@ -338,7 +338,8 @@ def display_chart():
             fig = st.session_state.cluster_detector.visualize(
                 df_for_patterns, 
                 fig,
-                selected_clusters=st.session_state.get('selected_OPTICS_clusters')
+                selected_clusters=st.session_state.get('selected_OPTICS_clusters'),
+                show_noise=st.session_state.get('show_cluster_noise', False)
             )
    
     if st.session_state.get('visible_sequence', True):

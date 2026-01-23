@@ -48,6 +48,7 @@ class ClusterPattern(Pattern):
         self.detected = None
         self.original_indices = None
         self.total_input_points = 0
+        self.df = None
 
     def _set_default_params(self):
         """Set optimal default parameters for each algorithm."""
@@ -88,6 +89,7 @@ class ClusterPattern(Pattern):
             return
 
         self.total_input_points = len(df)
+        self.df = df
 
         try:
             # Create view_config for preprocessor
@@ -188,7 +190,7 @@ class ClusterPattern(Pattern):
             print(f"Clustering failed: {e}")
             return np.full(len(X), -1)
 
-    def visualize(self, df: pd.DataFrame, fig: go.Figure, selected_clusters: list = None) -> go.Figure:
+    def visualize(self, df: pd.DataFrame, fig: go.Figure, selected_clusters: list = None, show_noise: bool = False) -> go.Figure:
         """
         Add simple cluster visualization with different colors.
 
@@ -200,6 +202,8 @@ class ClusterPattern(Pattern):
             Plotly figure to annotate
         selected_clusters : list, optional
             List of cluster IDs to display. If None, uses st.session_state.
+        show_noise : bool, default False
+            Whether to visualize noise points (label -1).
         """
         if self.detected is None:
             return fig
@@ -273,10 +277,10 @@ class ClusterPattern(Pattern):
                 hovertemplate='%{text}<extra></extra>'
             ))
 
-        # Add noise points if any
-        noise_mask = labels == -1
-        if np.any(noise_mask):
-            if selected_clusters is None or -1 in selected_clusters:
+        # Add noise points if any AND show_noise is True
+        if show_noise:
+            noise_mask = labels == -1
+            if np.any(noise_mask):
                 noise_indices = original_indices[noise_mask]
                 noise_data = df.loc[noise_indices]
 
