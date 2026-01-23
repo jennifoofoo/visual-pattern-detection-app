@@ -766,7 +766,8 @@ def _display_gap_tab():
         with st.popover("..."):
             current = st.session_state.get('gap_min_samples', 15)
             min_samples = st.number_input(
-                "Min samples", 3, 30, current, key="gap_min_samples_input")
+                "Min samples", min_value=3, max_value=30, value=current, key="gap_min_samples_input",
+                help="Minimum events per transition to analyze. Lower = more detail but potentially noisy. Default 15 works well.")
             if min_samples != current and st.button("Apply", key="gap_apply"):
                 st.session_state['gap_min_samples'] = min_samples
                 if plot_config and df_selected is not None:

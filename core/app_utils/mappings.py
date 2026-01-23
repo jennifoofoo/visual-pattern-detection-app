@@ -27,3 +27,25 @@ DOTS_COLOR_MAP = {
     'Case ID': 'case_id',
     'Resource': 'resource',
 }
+
+# View Configuration Presets
+VIEW_PRESETS = {
+    "Resource Timeline": {
+        "x_axis": "Actual time",
+        "y_axis": "Resource",
+        "color": "Activity",
+        "description": "Who is working on what and when?"
+    },
+    "Case Progression": {
+        "x_axis": "Actual time",
+        "y_axis": "Case ID",
+        "color": "Activity",
+        "description": "Track individual cases over time"
+    },
+    "Activity Overview": {
+        "x_axis": "Actual time",
+        "y_axis": "Activity",
+        "color": "Resource",
+        "description": "Which activities occur when?"
+    }
+}
