@@ -4,6 +4,16 @@
 
 ### ⚙️ Configuration: Time x Case x Activity
 
+#### 📊 Configuration Summary
+Aggregated metrics across all algorithms for this configuration.
+
+| Sampling Mode   |   Total Patterns |   Total Time (s) | Avg Retention (%)   | Avg Speedup (x)   |
+|:----------------|-----------------:|-----------------:|:--------------------|:------------------|
+| minimal         |             1080 |           5.0216 | 44.1%               | 25.57x            |
+| sqrt            |             2589 |          20.5701 | 45.8%               | 7.07x             |
+| optimized       |             6028 |          61.5146 | 59.2%               | 2.95x             |
+| full            |            17277 |         322.921  | 100.0%              | 1.00x             |
+
 #### 🔍 Algorithm: Case Arrival Trend
 **Parameters:** `aggregation=W, mann_kendall`
 
@@ -65,6 +75,16 @@
 | full            |          0 | 4.24385e-05 | 100.0%          | 1.00x         |
 
 ### ⚙️ Configuration: Time x Resource x Activity
+
+#### 📊 Configuration Summary
+Aggregated metrics across all algorithms for this configuration.
+
+| Sampling Mode   |   Total Patterns |   Total Time (s) | Avg Retention (%)   | Avg Speedup (x)   |
+|:----------------|-----------------:|-----------------:|:--------------------|:------------------|
+| minimal         |              794 |           5.1045 | 37.4%               | 38.60x            |
+| sqrt            |             2851 |          21.9657 | 48.5%               | 9.54x             |
+| optimized       |             6222 |          74.9204 | 65.8%               | 3.34x             |
+| full            |            13724 |         473.252  | 100.0%              | 1.00x             |
 
 #### 🔍 Algorithm: Case Arrival Trend
 **Parameters:** `aggregation=W, mann_kendall`
