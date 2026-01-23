@@ -25,7 +25,7 @@ Automatically detects clusters and groupings in process mining event logs visual
 ## Configuration & Parameters
 - **Algorithm Selection**: Choose between 'optics' or 'dbscan' via the `algorithm` parameter.
 - **Dynamic Hyperparameters**: All clustering parameters are automatically calculated based on data characteristics:
-  - **min_samples**: Dynamically calculated as `min(20, max(3, sqrt(n_points) / 3))` - adapts to dataset size
+  - **min_samples**: Dynamically calculated as `min(20, max(3, int(sqrt(n_points) / 3)))` (value is floored to an integer) - adapts to dataset size
   - **OPTICS-specific**:
     - **max_eps**: Auto-calculated based on standard deviation of coordinates (0.3 × avg_std, capped between 0.1 and 2.0)
     - **min_cluster_size**: Set equal to dynamic min_samples
