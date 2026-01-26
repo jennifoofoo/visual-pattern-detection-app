@@ -113,12 +113,13 @@ class ClusterPattern(Pattern):
             # Extract coordinates from processed data
             x_col = self.view_config['x']
             y_col = self.view_config['y']
-            
+
             # Use processed columns (scaled/encoded) if available, otherwise fall back to original
             # Check for scaled/normalized versions first
             x_processed_col = f"{x_col}_scaled" if f"{x_col}_scaled" in processed_df.columns else x_col
-            y_processed_col = f"{y_col}_code" if f"{y_col}_code" in processed_df.columns else (f"{y_col}_scaled" if f"{y_col}_scaled" in processed_df.columns else y_col)
-            
+            y_processed_col = f"{y_col}_code" if f"{y_col}_code" in processed_df.columns else (
+                f"{y_col}_scaled" if f"{y_col}_scaled" in processed_df.columns else y_col)
+
             # Get the processed coordinates
             x_data = processed_df[x_processed_col].copy()
             y_data = processed_df[y_processed_col].copy()
@@ -215,7 +216,8 @@ class ClusterPattern(Pattern):
         # Check for selected clusters filter
         import streamlit as st
         if selected_clusters is None:
-            selected_clusters = st.session_state.get('selected_OPTICS_clusters', None)
+            selected_clusters = st.session_state.get(
+                'selected_OPTICS_clusters', None)
 
         # Simple color palette for clusters
         colors = [
@@ -232,7 +234,8 @@ class ClusterPattern(Pattern):
             texts = []
             for idx in data.index:
                 row = data.loc[idx]
-                parts = [f"<b>Cluster {cluster_label}</b>" if cluster_label != 'Noise' else "<b>Noise Point</b>"]
+                parts = [
+                    f"<b>Cluster {cluster_label}</b>" if cluster_label != 'Noise' else "<b>Noise Point</b>"]
                 if cluster_size:
                     parts[0] += f" ({cluster_size} points)"
                 if 'case_id' in data.columns:
@@ -244,11 +247,11 @@ class ClusterPattern(Pattern):
                 texts.append("<br>".join(parts))
             return texts
 
-        # Add cluster points with different colors
+        # Add rectangular shaded regions for each cluster (bands behind the original dots)
         for i, label in enumerate(unique_labels):
             if selected_clusters is not None and int(label) not in selected_clusters:
                 continue
-                
+
             mask = labels == label
             if not np.any(mask):
                 continue
@@ -258,24 +261,82 @@ class ClusterPattern(Pattern):
             cluster_size = len(cluster_data)
             color = colors[i % len(colors)]
 
-            hover_texts = build_hover_text(cluster_data, label, cluster_size)
+            # Get cluster bounds for rectangle
+            x_min = cluster_data[x_col].min()
+            x_max = cluster_data[x_col].max()
 
-            fig.add_trace(go.Scatter(
-                x=cluster_data[x_col],
-                y=cluster_data[y_col],
-                mode='markers',
-                marker=dict(
-                    size=8,
-                    color=color,
-                    symbol='circle',
-                    line=dict(color='black', width=1),
-                    opacity=0.8
-                ),
-                name=f"Cluster {label} ({cluster_size})",
-                showlegend=True,
-                text=hover_texts,
-                hovertemplate='%{text}<extra></extra>'
-            ))
+            # Get y-axis bounds for the cluster
+            unique_y_values = cluster_data[y_col].unique()
+
+            # Build hover text for the cluster rectangle
+            hover_text = (
+                f"<b>Cluster {label}</b><br>"
+                f"Points: {cluster_size}<br>"
+                f"Unique Y values: {len(unique_y_values)}"
+            )
+
+            # For categorical y-axis, draw individual horizontal bands for each y-value in cluster
+            if df[y_col].dtype == 'object' or str(df[y_col].dtype) == 'category':
+                # Add a horizontal band for EACH y-value (activity) in the cluster
+                for y_val in unique_y_values:
+                    # Get events at this y-value to determine x-range
+                    y_events = cluster_data[cluster_data[y_col] == y_val]
+                    y_x_min = y_events[x_col].min()
+                    y_x_max = y_events[x_col].max()
+
+                    fig.add_shape(
+                        type="rect",
+                        x0=y_x_min,
+                        x1=y_x_max,
+                        y0=y_val,
+                        y1=y_val,
+                        yref="y",
+                        xref="x",
+                        # Thick line to simulate band height
+                        line=dict(width=12, color=color),
+                        fillcolor=color,
+                        opacity=0.3,
+                        layer="below"
+                    )
+
+                # Add invisible points at cluster data positions for hover
+                fig.add_trace(go.Scatter(
+                    x=cluster_data[x_col],
+                    y=cluster_data[y_col],
+                    mode='markers',
+                    # Invisible but hoverable
+                    marker=dict(size=12, color=color, opacity=0),
+                    name=f"Cluster {label} ({cluster_size})",
+                    showlegend=True,
+                    hoverinfo='text',
+                    text=[hover_text] * len(cluster_data),
+                    hovertemplate='%{text}<extra></extra>'
+                ))
+            else:
+                # Numeric y-axis - use filled polygon
+                y_min_val = cluster_data[y_col].min()
+                y_max_val = cluster_data[y_col].max()
+
+                # Add some padding
+                y_range = y_max_val - y_min_val
+                padding = max(y_range * 0.05, 0.1) if y_range > 0 else 0.1
+                y_min_val -= padding
+                y_max_val += padding
+
+                fig.add_trace(go.Scatter(
+                    x=[x_min, x_max, x_max, x_min, x_min],
+                    y=[y_min_val, y_min_val, y_max_val, y_max_val, y_min_val],
+                    fill='toself',
+                    fillcolor=color,
+                    opacity=0.25,
+                    line=dict(color=color, width=2),
+                    mode='lines',
+                    name=f"Cluster {label} ({cluster_size})",
+                    showlegend=True,
+                    hoverinfo='text',
+                    text=hover_text,
+                    hoveron='fills'
+                ))
 
         # Add noise points if any AND show_noise is True
         if show_noise:
@@ -347,14 +408,14 @@ class ClusterPattern(Pattern):
     def get_summary(self) -> Dict[str, Any]:
         """
         Get standardized pattern summary.
-        
+
         Returns
         -------
         Dict[str, Any]
             Standardized summary with pattern_type, detected, count, and details
         """
         cluster_summary = self.get_cluster_summary()
-        
+
         return {
             'pattern_type': 'cluster',
             'detected': self.detected is not None and cluster_summary.get('total_clusters', 0) > 0,
