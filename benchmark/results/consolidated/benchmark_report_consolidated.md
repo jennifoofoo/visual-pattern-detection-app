@@ -1,6 +1,6 @@
 # Pattern Detection Benchmark Report (v3)
 
-**Generated:** 2026-01-27 19:52:58
+**Generated:** 2026-01-27 20:06:08
 
 ## 📈 Sampling Performance by Dataset
 
@@ -31,7 +31,7 @@
 ## 🔍 Detection Statistics by Configuration
 
 ### Activity Overview
-**Axes:** X = `Actual time`, Y = `Activity`
+**Axes:** X = `Actual time`, Y = `Activity`, Color = `Resource`
 
 #### BPI Challenge 2018.xes
 
@@ -124,7 +124,7 @@
 | optimized | 256 | 47.4% | 0.71s | 2.6x |
 
 ### Case Progression
-**Axes:** X = `Actual time`, Y = `Case ID`
+**Axes:** X = `Actual time`, Y = `Case ID`, Color = `Activity`
 
 #### BPI Challenge 2018.xes
 
@@ -217,7 +217,7 @@
 | optimized | 0 | 100% | 0.00s | 0.8x |
 
 ### Resource Timeline
-**Axes:** X = `Actual time`, Y = `Resource`
+**Axes:** X = `Actual time`, Y = `Resource`, Color = `Activity`
 
 #### BPI Challenge 2018.xes
 
