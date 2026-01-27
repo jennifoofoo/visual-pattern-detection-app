@@ -258,6 +258,44 @@ class ClusterPattern(Pattern):
             cluster_size = len(cluster_data)
             color = colors[i % len(colors)]
 
+            # Calculate bounding box for cluster rectangle
+            x_min = cluster_data[x_col].min()
+            x_max = cluster_data[x_col].max()
+
+            # X-Axis padding
+            if pd.api.types.is_datetime64_any_dtype(cluster_data[x_col]):
+                time_range = pd.to_datetime(x_max) - pd.to_datetime(x_min)
+                padding = time_range * 0.1 if time_range.total_seconds() > 0 else pd.Timedelta(hours=1)
+                x_min_padded = pd.to_datetime(x_min) - padding
+                x_max_padded = pd.to_datetime(x_max) + padding
+            else:
+                x_range = x_max - x_min if x_max != x_min else 1
+                padding = x_range * 0.1
+                x_min_padded = x_min - padding
+                x_max_padded = x_max + padding
+
+            # Y-Axis padding (handle categorical y-axis)
+            if pd.api.types.is_object_dtype(cluster_data[y_col]):
+                cluster_y_categories = cluster_data[y_col].unique().tolist()
+                y_min_padded = cluster_y_categories[0]
+                y_max_padded = cluster_y_categories[-1] if len(cluster_y_categories) > 1 else cluster_y_categories[0]
+            else:
+                y_range = cluster_data[y_col].max() - cluster_data[y_col].min()
+                padding = y_range * 0.1 if y_range > 0 else 0.5
+                y_min_padded = cluster_data[y_col].min() - padding
+                y_max_padded = cluster_data[y_col].max() + padding
+
+            # Add rectangle shape for cluster boundary
+            fig.add_shape(
+                type="rect",
+                x0=x_min_padded, x1=x_max_padded,
+                y0=y_min_padded, y1=y_max_padded,
+                line=dict(color=color, width=2),
+                fillcolor=color,
+                opacity=0.15,
+                layer="below"
+            )
+
             hover_texts = build_hover_text(cluster_data, label, cluster_size)
 
             fig.add_trace(go.Scatter(

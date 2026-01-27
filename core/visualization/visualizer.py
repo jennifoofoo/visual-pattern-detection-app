@@ -1,6 +1,17 @@
 import plotly.express as px
 import plotly.graph_objects as go
 from typing import Optional, List, Set
+import numpy as np
+
+
+def _build_hovertemplate(labels: dict, x: str, y: str, has_pattern_info: bool = False) -> str:
+    """Build hovertemplate with optional pattern info."""
+    base = (f"<b>{labels.get(y, y)}:</b> %{{y}}<br>"
+            f"<b>{labels.get(x, x)}:</b> %{{x}}")
+    if has_pattern_info:
+        # customdata[1] contains _pattern_info - only show if not empty
+        base += "<br>%{customdata[1]}"
+    return base + "<extra></extra>"
 
 
 def plot_dotted_chart(
@@ -15,54 +26,60 @@ def plot_dotted_chart(
     focus_mode_indices: Optional[Set[int]] = None
 ) -> go.Figure:
     """Create a dotted chart. If focus_mode_indices provided, non-pattern points are grayed out."""
-    if focus_mode_indices is None or len(focus_mode_indices) == 0:
-        return px.scatter(df, x=x, y=y, color=color, title=title, labels=labels,
-                          hover_data=hover_data, custom_data=custom_data)
 
-    # Focus mode: Create separate traces per activity to preserve legend
-    colors_palette = px.colors.qualitative.Plotly
-    unique_vals = df[color].unique()
-    val_to_color = {v: colors_palette[i % len(colors_palette)] for i, v in enumerate(unique_vals)}
+    # Check if we have pattern info in custom_data
+    has_pattern_info = custom_data and '_pattern_info' in custom_data
+
+    if focus_mode_indices is None or len(focus_mode_indices) == 0:
+        # Normal mode - use px.scatter and update hovertemplate
+        fig = px.scatter(df, x=x, y=y, color=color, title=title, labels=labels,
+                          hover_data=hover_data, custom_data=custom_data)
+        # Update hovertemplate to include pattern info
+        if has_pattern_info:
+            fig.update_traces(
+                hovertemplate=_build_hovertemplate(labels, x, y, has_pattern_info=True)
+            )
+        return fig
+
+    # Focus mode: Use px.scatter first to get correct axis handling, then modify colors
+    # Add a helper column to mark focused vs non-focused points
+    df = df.copy()
+    df['_is_focused'] = df.index.isin(focus_mode_indices)
+
+    # Create chart with px.scatter (preserves correct categorical axis handling)
+    fig = px.scatter(df, x=x, y=y, color=color, title=title, labels=labels,
+                      hover_data=hover_data, custom_data=custom_data)
+
+    # Update hovertemplate
+    if has_pattern_info:
+        fig.update_traces(
+            hovertemplate=_build_hovertemplate(labels, x, y, has_pattern_info=True)
+        )
+
+    # Now modify the marker colors: gray out non-focused points
+    # Each trace corresponds to one color category (activity)
     gray = 'rgba(150,150,150,0.5)'
 
-    fig = go.Figure()
+    for trace in fig.data:
+        # Get the activity/color value for this trace
+        trace_name = trace.name
 
-    # Create two traces per activity value: one for focused points, one for non-focused
-    for i, val in enumerate(unique_vals):
-        # Get all points for this activity value
-        mask = df[color] == val
-        df_val = df[mask]
+        # Find which points in this trace are focused vs not
+        # trace.customdata contains the custom_data values, first column is _point_id
+        if trace.customdata is not None and len(trace.customdata) > 0:
+            # Get the point_ids from customdata (first column)
+            point_ids = [cd[0] for cd in trace.customdata]
 
-        # Split into focused and non-focused points
-        focused_mask = df_val.index.isin(focus_mode_indices)
-        df_focused = df_val[focused_mask]
-        df_non_focused = df_val[~focused_mask]
+            # Create color array: original color for focused, gray for non-focused
+            original_color = trace.marker.color
+            colors = []
+            for pid in point_ids:
+                if pid in focus_mode_indices:
+                    colors.append(original_color)
+                else:
+                    colors.append(gray)
 
-        # Add focused points with original color (visible in legend)
-        if len(df_focused) > 0:
-            fig.add_trace(go.Scatter(
-                x=df_focused[x], y=df_focused[y], mode='markers',
-                marker=dict(color=val_to_color[val], size=5, opacity=0.8),
-                name=str(val),  # Activity name in legend
-                legendgroup=str(val),  # Group for toggling
-                showlegend=True,
-                customdata=df_focused[custom_data].values if custom_data else None,
-                hovertemplate=(f"<b>{labels.get(y, y)}:</b> %{{y}}<br>"
-                             f"<b>{labels.get(x, x)}:</b> %{{x}}<extra></extra>")
-            ))
+            # Update marker colors
+            trace.marker.color = colors
 
-        # Add non-focused points in gray (hide from legend to avoid duplicates)
-        if len(df_non_focused) > 0:
-            fig.add_trace(go.Scatter(
-                x=df_non_focused[x], y=df_non_focused[y], mode='markers',
-                marker=dict(color=gray, size=5, opacity=0.8),
-                name=str(val),  # Same name for grouping
-                legendgroup=str(val),  # Same group
-                showlegend=False,  # Don't show in legend (only show focused trace)
-                customdata=df_non_focused[custom_data].values if custom_data else None,
-                hovertemplate=(f"<b>{labels.get(y, y)}:</b> %{{y}}<br>"
-                             f"<b>{labels.get(x, x)}:</b> %{{x}}<extra></extra>")
-            ))
-
-    fig.update_layout(title=title, xaxis_title=labels.get(x, x), yaxis_title=labels.get(y, y))
     return fig
