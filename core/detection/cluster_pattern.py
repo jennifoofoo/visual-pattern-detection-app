@@ -8,7 +8,7 @@ from .pattern_base import Pattern
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from sklearn.cluster import OPTICS, DBSCAN, KMeans
+from sklearn.cluster import OPTICS, DBSCAN
 from sklearn.metrics import silhouette_score
 from typing import Dict, Any
 import warnings
@@ -19,8 +19,9 @@ class ClusterPattern(Pattern):
     """
     Simple cluster detection for dotted charts.
 
-    Supports OPTICS, DBSCAN, and K-means clustering algorithms.
+    Supports OPTICS and DBSCAN clustering algorithms.
     Uses DataPreprocessor for consistent data handling.
+    Dynamic hyperparameters adapt to dataset characteristics.
     """
 
     def __init__(self, view_config: Dict[str, str], algorithm: str = 'optics', **kwargs):
@@ -32,7 +33,7 @@ class ClusterPattern(Pattern):
         view_config : dict
             Configuration with "x" and "y" keys for chart dimensions
         algorithm : str, default 'optics'
-            Clustering algorithm: 'optics', 'dbscan', or 'kmeans'
+            Clustering algorithm: 'optics' or 'dbscan'
         **kwargs : dict
             Algorithm-specific parameters
         """
@@ -63,16 +64,77 @@ class ClusterPattern(Pattern):
                 'eps': 0.3,
                 'min_samples': 3
             },
-            'kmeans': {
-                'n_clusters': 8,
-                'random_state': 42,
-                'n_init': 10
-            }
         }
 
         for param, value in defaults[self.algorithm].items():
             if param not in self.algorithm_params:
                 self.algorithm_params[param] = value
+
+    def _calculate_dynamic_params(self, X: np.ndarray, df: pd.DataFrame) -> None:
+        """
+        Calculate dynamic hyperparameters based on data characteristics.
+
+        Similar to temporal clustering, adapts parameters to dataset size and distribution.
+
+        Parameters
+        ----------
+        X : np.ndarray
+            Coordinate matrix for clustering
+        df : pd.DataFrame
+            Original dataframe for context
+        """
+        n_points = len(X)
+
+        # Adaptive min_samples: scales with dataset size
+        # Floor: 3, Ceiling: 1% of dataset (max 100 for small datasets, no upper limit for large ones)
+        base_size = int(np.sqrt(n_points) / 3)
+        max_size = max(100, int(n_points * 0.01))  # 1% of dataset, minimum 100
+        dynamic_min_samples = max(3, min(base_size, max_size))
+
+        if self.algorithm == 'optics':
+            # Update min_samples if not explicitly provided by user
+            if 'min_samples' not in self.algorithm_params or self.algorithm_params.get('min_samples') == 3:
+                self.algorithm_params['min_samples'] = dynamic_min_samples
+
+            # Update min_cluster_size if not explicitly provided
+            if 'min_cluster_size' not in self.algorithm_params or self.algorithm_params.get('min_cluster_size') == 5:
+                self.algorithm_params['min_cluster_size'] = dynamic_min_samples
+
+            # Auto-calculate max_eps based on data spread if not provided
+            if 'max_eps' not in self.algorithm_params or self.algorithm_params.get('max_eps') == 0.5:
+                # Calculate pairwise distances for a sample of points
+                sample_size = min(1000, n_points)
+                sample_indices = np.random.choice(
+                    n_points, sample_size, replace=False)
+                sample_X = X[sample_indices]
+
+                # Calculate standard deviation of coordinates as proxy for spread
+                std_x = np.std(sample_X[:, 0])
+                std_y = np.std(sample_X[:, 1])
+                avg_std = (std_x + std_y) / 2
+
+                # Set max_eps as a fraction of the average std, capped at 3x std to prevent over-clustering
+                # Floor at 0.1 to handle very tight distributions
+                self.algorithm_params['max_eps'] = min(
+                    avg_std * 3.0, max(0.1, avg_std * 0.5))
+
+        elif self.algorithm == 'dbscan':
+            # Update min_samples if not explicitly provided by user
+            if 'min_samples' not in self.algorithm_params or self.algorithm_params.get('min_samples') == 3:
+                self.algorithm_params['min_samples'] = dynamic_min_samples
+
+            # Auto-calculate eps based on data distribution if not provided
+            if 'eps' not in self.algorithm_params or self.algorithm_params.get('eps') == 0.3:
+                # Calculate pairwise distances using std-based approach
+                # Calculate standard deviation of coordinates as proxy for spread
+                std_x = np.std(X[:, 0])
+                std_y = np.std(X[:, 1])
+                avg_std = (std_x + std_y) / 2
+
+                # Set eps as a fraction of the average std, capped at 2x std for conservative clustering
+                # Floor at 0.05 to handle very tight distributions
+                self.algorithm_params['eps'] = min(
+                    avg_std * 2.0, max(0.05, avg_std * 0.2))
 
     def detect(self, df: pd.DataFrame) -> None:
         """
@@ -113,12 +175,13 @@ class ClusterPattern(Pattern):
             # Extract coordinates from processed data
             x_col = self.view_config['x']
             y_col = self.view_config['y']
-            
+
             # Use processed columns (scaled/encoded) if available, otherwise fall back to original
             # Check for scaled/normalized versions first
             x_processed_col = f"{x_col}_scaled" if f"{x_col}_scaled" in processed_df.columns else x_col
-            y_processed_col = f"{y_col}_code" if f"{y_col}_code" in processed_df.columns else (f"{y_col}_scaled" if f"{y_col}_scaled" in processed_df.columns else y_col)
-            
+            y_processed_col = f"{y_col}_code" if f"{y_col}_code" in processed_df.columns else (
+                f"{y_col}_scaled" if f"{y_col}_scaled" in processed_df.columns else y_col)
+
             # Get the processed coordinates
             x_data = processed_df[x_processed_col].copy()
             y_data = processed_df[y_processed_col].copy()
@@ -145,11 +208,8 @@ class ClusterPattern(Pattern):
                 self.detected = None
                 return
 
-            # Debug: Check data types and values
-            print(f"Data shape: {X.shape}, X dtype: {X.dtype}")
-            print(f"X column: {x_processed_col}, Y column: {y_processed_col}")
-            print(
-                f"X range: [{np.min(X[:, 0])}, {np.max(X[:, 0])}], Y range: [{np.min(X[:, 1])}, {np.max(X[:, 1])}]")
+            # Calculate dynamic hyperparameters based on data characteristics
+            self._calculate_dynamic_params(X, processed_df)
 
             # Apply clustering
             labels = self._apply_clustering(X)
@@ -232,7 +292,8 @@ class ClusterPattern(Pattern):
             texts = []
             for idx in data.index:
                 row = data.loc[idx]
-                parts = [f"<b>Cluster {cluster_label}</b>" if cluster_label != 'Noise' else "<b>Noise Point</b>"]
+                parts = [
+                    f"<b>Cluster {cluster_label}</b>" if cluster_label != 'Noise' else "<b>Noise Point</b>"]
                 if cluster_size:
                     parts[0] += f" ({cluster_size} points)"
                 if 'case_id' in data.columns:
@@ -347,14 +408,14 @@ class ClusterPattern(Pattern):
     def get_summary(self) -> Dict[str, Any]:
         """
         Get standardized pattern summary.
-        
+
         Returns
         -------
         Dict[str, Any]
             Standardized summary with pattern_type, detected, count, and details
         """
         cluster_summary = self.get_cluster_summary()
-        
+
         return {
             'pattern_type': 'cluster',
             'detected': self.detected is not None and cluster_summary.get('total_clusters', 0) > 0,

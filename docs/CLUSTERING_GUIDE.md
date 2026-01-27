@@ -23,8 +23,16 @@ Automatically detects clusters and groupings in process mining event logs visual
 - **Hover Info**: Displays cluster label and event details for each point.
 
 ## Configuration & Parameters
-- **Algorithm Selection**: Choose between 'optics', 'dbscan' via the `algorithm` parameter.
-- **Dynamic Parameters**: Embedding dimension and clustering parameters are auto-calculated based on data size and complexity, but can be overridden.
+- **Algorithm Selection**: Choose between 'optics' or 'dbscan' via the `algorithm` parameter.
+- **Dynamic Hyperparameters**: All clustering parameters are automatically calculated based on data characteristics:
+  - **min_samples**: Dynamically calculated as `min(20, max(3, int(sqrt(n_points) / 3)))` (value is floored to an integer) - adapts to dataset size
+  - **OPTICS-specific**:
+    - **max_eps**: Auto-calculated based on standard deviation of coordinates (0.3 × avg_std, capped between 0.1 and 2.0)
+    - **min_cluster_size**: Set equal to dynamic min_samples
+    - **xi**: Fixed at 0.01 (reachability threshold)
+  - **DBSCAN-specific**:
+    - **eps**: Auto-calculated based on standard deviation of coordinates (0.2 × avg_std, capped between 0.05 and 1.0)
+- **Parameter Override**: All auto-calculated parameters can be manually overridden by passing them as kwargs during initialization.
 - **Hierarchical Clustering**: If a 'color' column is specified, clustering is performed within each color group, supporting multi-level analysis.
 
 ## Impossible Configurations + Explanation
