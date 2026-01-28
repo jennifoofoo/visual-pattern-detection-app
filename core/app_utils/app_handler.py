@@ -139,8 +139,8 @@ def load_data_button(xes_path, demo_mode=False, sampling_mode: SamplingMode = Sa
 
         st.success(f"Log loaded: {len(df):,} events")
 
-        # Auto-plot with default config (Actual time, Case ID, Activity)
-        plot_chart_button("Actual time", "Case ID", "Activity")
+        # Auto-plot with default config (Actual time, Resource, Activity)
+        plot_chart_button("Actual time", "Resource", "Activity")
 
     except Exception as e:
         st.error(f"Error loading XES log: {e}")
