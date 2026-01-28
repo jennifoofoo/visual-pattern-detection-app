@@ -202,11 +202,18 @@ def main():
         if not st.session_state.get("data_loaded", False):
             st.info("👈 Load data from the sidebar to get started")
         else:
-            app_handler.display_chart()
-
+            # Use placeholder to decouple visual order from execution order
+            # This allows pattern selection UI to run first (populating session state)
+            # while the chart still appears visually at the top
+            chart_placeholder = st.empty()
+            
             if st.session_state.get("chart_plotted", False):
                 st.divider()
                 pattern_ui.handle_pattern_detection()
+            
+            # Now render the chart - selection state is populated
+            with chart_placeholder.container():
+                app_handler.display_chart()
 
     with tab2:
         # Pattern Matrix Viewer

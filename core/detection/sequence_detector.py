@@ -475,9 +475,16 @@ class HorizontalSequencePatternDetector(Pattern):
         event_values = self.df_by_configuration.loc[source_df.index, self.event_key]
         element_counts = event_values.value_counts().head(10).to_dict()
         
+        
+        def _format_pattern_element(el: Any) -> str:
+            """Format pattern element consistently - tuples as '(a,b)', strings as-is."""
+            if isinstance(el, tuple):
+                return "(" + ",".join(map(str, el)) + ")"
+            return str(el)
+        
         pattern_stats = {}
         for pattern_tuple, row in pattern_groups.iterrows():
-            pattern_str = " -> ".join(map(str, pattern_tuple))
+            pattern_str = " -> ".join(_format_pattern_element(e) for e in pattern_tuple)
             pattern_stats[pattern_str] = {
                 'sequence': list(pattern_tuple),
                 'group_ids': row['group_id'],

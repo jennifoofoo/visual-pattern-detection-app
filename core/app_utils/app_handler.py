@@ -360,7 +360,8 @@ def display_chart():
     if st.session_state.get('visible_sequence', True):
         if st.session_state.get('sequence_detected', False) and 'sequence_detector' in st.session_state:
             fig = st.session_state.sequence_detector.visualize(
-                df_for_patterns, fig)
+                df_for_patterns, fig,
+                selected_seq_patterns=st.session_state.get('selected_seq_patterns'))
 
     # Display chart
     selection = st.plotly_chart(
