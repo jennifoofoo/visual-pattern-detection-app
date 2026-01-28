@@ -29,23 +29,42 @@ DOTS_COLOR_MAP = {
 }
 
 # View Configuration Presets
+# Pattern support: Gap, Burst, Outlier, Cluster, Sequence
 VIEW_PRESETS = {
     "Resource Timeline": {
         "x_axis": "Actual time",
         "y_axis": "Resource",
         "color": "Activity",
-        "description": "Who is working on what and when?"
-    },
-    "Case Progression": {
-        "x_axis": "Actual time",
-        "y_axis": "Case ID",
-        "color": "Activity",
-        "description": "Track individual cases over time"
+        "description": "Who is working on what and when?",
+        "axes_info": "X: Time | Y: Resource | Color: Activity",
+        "patterns": ["Gap", "Burst", "Outlier", "Cluster", "Sequence"],
+        "pattern_score": "5/5"
     },
     "Activity Overview": {
         "x_axis": "Actual time",
         "y_axis": "Activity",
         "color": "Resource",
-        "description": "Which activities occur when?"
+        "description": "Which activities occur when?",
+        "axes_info": "X: Time | Y: Activity | Color: Resource",
+        "patterns": ["Gap", "Burst", "Outlier", "Cluster", "Sequence"],
+        "pattern_score": "5/5"
+    },
+    "Activity by Case": {
+        "x_axis": "Actual time",
+        "y_axis": "Activity",
+        "color": "Case ID",
+        "description": "How do cases flow through activities?",
+        "axes_info": "X: Time | Y: Activity | Color: Case ID",
+        "patterns": ["Gap", "Burst", "Outlier", "Sequence"],
+        "pattern_score": "4/5"
+    },
+    "Resource by Case": {
+        "x_axis": "Actual time",
+        "y_axis": "Resource",
+        "color": "Case ID",
+        "description": "Which resources handle which cases?",
+        "axes_info": "X: Time | Y: Resource | Color: Case ID",
+        "patterns": ["Gap", "Burst", "Outlier", "Sequence"],
+        "pattern_score": "4/5"
     }
 }

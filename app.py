@@ -122,6 +122,17 @@ def main():
                 )
                 sampling_mode = sampling_options[selected_strategy]
 
+            st.markdown("---")
+            preset_options_load = list(VIEW_PRESETS.keys())
+            initial_preset = st.selectbox(
+                "Quick Start",
+                preset_options_load,
+                index=0,  # Default: Resource Timeline
+                key='initial_preset'
+            )
+            preset = VIEW_PRESETS[initial_preset]
+            st.caption(f"_{preset['description']}_", help=preset['axes_info'])
+
             xes_path = st.text_input(
                 "XES file path",
                 value="data/Hospital_log.xes",
@@ -133,31 +144,40 @@ def main():
             if st.button("Load Data", type="primary"):
                 app_handler.load_data_button(
                     xes_path, demo_mode=demo_mode, sampling_mode=sampling_mode)
-                st.session_state.ui_step = "config"
+
+                # Direkt mit ausgewähltem Preset plotten
+                preset = VIEW_PRESETS[initial_preset]
+                app_handler.plot_chart_button(
+                    preset["x_axis"],
+                    preset["y_axis"],
+                    preset["color"]
+                )
+                st.session_state.ui_step = "layers"
+
                 st.rerun()
 
         st.divider()
 
         with st.expander("Chart Configuration", expanded=st.session_state.ui_step == "config"):
             # Preset selector
-            preset_options = ["Custom"] + list(VIEW_PRESETS.keys())
+            preset_options = list(VIEW_PRESETS.keys())
             selected_preset = st.selectbox(
                 "Quick Start",
                 preset_options,
-                help="Predefined view configurations for common use cases"
+                help="Vorkonfigurierte Ansicht mit optimaler Pattern-Unterstützung",
+                key='config_preset'
             )
 
-            # Get defaults from preset or keep current
-            if selected_preset != "Custom":
-                preset = VIEW_PRESETS[selected_preset]
-                default_x = preset["x_axis"]
-                default_y = preset["y_axis"]
-                default_color = preset["color"]
-                st.caption(preset["description"])
-            else:
-                default_x, default_y, default_color = None, None, None
+            # Show preset info
+            preset = VIEW_PRESETS[selected_preset]
+            default_x = preset["x_axis"]
+            default_y = preset["y_axis"]
+            default_color = preset["color"]
+            st.caption(f"_{preset['description']}_", help=preset['axes_info'])
 
-            # Manual selectboxes (pre-filled if preset selected)
+            st.markdown("---")
+            st.markdown("**Custom Configuration**")
+            # Manual selectboxes (pre-filled from preset)
             x_axis, y_axis, dots_config_label = app_handler.get_chart_config_with_selectboxes(
                 default_x, default_y, default_color
             )
