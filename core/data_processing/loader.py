@@ -106,14 +106,16 @@ def validate_xes_input(dataframe):
     3. timestamp (time:timestamp)
     4. resource (org:group) - this one is not default by pm4py
     '''
-    required_columns = [
+    required_columns_base = [
         'case:concept:name',
         'concept:name',
-        'time:timestamp',
-        'org:group'
+        'time:timestamp'
     ]
-
-    data_is_usable = all(col in dataframe.columns for col in required_columns)
+    
+    has_base = all(col in dataframe.columns for col in required_columns_base)
+    has_resource = 'org:group' in dataframe.columns or 'org:resource' in dataframe.columns
+    
+    data_is_usable = has_base and has_resource
 
     if data_is_usable:
         return
@@ -137,12 +139,23 @@ def handle_unreadable_xes_file():
     # )
 
 def rename_df_columns(dataframe):
+    # Handle resource column renaming with fallback
+    if 'org:group' in dataframe.columns:
+        resource_col = 'org:group'
+    elif 'org:resource' in dataframe.columns:
+        resource_col = 'org:resource'
+    else:
+        resource_col = None
+
     column_mapping = {
         'case:concept:name': 'case_id',
         'concept:name': 'activity',
         'time:timestamp': 'actual_time',
-        'org:group':  'resource'
     }
+    
+    if resource_col:
+        column_mapping[resource_col] = 'resource'
+        
     dataframe.rename(columns=column_mapping, inplace=True)
 
 

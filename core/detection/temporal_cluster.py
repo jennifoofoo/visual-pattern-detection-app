@@ -48,8 +48,11 @@ class TemporalClusterPattern(Pattern):
         self.x_axis = x_axis
         self.y_axis = y_axis
         self.color = color
-        # Dynamic min_cluster_size: sqrt-based but capped at reasonable values
-        self.min_cluster_size = min(20, max(5, int(np.sqrt(len(df)) / 3)))
+        # Adaptive min_cluster_size: scales with dataset size
+        # Floor: 5, Ceiling: 1% of dataset (max 100 for small datasets, no upper limit for large ones)
+        base_size = int(np.sqrt(len(df)) / 3)
+        max_size = max(100, int(len(df) * 0.01))  # 1% of dataset, minimum 100
+        self.min_cluster_size = max(5, min(base_size, max_size))
         self.temporal_eps = temporal_eps
         self.spatial_eps = spatial_eps
 
@@ -264,7 +267,7 @@ class TemporalClusterPattern(Pattern):
 
     # ==================== Visualization Support ====================
 
-    def visualize(self, df: pd.DataFrame, fig: go.Figure) -> go.Figure:
+    def visualize(self, df: pd.DataFrame, fig: go.Figure, selected_clusters: list = None) -> go.Figure:
         # FOR NOW ONLY ACTIVITY BURSTS IS VISUALISED
         """
         Add cluster visualizations to the figure.
@@ -275,18 +278,13 @@ class TemporalClusterPattern(Pattern):
             Event log dataframe
         fig : go.Figure
             Plotly figure to annotate
+        selected_clusters : list, optional
+            List of selected burst dicts to display. If None, uses st.session_state.
 
         Returns
         -------
         go.Figure
             Figure with cluster overlays
-
-        Args:
-            df: DataFrame (uses self.df if not provided)
-            fig: Plotly figure to annotate (creates metadata dict if None)
-
-        Returns:
-            Plotly Figure with cluster overlays, or Dict with cluster metadata
         """
         if df is None:
             df = self.df
@@ -305,8 +303,9 @@ class TemporalClusterPattern(Pattern):
 
         # Check for selected clusters filter
         import streamlit as st
-        selected_clusters = st.session_state.get(
-            'selected_temporal_clusters', None)
+        if selected_clusters is None:
+            selected_clusters = st.session_state.get(
+                'selected_temporal_clusters', None)
 
         # Visualize temporal bursts
         if 'temporal_bursts' in self.clusters:
@@ -377,7 +376,7 @@ class TemporalClusterPattern(Pattern):
                 hover_texts = []
                 for idx in cluster_events.index:
                     row = cluster_events.loc[idx]
-                    parts = [f"<b>Temporal Burst {i+1}</b> ({burst['event_count']} events)"]
+                    parts = [f"<b>Temporal Burst {cluster_id + 1}</b> ({burst['event_count']} events)"]
                     if 'case_id' in cluster_events.columns:
                         parts.append(f"Case: {row['case_id']}")
                     if 'activity' in cluster_events.columns:

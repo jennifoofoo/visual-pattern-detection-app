@@ -17,17 +17,17 @@ from typing import Dict, Any, Optional, List, Tuple
 EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] = {
 
     # ========================================================================
-    # 
-    # 
+    #
+    #
     # ACTUAL_TIME
-    # 
-    # 
+    #
+    #
     # ========================================================================
 
     # ========================================================================
-    # 
+    #
     # ACTUAL_TIME × RESOURCE
-    # 
+    #
     # ========================================================================
 
     # ========================================================================
@@ -61,7 +61,7 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects unusual events based on timing, resource behavior, and frequency patterns. Color-coded by case for case-level anomaly analysis.",
             "use_case": "Finding exceptional cases, data quality issues, resource violations",
             "output": "Outlier events with resource-specific and case-specific anomaly reasons"
-        }, 
+        },
         "cluster": {
             "can_be_found": True,
             "makes_sense": False,
@@ -181,9 +181,9 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     },
 
     # ========================================================================
-    # 
+    #
     # ACTUAL_TIME × ACTIVITY
-    # 
+    #
     # ========================================================================
 
     # ========================================================================
@@ -193,7 +193,8 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
-            "modes": ["transition"],  # Resource inactivity not applicable (Y != resource)
+            # Resource inactivity not applicable (Y != resource)
+            "modes": ["transition"],
             "visual": "Red rectangles showing time spans of abnormal gaps between activities. Case coloring reveals which cases experience delays in specific activity transitions.",
             "interpretation": {
                 "transition": "Detects abnormal waiting times between specific activity transitions. Shows which activity sequences have delays. This IS a process-flow gap."
@@ -242,7 +243,8 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
-            "modes": ["transition"],  # Resource inactivity not applicable (Y != resource)
+            # Resource inactivity not applicable (Y != resource)
+            "modes": ["transition"],
             "visual": "Red rectangles showing time spans of abnormal gaps, colored by activity. Activity coloring provides clear visual separation of activities.",
             "interpretation": {
                 "transition": "Detects abnormal waiting times between specific activity transitions. This IS a process-flow gap."
@@ -291,7 +293,8 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
-            "modes": ["transition"],  # Resource inactivity not applicable (Y != resource)
+            # Resource inactivity not applicable (Y != resource)
+            "modes": ["transition"],
             "visual": "Red rectangles showing time spans of abnormal gaps, colored by resource. Resource coloring reveals which resources are involved in activity transition delays.",
             "interpretation": {
                 "transition": "Detects abnormal waiting times between specific activity transitions. Shows which activity sequences have delays. This IS a process-flow gap."
@@ -334,9 +337,9 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     },
 
     # ========================================================================
-    # 
+    #
     # ACTUAL_TIME × CASE_ID
-    # 
+    #
     # ========================================================================
 
     # ========================================================================
@@ -346,7 +349,8 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
-            "modes": ["transition"],  # Resource inactivity not applicable (Y != resource)
+            # Resource inactivity not applicable (Y != resource)
+            "modes": ["transition"],
             "visual": "Red rectangles showing gaps within individual case timelines. Case coloring provides clear visual separation of cases.",
             "interpretation": {
                 "transition": "Detects abnormal waiting times within specific cases. Each case is analyzed individually. This IS a process-flow gap."
@@ -395,7 +399,8 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
-            "modes": ["transition"],  # Resource inactivity not applicable (Y != resource)
+            # Resource inactivity not applicable (Y != resource)
+            "modes": ["transition"],
             "visual": "Red rectangles showing gaps within individual case timelines, colored by activity. Activity coloring reveals which activities are delayed within each case.",
             "interpretation": {
                 "transition": "Detects abnormal waiting times within specific cases. Each case is analyzed individually. This IS a process-flow gap."
@@ -444,7 +449,8 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
-            "modes": ["transition"],  # Resource inactivity not applicable (Y != resource)
+            # Resource inactivity not applicable (Y != resource)
+            "modes": ["transition"],
             "visual": "Red rectangles showing gaps within individual case timelines, colored by resource. Resource coloring reveals which resources are involved in case-specific delays.",
             "interpretation": {
                 "transition": "Detects abnormal waiting times within specific cases. Each case is analyzed individually. This IS a process-flow gap."
@@ -485,19 +491,19 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "List of detected sequences with frequency counts."
         }
     },
-    
+
     # ========================================================================
-    # 
-    # 
+    #
+    #
     # RELATIVE_TIME
-    # 
-    # 
+    #
+    #
     # ========================================================================
 
     # ========================================================================
-    # 
+    #
     # RELATIVE_TIME × RESOURCE
-    # 
+    #
     # ========================================================================
 
     # ========================================================================
@@ -527,15 +533,15 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "interpretation": "Detects unusual events based on timing, resource behavior, and frequency patterns. Color-coded by case for case-level anomaly analysis.",
             "use_case": "Finding exceptional cases, data quality issues, resource violations",
             "output": "Outlier events with resource-specific and case-specific anomaly reasons"
-        }, 
+        },
         "cluster": {
             "can_be_found": True,
             "makes_sense": False,
             "visual": "Colored rectangles or highlights showing detected clusters of events based on resource and time. Case coloring shows which cases are in each cluster.",
-            "interpretation": "f you use case ID as color, you’ll get a unique color per case, which is visually overwhelming and not useful for pattern discovery.",
+            "interpretation": "If you use case ID as color, you’ll get a unique color per case, which is visually overwhelming and not useful for pattern discovery.",
             "use_case": "Not recommended.",
             "output": "N/A"
-            },
+        },
         "sequence": {
             "can_be_found": True,
             "makes_sense": True,
@@ -637,12 +643,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "List of all resources."
         }
     },
-    #endregion
+    # endregion
 
     # ========================================================================
-    # 
+    #
     # RELATIVE_TIME × ACTIVITY
-    # 
+    #
     # ========================================================================
 
     # ========================================================================
@@ -738,7 +744,7 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     },
 
     # ========================================================================
-    # RELATIVE_TIME × ACTIVITY × RESOURCE 
+    # RELATIVE_TIME × ACTIVITY × RESOURCE
     # ========================================================================
     ("relative_time", "activity", "resource"): {
         "gap": {
@@ -784,9 +790,9 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     },
 
     # ========================================================================
-    # 
+    #
     # RELATIVE_TIME × CASE_ID
-    # 
+    #
     # ========================================================================
 
     # ========================================================================
@@ -882,7 +888,7 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     },
 
     # ========================================================================
-    # RELATIVE_TIME × CASE_ID × RESOURCE 
+    # RELATIVE_TIME × CASE_ID × RESOURCE
     # ========================================================================
     ("relative_time", "case_id", "resource"): {
         "gap": {
@@ -926,19 +932,19 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "List of detected sequences with frequency counts."
         }
     },
-    
+
     # ========================================================================
-    # 
-    # 
+    #
+    #
     # RELATIVE_RATIO
-    # 
-    # 
+    #
+    #
     # ========================================================================
 
     # ========================================================================
-    # 
+    #
     # RELATIVE_RATIO × RESOURCE
-    # 
+    #
     # ========================================================================
 
     # ========================================================================
@@ -991,114 +997,391 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # RELATIVE_RATIO × RESOURCE × ACTIVITY
     # ========================================================================
     ("relative_ratio", "resource", "activity"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {},
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Red rectangles showing normalized gaps in resource activity, colored by activity.",
+            "interpretation": "Detects abnormal waiting times between activities, normalized by case duration. Shows which resources have delays relative to total case time.",
+            "use_case": "Comparing delays across cases of different lengths, identifying resource bottlenecks independent of case duration",
+            "output": "Abnormal gaps with normalized time ratios, colored by activity"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio is not a time measurement.",
+            "use_case": "Use temporal axis for temporal analysis",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Current implementation detects outliers based on actual_time, not relative_ratio. Results don't match visualization.",
+            "use_case": "Use actual_time or relative_time views for meaningful outlier detection",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio does not provide useful clustering dimensions.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Sequence detection requires temporal ordering which relative_ratio does not provide.",
+            "use_case": "Use actual_time or relative_time for sequence detection",
+            "output": "N/A"
+        }
     },
 
     # ========================================================================
     # RELATIVE_RATIO × RESOURCE × RESOURCE (Same dimension on Y and Color)
     # ========================================================================
     ("relative_ratio", "resource", "resource"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {},
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "Red rectangles showing normalized gaps, colored by resource for clear visual separation.",
+            "interpretation": "Detects abnormal waiting times, normalized by case duration. Color matches Y-axis for clear resource identification.",
+            "use_case": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio is not a time measurement.",
+            "use_case": "N/A",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Current implementation detects outliers based on actual_time, not relative_ratio.",
+            "use_case": "Use actual_time or relative_time views for meaningful outlier detection",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: resource on both Y-axis and color provides no additional clustering value.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Sequence detection requires temporal ordering which relative_ratio does not provide.",
+            "use_case": "Use actual_time or relative_time for sequence detection",
+            "output": "N/A"
+        }
     },
 
     # ========================================================================
-    # 
+    #
     # RELATIVE_RATIO × ACTIVITY
-    # 
+    #
     # ========================================================================
 
     # ========================================================================
     # RELATIVE_RATIO × ACTIVITY × CASE_ID
     # ========================================================================
     ("relative_ratio", "activity", "case_id"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {}, 
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio is not a time measurement suitable for gap detection.",
+            "use_case": "Use actual_time or relative_time for gap detection",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio is not a time measurement.",
+            "use_case": "Use temporal axis for temporal analysis",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Current implementation detects outliers based on actual_time, not relative_ratio.",
+            "use_case": "Use actual_time or relative_time views for meaningful outlier detection",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: case_id as color does not provide useful clustering information.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Sequence detection requires temporal ordering which relative_ratio does not provide.",
+            "use_case": "Use actual_time or relative_time for sequence detection",
+            "output": "N/A"
+        }
     },
 
     # ========================================================================
     # RELATIVE_RATIO × ACTIVITY × ACTIVITY (Same dimension on Y and Color)
     # ========================================================================
     ("relative_ratio", "activity", "activity"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {},
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color, and relative_ratio is not temporal.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        }
     },
 
     # ========================================================================
-    # RELATIVE_RATIO × ACTIVITY × RESOURCE 
+    # RELATIVE_RATIO × ACTIVITY × RESOURCE
     # ========================================================================
     ("relative_ratio", "activity", "resource"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {},
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio is not a time measurement suitable for gap detection.",
+            "use_case": "Use actual_time or relative_time for gap detection",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio is not a time measurement.",
+            "use_case": "Use temporal axis for temporal analysis",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Current implementation detects outliers based on actual_time, not relative_ratio.",
+            "use_case": "Use actual_time or relative_time views for meaningful outlier detection",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio does not provide useful clustering dimensions.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Sequence detection requires temporal ordering which relative_ratio does not provide.",
+            "use_case": "Use actual_time or relative_time for sequence detection",
+            "output": "N/A"
+        }
     },
 
     # ========================================================================
-    # 
+    #
     # RELATIVE_RATIO × CASE_ID
-    # 
+    #
     # ========================================================================
 
     # ========================================================================
     # RELATIVE_RATIO × CASE_ID × CASE_ID (Same dimension on Y and Color)
     # ========================================================================
     ("relative_ratio", "case_id", "case_id"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {}, 
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color, and relative_ratio is not temporal.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        }
     },
 
     # ========================================================================
     # RELATIVE_RATIO × CASE_ID × ACTIVITY
     # ========================================================================
     ("relative_ratio", "case_id", "activity"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {},
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio is not a time measurement suitable for gap detection.",
+            "use_case": "Use actual_time or relative_time for gap detection",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio is not a time measurement.",
+            "use_case": "Use temporal axis for temporal analysis",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Current implementation detects outliers based on actual_time, not relative_ratio.",
+            "use_case": "Use actual_time or relative_time views for meaningful outlier detection",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: case_id on Y-axis does not provide useful clustering.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Sequence detection requires temporal ordering which relative_ratio does not provide.",
+            "use_case": "Use actual_time or relative_time for sequence detection",
+            "output": "N/A"
+        }
     },
 
     # ========================================================================
-    # RELATIVE_RATIO × CASE_ID × RESOURCE 
+    # RELATIVE_RATIO × CASE_ID × RESOURCE
     # ========================================================================
     ("relative_ratio", "case_id", "resource"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {},
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio is not a time measurement suitable for gap detection.",
+            "use_case": "Use actual_time or relative_time for gap detection",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: relative_ratio is not a time measurement.",
+            "use_case": "Use temporal axis for temporal analysis",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Current implementation detects outliers based on actual_time, not relative_ratio.",
+            "use_case": "Use actual_time or relative_time views for meaningful outlier detection",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: case_id on Y-axis does not provide useful clustering.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Sequence detection requires temporal ordering which relative_ratio does not provide.",
+            "use_case": "Use actual_time or relative_time for sequence detection",
+            "output": "N/A"
+        }
     },
-
     # ========================================================================
-    # 
-    # 
+    #
     # LOGICAL_TIME
-    # 
-    # 
+    #
     # ========================================================================
 
     # ========================================================================
-    # 
+    #
     # LOGICAL_TIME × RESOURCE
-    # 
+    #
     # ========================================================================
 
     # ========================================================================
@@ -1151,232 +1434,822 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # LOGICAL_TIME × RESOURCE × ACTIVITY
     # ========================================================================
     ("logical_time", "resource", "activity"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {},
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_time is a sequential counter, not actual time. Gap detection requires temporal data.",
+            "use_case": "Use actual_time or relative_time instead",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_time has no temporal meaning, just sequential order.",
+            "use_case": "Use actual_time for temporal analysis",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Limited meaning: detects events out of typical sequence order, but not time-based.",
+            "use_case": "Better to use actual_time for meaningful outlier detection",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_time does not provide useful clustering dimensions.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Sequence detection on logical_time provides limited insight compared to actual time.",
+            "use_case": "Use actual_time or relative_time for sequence detection",
+            "output": "N/A"
+        }
     },
 
     # ========================================================================
     # LOGICAL_TIME × RESOURCE × RESOURCE (Same dimension on Y and Color)
     # ========================================================================
     ("logical_time", "resource", "resource"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {},
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color, and logical_time is not temporal.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color, and logical_time is not temporal.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        }
     },
 
     # ========================================================================
-    # 
+    #
     # LOGICAL_TIME × ACTIVITY
-    # 
+    #
     # ========================================================================
 
     # ========================================================================
     # LOGICAL_TIME × ACTIVITY × CASE_ID
     # ========================================================================
     ("logical_time", "activity", "case_id"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {}, 
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_time is a sequential counter, not actual time. Gap detection requires temporal data.",
+            "use_case": "Use actual_time or relative_time instead",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_time has no temporal meaning, just sequential order.",
+            "use_case": "Use actual_time for temporal analysis",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Limited meaning: detects events out of typical sequence order, but not time-based.",
+            "use_case": "Better to use actual_time for meaningful outlier detection",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: case_id as color does not provide useful clustering information.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Sequence detection on logical_time provides limited insight compared to actual time.",
+            "use_case": "Use actual_time or relative_time for sequence detection",
+            "output": "N/A"
+        }
     },
 
     # ========================================================================
     # LOGICAL_TIME × ACTIVITY × ACTIVITY (Same dimension on Y and Color)
     # ========================================================================
     ("logical_time", "activity", "activity"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {},
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color, and logical_time is not temporal.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color, and logical_time is not temporal.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        }
     },
 
     # ========================================================================
-    # LOGICAL_TIME × ACTIVITY × RESOURCE 
+    # LOGICAL_TIME × ACTIVITY × RESOURCE
     # ========================================================================
     ("logical_time", "activity", "resource"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {},
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_time is a sequential counter, not actual time. Gap detection requires temporal data.",
+            "use_case": "Use actual_time or relative_time instead",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_time has no temporal meaning, just sequential order.",
+            "use_case": "Use actual_time for temporal analysis",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Limited meaning: detects events out of typical sequence order, but not time-based.",
+            "use_case": "Better to use actual_time for meaningful outlier detection",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_time does not provide useful clustering dimensions.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Sequence detection on logical_time provides limited insight compared to actual time.",
+            "use_case": "Use actual_time or relative_time for sequence detection",
+            "output": "N/A"
+        }
     },
-
     # ========================================================================
-    # 
+    #
     # LOGICAL_TIME × CASE_ID
-    # 
+    #
     # ========================================================================
 
     # ========================================================================
     # LOGICAL_TIME × CASE_ID × CASE_ID (Same dimension on Y and Color)
     # ========================================================================
     ("logical_time", "case_id", "case_id"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {}, 
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color, and logical_time is not temporal.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color, and logical_time is not temporal.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        }
     },
 
     # ========================================================================
     # LOGICAL_TIME × CASE_ID × ACTIVITY
     # ========================================================================
     ("logical_time", "case_id", "activity"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {},
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_time is a sequential counter, not actual time. Gap detection requires temporal data.",
+            "use_case": "Use actual_time or relative_time instead",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_time has no temporal meaning, just sequential order.",
+            "use_case": "Use actual_time for temporal analysis",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Limited meaning: detects events out of typical sequence order, but not time-based.",
+            "use_case": "Better to use actual_time for meaningful outlier detection",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: case_id on Y-axis does not provide useful clustering.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Sequence detection on logical_time provides limited insight compared to actual time.",
+            "use_case": "Use actual_time or relative_time for sequence detection",
+            "output": "N/A"
+        }
     },
 
     # ========================================================================
-    # LOGICAL_TIME × CASE_ID × RESOURCE 
+    # LOGICAL_TIME × CASE_ID × RESOURCE
     # ========================================================================
     ("logical_time", "case_id", "resource"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {},
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_time is a sequential counter, not actual time. Gap detection requires temporal data.",
+            "use_case": "Use actual_time or relative_time instead",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_time has no temporal meaning, just sequential order.",
+            "use_case": "Use actual_time for temporal analysis",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Limited meaning: detects events out of typical sequence order, but not time-based.",
+            "use_case": "Better to use actual_time for meaningful outlier detection",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: case_id on Y-axis does not provide useful clustering.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Sequence detection on logical_time provides limited insight compared to actual time.",
+            "use_case": "Use actual_time or relative_time for sequence detection",
+            "output": "N/A"
+        }
     },
-
     # ========================================================================
-    #
     #
     # LOGICAL_RELATIVE
     #
-    # 
+    #
     # ========================================================================
 
     # ========================================================================
-    # 
+    #
     # LOGICAL_RELATIVE × RESOURCE
-    # 
+    #
     # ========================================================================
 
     # ========================================================================
     # LOGICAL_RELATIVE × RESOURCE × CASE_ID
     # ========================================================================
     ("logical_relative", "resource", "case_id"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {}, 
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative is not a time measurement. Gap detection requires temporal data.",
+            "use_case": "Use actual_time or relative_time instead",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative has no temporal meaning.",
+            "use_case": "Use actual_time for temporal analysis",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative is not suitable for outlier detection.",
+            "use_case": "Use actual_time or relative_time for meaningful outlier detection",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: case_id as color does not provide useful clustering information.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Sequence detection requires temporal ordering which logical_relative does not provide.",
+            "use_case": "Use actual_time or relative_time for sequence detection",
+            "output": "N/A"
+        }
     },
 
     # ========================================================================
     # LOGICAL_RELATIVE × RESOURCE × ACTIVITY
     # ========================================================================
     ("logical_relative", "resource", "activity"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {},
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative is not a time measurement. Gap detection requires temporal data.",
+            "use_case": "Use actual_time or relative_time instead",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative has no temporal meaning.",
+            "use_case": "Use actual_time for temporal analysis",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative is not suitable for outlier detection.",
+            "use_case": "Use actual_time or relative_time for meaningful outlier detection",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative does not provide useful clustering dimensions.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Sequence detection requires temporal ordering which logical_relative does not provide.",
+            "use_case": "Use actual_time or relative_time for sequence detection",
+            "output": "N/A"
+        }
     },
 
     # ========================================================================
     # LOGICAL_RELATIVE × RESOURCE × RESOURCE (Same dimension on Y and Color)
     # ========================================================================
     ("logical_relative", "resource", "resource"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {},
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color, and logical_relative is not temporal.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color, and logical_relative is not temporal.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        }
     },
-
     # ========================================================================
-    # 
+    #
     # LOGICAL_RELATIVE × ACTIVITY
-    # 
+    #
     # ========================================================================
 
     # ========================================================================
     # LOGICAL_RELATIVE × ACTIVITY × CASE_ID
     # ========================================================================
     ("logical_relative", "activity", "case_id"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {}, 
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative is not a time measurement. Gap detection requires temporal data.",
+            "use_case": "Use actual_time or relative_time instead",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative has no temporal meaning.",
+            "use_case": "Use actual_time for temporal analysis",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative is not suitable for outlier detection.",
+            "use_case": "Use actual_time or relative_time for meaningful outlier detection",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: case_id as color does not provide useful clustering information.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Sequence detection requires temporal ordering which logical_relative does not provide.",
+            "use_case": "Use actual_time or relative_time for sequence detection",
+            "output": "N/A"
+        }
     },
 
     # ========================================================================
     # LOGICAL_RELATIVE × ACTIVITY × ACTIVITY (Same dimension on Y and Color)
     # ========================================================================
     ("logical_relative", "activity", "activity"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {},
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color, and logical_relative is not temporal.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color, and logical_relative is not temporal.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        }
     },
 
     # ========================================================================
-    # LOGICAL_RELATIVE × ACTIVITY × RESOURCE 
+    # LOGICAL_RELATIVE × ACTIVITY × RESOURCE
     # ========================================================================
     ("logical_relative", "activity", "resource"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {},
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative is not a time measurement. Gap detection requires temporal data.",
+            "use_case": "Use actual_time or relative_time instead",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative has no temporal meaning.",
+            "use_case": "Use actual_time for temporal analysis",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative is not suitable for outlier detection.",
+            "use_case": "Use actual_time or relative_time for meaningful outlier detection",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative does not provide useful clustering dimensions.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Sequence detection requires temporal ordering which logical_relative does not provide.",
+            "use_case": "Use actual_time or relative_time for sequence detection",
+            "output": "N/A"
+        }
     },
-
     # ========================================================================
-    # 
+    #
     # LOGICAL_RELATIVE × CASE_ID
-    # 
+    #
     # ========================================================================
 
     # ========================================================================
     # LOGICAL_RELATIVE × CASE_ID × CASE_ID (Same dimension on Y and Color)
     # ========================================================================
     ("logical_relative", "case_id", "case_id"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {}, 
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color, and logical_relative is not temporal.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color, and logical_relative is not temporal.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        }
     },
 
     # ========================================================================
     # LOGICAL_RELATIVE × CASE_ID × ACTIVITY
     # ========================================================================
     ("logical_relative", "case_id", "activity"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {},
-        "cluster": {},
-        "sequence": {}
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative is not a time measurement. Gap detection requires temporal data.",
+            "use_case": "Use actual_time or relative_time instead",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative has no temporal meaning.",
+            "use_case": "Use actual_time for temporal analysis",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative is not suitable for outlier detection.",
+            "use_case": "Use actual_time or relative_time for meaningful outlier detection",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: case_id on Y-axis does not provide useful clustering.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Sequence detection requires temporal ordering which logical_relative does not provide.",
+            "use_case": "Use actual_time or relative_time for sequence detection",
+            "output": "N/A"
+        }
     },
 
     # ========================================================================
-    # LOGICAL_RELATIVE × CASE_ID × RESOURCE 
+    # LOGICAL_RELATIVE × CASE_ID × RESOURCE
     # ========================================================================
     ("logical_relative", "case_id", "resource"): {
-        "gap": {},
-        "temporal_cluster_x": {},
-        "outlier": {},
-        "cluster": {},
-        "sequence": {}
-    },
+        "gap": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative is not a time measurement. Gap detection requires temporal data.",
+            "use_case": "Use actual_time or relative_time instead",
+            "output": "N/A"
+        },
+        "temporal_cluster_x": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative has no temporal meaning.",
+            "use_case": "Use actual_time for temporal analysis",
+            "output": "N/A"
+        },
+        "outlier": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: logical_relative is not suitable for outlier detection.",
+            "use_case": "Use actual_time or relative_time for meaningful outlier detection",
+            "output": "N/A"
+        },
+        "cluster": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Not meaningful: case_id on Y-axis does not provide useful clustering.",
+            "use_case": "Not recommended.",
+            "output": "N/A"
+        },
+        "sequence": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Sequence detection requires temporal ordering which logical_relative does not provide.",
+            "use_case": "Use actual_time or relative_time for sequence detection",
+            "output": "N/A"
+        }
+    }
 }
-
 
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
+
 
 def get_pattern_info(
     x_axis: str,
