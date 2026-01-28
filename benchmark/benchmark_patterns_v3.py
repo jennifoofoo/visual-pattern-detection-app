@@ -262,6 +262,9 @@ def run_worker(args: argparse.Namespace) -> None:
             r["Events Lost %"] = f"{events_lost_pct:.1f}%"
             r["Traces Lost"] = traces_lost
             r["Traces Lost %"] = f"{traces_lost_pct:.1f}%"
+            # Add absolute counts
+            r["Original Events"] = stats["original_events"]
+            r["Sampled Events"] = stats["sampled_events"]
             # Placeholders for baseline metrics
             r["Patterns Lost"] = np.nan
             r["Patterns Lost %"] = "N/A" 
@@ -285,6 +288,7 @@ def run_worker(args: argparse.Namespace) -> None:
                 "File", "Sampling", "Config", "X Axis", "Y Axis", "Color",
                 "Algorithm", "Parameters",
                 "Detection Time (s)", "Sampling Time (s)", "Patterns Found", "Detected",
+                "Original Events", "Sampled Events", 
                 "Events Lost", "Events Lost %", "Traces Lost", "Traces Lost %",
                 "Patterns Lost", "Patterns Lost %", "Time Saved", "Time Saved %", "Retention Rate %",
             ]
@@ -487,11 +491,13 @@ def generate_report(results_df: pd.DataFrame, timing_df: pd.DataFrame, output_pa
     for file_name, file_group in valid_df.groupby("File"):
         lines.extend([f"### {file_name}", 
                       "",
-                      "| Sampling | Events Retained | Patterns (Avg) | Time (Avg) | Speedup |",
-                      "|:---|---:|---:|---:|---:|"])
+                      "| Sampling | Events (Abs) | Events Retained | Patterns (Avg) | Time (Avg) | Speedup |",
+                      "|:---|---:|---:|---:|---:|---:|"])
         
         # Aggregate by sampling for this dataset
         file_samp = file_group.groupby("Sampling").agg({
+            "Sampled Events": "max",
+            "Original Events": "max",
             "Events Lost %": lambda x: x.iloc[0],
             "Patterns Found": "mean",
             "Detection Time (s)": "mean"
@@ -505,6 +511,15 @@ def generate_report(results_df: pd.DataFrame, timing_df: pd.DataFrame, output_pa
         
         for mode in existing_order:
             row = file_samp.loc[mode]
+            
+            # Format Absolute Events
+            orig = int(row.get("Original Events", 0))
+            samp = int(row.get("Sampled Events", 0))
+            if orig > 0:
+                events_abs = f"{samp:,} / {orig:,}"
+            else:
+                events_abs = "N/A"
+
             # Convert "XX.X%" string to retained percentage
             try:
                 lost_pct = float(str(row["Events Lost %"]).strip('%'))
@@ -513,7 +528,7 @@ def generate_report(results_df: pd.DataFrame, timing_df: pd.DataFrame, output_pa
                 retained_pct = "N/A"
                 
             speedup = f"{full_time / row['Detection Time (s)']:.1f}x" if full_time and row['Detection Time (s)'] > 0 else "1.0x"
-            lines.append(f"| **{mode}** | {retained_pct} | {row['Patterns Found']:.1f} | {row['Detection Time (s)']:.3f}s | {speedup} |")
+            lines.append(f"| **{mode}** | {events_abs} | {retained_pct} | {row['Patterns Found']:.1f} | {row['Detection Time (s)']:.3f}s | {speedup} |")
         lines.append("")
 
     # 2. 🔍 Detection Statistics by Configuration
