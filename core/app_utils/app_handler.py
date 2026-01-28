@@ -286,9 +286,6 @@ def display_chart():
     df_display = df_display.reset_index(drop=True)
     df_display['_point_id'] = df_display.index  # Renumber for display
 
-    # Create mapping from pattern indices (_point_id values) to display positions
-    point_id_to_display_idx = {pid: new_idx for new_idx, pid in enumerate(point_ids)}
-
     x_col = plot_config['x_col']
     y_col = plot_config['y_col']
     dots_config_col = plot_config['dots_config_col']
