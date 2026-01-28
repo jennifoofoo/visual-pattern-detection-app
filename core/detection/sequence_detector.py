@@ -29,6 +29,8 @@ class HorizontalSequencePatternDetector(Pattern):
         dot_color: str,
         df: pd.DataFrame,
         min_support: int = 50,
+        max_patterns: int = 500,
+        max_len: int = 20,
         is_strict: bool = False,
     ) -> None:
         # Initialize configuration
@@ -36,15 +38,34 @@ class HorizontalSequencePatternDetector(Pattern):
         self.y_axis_df_key = y_axis
         self.dot_df_key = dot_color
         self.is_strict = is_strict
+        self.max_patterns = max_patterns
+        self.max_len = max_len
         
         # Store data
         self.full_df = df
         self.df_by_configuration = df[[self.x_axis_df_key, self.y_axis_df_key, self.dot_df_key]].copy()
         
+        # Validate and clean data to prevent NaN errors (CRITICAL FIX)
+        # 1. Drop rows where grouping key or sequence axis is NaN (cannot group/order)
+        self.df_by_configuration.dropna(subset=[self.x_axis_df_key, self.y_axis_df_key], inplace=True)
+        
+        # 2. Fill NaNs in event key (dot_color) with "Unknown" to ensure consistent string types
+        # This prevents "mixed type" sort errors and "float NaN to integer" errors
+        self.df_by_configuration[self.dot_df_key] = self.df_by_configuration[self.dot_df_key].fillna("Unknown").astype(str)
+        
         # Set detection parameters
         self.sequence_detection_axis = self.x_axis_df_key
         self.grouping_key = self.y_axis_df_key
         self.event_key = self.dot_df_key
+        
+        # Initialize results (before validation to ensure consistent state)
+        self.topk = None
+        self.detected = False
+        self.df_sorted = None
+        self.df_found_patterns = pd.DataFrame()
+        self.results = pd.DataFrame()
+        self.topkresults = pd.DataFrame()
+        self.min_support = 0
         
         # Validate configuration
         self.warn_grouping_key_dot_config = self.grouping_key == self.dot_df_key
@@ -58,16 +79,22 @@ class HorizontalSequencePatternDetector(Pattern):
         
         # Calculate minimum support
         unique_count = self.df_by_configuration[self.grouping_key].nunique()
-        min_support_percentage = min_support / 100
-        self.min_support = math.ceil(unique_count * min_support_percentage)
+        total_events = len(self.df_by_configuration)
+        avg_events_per_group = total_events / unique_count if unique_count > 0 else 0
         
-        # Initialize results
-        self.topk = None
-        self.detected = False
-        self.df_sorted = None
-        self.df_found_patterns = pd.DataFrame()
-        self.results = pd.DataFrame()
-        self.topkresults = pd.DataFrame()
+        # Guard: Skip if grouping key has too few unique values for meaningful sequences
+        MIN_GROUPS_THRESHOLD = 3
+        if unique_count < MIN_GROUPS_THRESHOLD:
+            # Grouping key has too few unique values for meaningful sequence detection
+            self.warn_grouping_key_dot_config = True  # Reuse flag to skip detection
+            return
+        
+        # Calculate min_support
+        min_support_percentage = min_support / 100
+        self.min_support = max(2, math.ceil(unique_count * min_support_percentage))
+        
+        # Flag for dense data - will truncate sequences more aggressively
+        self.is_dense = avg_events_per_group > 500
 
     def detect(self) -> bool:
         """Main detection method."""
@@ -76,13 +103,22 @@ class HorizontalSequencePatternDetector(Pattern):
             
         # 1. Prepare data for PrefixSpan
         # (Preprocessing is same for strict/non-strict: based on grouped timestamps)
-        self.df_sorted, sequence_data = self._prepare_data_for_prefixspan()
+        import sys
+        original_limit = sys.getrecursionlimit()
+        sys.setrecursionlimit(5000) # PrefixSpan can be deep
         
-        # 2. Extract subsequences using PrefixSpan
-        # Note: PrefixSpan finds frequent loose subsequences. 
-        # For strict mode, we still use this as a candidate generator, 
-        # and strictness is enforced during mapping/validation.
-        found_subsequences = self._extract_subsequences(sequence_data)
+        try:
+            self.df_sorted, sequence_data = self._prepare_data_for_prefixspan()
+            
+            # Guard: Truncate sequences to prevent PrefixSpan slowness
+            MAX_SEQUENCE_LENGTH = 50
+            if sequence_data:
+                sequence_data = [s[:MAX_SEQUENCE_LENGTH] for s in sequence_data]
+            
+            # 2. Extract subsequences using PrefixSpan
+            found_subsequences = self._extract_subsequences(sequence_data)
+        finally:
+            sys.setrecursionlimit(original_limit)
         
         # 3. Post-process results to map patterns to original indices
         pattern_map_df = self._postprocess_prefixspan_results(found_subsequences)
@@ -95,7 +131,6 @@ class HorizontalSequencePatternDetector(Pattern):
         else:
             self.detected = False
             self.results = pd.DataFrame()
-        
         return self.detected
 
     def _prepare_data_for_prefixspan(self) -> Tuple[pd.DataFrame, List[List[Any]]]:
@@ -115,15 +150,16 @@ class HorizontalSequencePatternDetector(Pattern):
 
         # Build per-(group, timestamp) itemsets (unique events at that timestamp)
         grouped_ts = df_sorted.groupby([self.grouping_key, self.sequence_detection_axis]).agg(
-            events_at_ts=(self.event_key, lambda s: sorted(set(s.tolist())))
+            events_at_ts=(self.event_key, lambda s: sorted(set(s.tolist()), key=lambda x: str(x)))
         )
 
         def _encode_itemset(events: List[Any]) -> Any:
             # PrefixSpan elements must be hashable/comparable; encode multi-event timestamps as tuples.
             # Singletons remain as the raw event value for readability.
+            # CRITICAL: Convert all elements to strings to avoid type comparison errors (float vs str)
             if len(events) == 1:
-                return events[0]
-            return tuple(events)
+                return str(events[0])
+            return tuple(str(e) for e in events)
 
         grouped_ts["item"] = grouped_ts["events_at_ts"].apply(_encode_itemset)
 
@@ -137,10 +173,25 @@ class HorizontalSequencePatternDetector(Pattern):
         return df_sorted, sequence_data
     
     def _extract_subsequences(self, sequence_data: List[List[Any]]) -> List[Tuple[int, List[Any]]]:
-        """Extract subsequences using PrefixSpan."""
+        """Extract frequent subsequences using PrefixSpan with length and count limits."""
         ps = PrefixSpan(sequence_data)
-        frequent_patterns = ps.frequent(self.min_support)
-        return frequent_patterns
+        
+        # Use generator=True for lazy evaluation - much faster for large result sets
+        results = []
+        count = 0
+        for support, pattern in ps.frequent(self.min_support, generator=True):
+            if len(pattern) < 2:
+                continue
+            if len(pattern) > self.max_len:
+                continue
+                
+            results.append((support, pattern))
+            count += 1
+            if count >= self.max_patterns:
+                # Stopping early is much faster than enumerating all patterns
+                break
+        
+        return results
     
     def _postprocess_prefixspan_results(
         self,
@@ -200,8 +251,15 @@ class HorizontalSequencePatternDetector(Pattern):
         mapping_data = []
         pattern_instance_counter = 0
         
+        # Memory safety: cap total pattern-index mappings to prevent explosion
+        MAX_MATCHES = 20_000
+        
         # Map patterns to original indices
-        for support_count, pattern in filtered_subsequences:
+        num_patterns = len(filtered_subsequences)
+        for i, (support_count, pattern) in enumerate(filtered_subsequences):
+            if len(mapping_data) >= MAX_MATCHES:
+                break  # Stop processing more patterns, keep what we have
+                
             relative_support = support_count / total_groups
             
             # --- OPTIMIZATION START: Filter Candidates ---
@@ -220,6 +278,9 @@ class HorizontalSequencePatternDetector(Pattern):
             
             # Only iterate over candidate groups
             for group_id in candidate_groups:
+                if len(mapping_data) >= MAX_MATCHES:
+                    break
+                    
                 # We can access the row directly if group_id is the index
                 # grouped_data index is self.grouping_key, which is group_id
                 try:
@@ -237,6 +298,9 @@ class HorizontalSequencePatternDetector(Pattern):
                     original_indices_nested = group_row["original_indices_nested"]
                     
                     for match_indices in match_indices_list:
+                        if len(mapping_data) >= MAX_MATCHES:
+                            break
+                            
                         pattern_instance_counter += 1
                         matched_df_indices: List[int] = []
                         for pos in match_indices:
