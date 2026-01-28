@@ -433,30 +433,7 @@ def _display_cluster_tab():
     subtab1, subtab2 = st.tabs(["Overview", "Selection"])
 
     with subtab1:
-        # --- Quality and Algorithm ---
-        q_col1, q_col2 = st.columns(2)
-        with q_col1:
-            st.markdown("**Pattern Quality**")
-            score = details.get('silhouette_score')
-            if score is not None:
-                st.caption(f"✨ **Silhouette Score:** {score:.3f}", 
-                           help="Silhouette Score measures how similar a point is to its own cluster compared to other clusters. "
-                                "Values closer to 1 indicate well-defined clusters.")
-            else:
-                st.caption("✨ **Silhouette Score:** N/A")
-        
-        with q_col2:
-            st.markdown("**Algorithm Details**")
-            algo = details.get('algorithm', 'OPTICS').upper()
-            st.caption(f"🤖 **Algorithm:** {algo}")
-            # Show top params
-            params = details.get('parameters', {})
-            if params:
-                param_str = ", ".join([f"{k}={v}" for k, v in list(params.items())[:2]])
-                st.caption(f"⚙️ **Params:** {param_str}")
-
-        st.divider()
-
+    
         # --- Cluster Breakdown ---
         clusters_data = details.get('clusters', {})
         if clusters_data:
