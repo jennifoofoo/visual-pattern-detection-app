@@ -90,7 +90,7 @@ def init_state():
 # === Data Loading ===
 # =============================================================================
 
-def load_data_button(xes_path, demo_mode=False, sampling_mode: SamplingMode = SamplingMode.SQRT):
+def load_data_button(xes_path, use_sampling: bool = False, sampling_mode: SamplingMode = SamplingMode.SQRT):
     try:
         with st.spinner(f"Loading {xes_path}..."):
             df = cached_load_xes_log(xes_path)
@@ -99,9 +99,9 @@ def load_data_button(xes_path, demo_mode=False, sampling_mode: SamplingMode = Sa
             st.warning("The log file was loaded but contains no events.")
             return
 
-        # Demo Mode: Sample event log using variant-aware sampling
+        # Sampling: Sample event log using variant-aware sampling
         sampling_stats = None
-        if demo_mode and 'case_id' in df.columns and sampling_mode != SamplingMode.FULL:
+        if use_sampling and 'case_id' in df.columns and sampling_mode != SamplingMode.FULL:
             df_original = df
             df, sampling_stats = sample_eventlog_variant_aware(
                 df,

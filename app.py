@@ -90,20 +90,26 @@ def main():
     # -----------------------------
     with st.sidebar:
         with st.expander("Load Data", expanded=st.session_state.ui_step == "load"):
-            demo_mode = st.checkbox(
-            "Demo Mode", 
-            value=True,
-            help="Enable sampling for faster analysis. Choose a sampling strategy below."
-        )
-            sampling_mode = SamplingMode.FULL  # Default
-            if demo_mode:
+            xes_path = st.text_input(
+                "XES file path",
+                value="data/Hospital_log.xes",
+            )
+
+            use_sampling = st.checkbox(
+                "Sampling",
+                value=True,
+                help="Enable sampling for faster analysis. Choose a sampling strategy below."
+            )
+
+            sampling_mode = SamplingMode.FULL  # Default when sampling is disabled
+            if use_sampling:
                 sampling_options = {
                     "Minimal (fastest)": SamplingMode.MINIMAL,
                     "Balanced (√n)": SamplingMode.SQRT,
                     "Optimized (~70%)": SamplingMode.OPTIMIZED,
                     "Legacy (first-N)": SamplingMode.LEGACY,
                 }
-                
+
                 selected_strategy = st.selectbox(
                     "Sampling Strategy:",
                     options=list(sampling_options.keys()),
@@ -118,15 +124,9 @@ def main():
                 )
                 sampling_mode = sampling_options[selected_strategy]
 
-            xes_path = st.text_input(
-                "XES file path",
-                value="data/Hospital_log.xes",
-                disabled=demo_mode,
-            )
-
             st.markdown("<div style='height: 0.5rem'></div>", unsafe_allow_html=True)
             if st.button("Load Data", type="primary"):
-                app_handler.load_data_button(xes_path, demo_mode=demo_mode, sampling_mode=sampling_mode)
+                app_handler.load_data_button(xes_path, use_sampling=use_sampling, sampling_mode=sampling_mode)
                 st.session_state.ui_step = "config"
                 st.rerun()
 
