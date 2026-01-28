@@ -252,7 +252,7 @@ class ClusterPattern(Pattern):
 
     def visualize(self, df: pd.DataFrame, fig: go.Figure, selected_clusters: list = None, show_noise: bool = False) -> go.Figure:
         """
-        Add simple cluster visualization with different colors.
+        Add cluster visualization with rectangle boundaries and hover points.
 
         Parameters
         ----------
@@ -287,29 +287,11 @@ class ClusterPattern(Pattern):
         x_col = self.view_config['x']
         y_col = self.view_config['y']
 
-        # Helper to build hover data
-        def build_hover_text(data, cluster_label, cluster_size=None):
-            texts = []
-            for idx in data.index:
-                row = data.loc[idx]
-                parts = [
-                    f"<b>Cluster {cluster_label}</b>" if cluster_label != 'Noise' else "<b>Noise Point</b>"]
-                if cluster_size:
-                    parts[0] += f" ({cluster_size} points)"
-                if 'case_id' in data.columns:
-                    parts.append(f"Case: {row['case_id']}")
-                if 'activity' in data.columns:
-                    parts.append(f"Activity: {row['activity']}")
-                if 'resource' in data.columns:
-                    parts.append(f"Resource: {row['resource']}")
-                texts.append("<br>".join(parts))
-            return texts
-
-        # Add cluster points with different colors
+        # Add cluster rectangles and hover points
         for i, label in enumerate(unique_labels):
             if selected_clusters is not None and int(label) not in selected_clusters:
                 continue
-                
+
             mask = labels == label
             if not np.any(mask):
                 continue
@@ -319,33 +301,120 @@ class ClusterPattern(Pattern):
             cluster_size = len(cluster_data)
             color = colors[i % len(colors)]
 
-            hover_texts = build_hover_text(cluster_data, label, cluster_size)
+            # Calculate bounding box with padding
+            x_range = cluster_data[x_col].max() - cluster_data[x_col].min()
+            if pd.api.types.is_datetime64_any_dtype(cluster_data[x_col]):
+                x_padding = x_range * 0.1 if x_range > pd.Timedelta(0) else pd.Timedelta(hours=1)
+            else:
+                x_padding = x_range * 0.1 if x_range > 0 else 0.5
+            x_min_padded = cluster_data[x_col].min() - x_padding
+            x_max_padded = cluster_data[x_col].max() + x_padding
 
+            # Handle Y-axis (may be categorical)
+            if pd.api.types.is_object_dtype(df[y_col]):
+                # For categorical Y-axis, get the category positions
+                if hasattr(fig.layout.yaxis, 'categoryarray') and fig.layout.yaxis.categoryarray is not None:
+                    all_y_categories = list(fig.layout.yaxis.categoryarray)
+                else:
+                    all_y_categories = df[y_col].unique().tolist()
+
+                cluster_y_categories = cluster_data[y_col].unique().tolist()
+                cluster_y_indices = [all_y_categories.index(
+                    cat) for cat in cluster_y_categories if cat in all_y_categories]
+
+                if cluster_y_indices:
+                    min_idx = min(cluster_y_indices)
+                    max_idx = max(cluster_y_indices)
+                    # Use category names
+                    y_min_padded = all_y_categories[min_idx]
+                    y_max_padded = all_y_categories[max_idx]
+                else:
+                    y_min_padded = cluster_y_categories[0]
+                    y_max_padded = cluster_y_categories[-1] if len(
+                        cluster_y_categories) > 1 else cluster_y_categories[0]
+            else:
+                y_range = cluster_data[y_col].max() - cluster_data[y_col].min()
+                padding = y_range * 0.1 if y_range > 0 else 0.5
+                y_min_padded = cluster_data[y_col].min() - padding
+                y_max_padded = cluster_data[y_col].max() + padding
+
+            # Add rectangle shape for cluster boundary
+            # For categorical axes with px.scatter, convert string values to numeric indices
+            x0_final = x_min_padded
+            x1_final = x_max_padded
+            y0_final = y_min_padded
+            y1_final = y_max_padded
+
+            # Handle categorical X-axis
+            if pd.api.types.is_object_dtype(df[x_col]):
+                if hasattr(fig.layout.xaxis, 'categoryarray') and fig.layout.xaxis.categoryarray is not None:
+                    x_categories = list(fig.layout.xaxis.categoryarray)
+                else:
+                    x_categories = df[x_col].unique().tolist()
+
+                if x_min_padded in x_categories:
+                    x0_final = x_categories.index(x_min_padded) - 0.4
+                if x_max_padded in x_categories:
+                    x1_final = x_categories.index(x_max_padded) + 0.4
+
+            # Handle categorical Y-axis
+            if pd.api.types.is_object_dtype(df[y_col]):
+                if hasattr(fig.layout.yaxis, 'categoryarray') and fig.layout.yaxis.categoryarray is not None:
+                    y_categories = list(fig.layout.yaxis.categoryarray)
+                else:
+                    y_categories = df[y_col].unique().tolist()
+
+                if y_min_padded in y_categories:
+                    y0_final = y_categories.index(y_min_padded) - 0.4
+                if y_max_padded in y_categories:
+                    y1_final = y_categories.index(y_max_padded) + 0.4
+
+            fig.add_shape(
+                type="rect",
+                x0=x0_final, x1=x1_final,
+                y0=y0_final, y1=y1_final,
+                line=dict(color=color, width=3),
+                fillcolor=color,
+                opacity=0.15,
+                layer="below"
+            )
+
+            # Build detailed hover info for the cluster
+            unique_activities = cluster_data[y_col].nunique() if y_col in cluster_data.columns else 0
+            unique_cases = cluster_data['case_id'].nunique() if 'case_id' in cluster_data.columns else 0
+
+            # Build hover text with cluster details
+            hover_parts = [
+                f"<b>Cluster {label}</b>",
+                f"Points: {cluster_size}",
+            ]
+            if unique_cases > 0:
+                hover_parts.append(f"Cases: {unique_cases}")
+            if unique_activities > 0 and y_col != 'case_id':
+                hover_parts.append(f"Unique {y_col}: {unique_activities}")
+
+            hover_text = "<br>".join(hover_parts) + "<extra></extra>"
+
+            # Add invisible scatter points at all cluster positions for hover detection
             fig.add_trace(go.Scatter(
                 x=cluster_data[x_col],
                 y=cluster_data[y_col],
                 mode='markers',
-                marker=dict(
-                    size=8,
-                    color=color,
-                    symbol='circle',
-                    line=dict(color='black', width=1),
-                    opacity=0.8
-                ),
-                name=f"Cluster {label} ({cluster_size})",
+                # Invisible but hoverable
+                marker=dict(size=15, color=color, opacity=0),
+                name=f"Cluster {label} ({cluster_size} pts)",
                 showlegend=True,
-                text=hover_texts,
-                hovertemplate='%{text}<extra></extra>'
+                hoverinfo='text',
+                text=[hover_text] * cluster_size,
+                hovertemplate='%{text}'
             ))
 
-        # Add noise points if any AND show_noise is True
+        # Add noise points if show_noise is True
         if show_noise:
             noise_mask = labels == -1
             if np.any(noise_mask):
                 noise_indices = original_indices[noise_mask]
                 noise_data = df.loc[noise_indices]
-
-                hover_texts = build_hover_text(noise_data, 'Noise')
 
                 fig.add_trace(go.Scatter(
                     x=noise_data[x_col],
@@ -359,8 +428,9 @@ class ClusterPattern(Pattern):
                     ),
                     name=f"Noise ({len(noise_data)})",
                     showlegend=True,
-                    text=hover_texts,
-                    hovertemplate='%{text}<extra></extra>'
+                    hovertemplate="<b>Noise Point</b><br>" +
+                    f"{x_col}: %{{x}}<br>" +
+                    f"{y_col}: %{{y}}<extra></extra>"
                 ))
 
         return fig
