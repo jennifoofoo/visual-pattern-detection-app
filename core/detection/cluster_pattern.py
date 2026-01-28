@@ -740,11 +740,40 @@ class ClusterPattern(Pattern):
                     y_max_padded = cluster_data[y_col].max() + padding
 
             # Add rectangle shape for cluster boundary
-            # Use category names directly for categorical axes - Plotly accepts them!
+            # For categorical axes with px.scatter, convert string values to numeric indices
+            x0_final = x_min_padded
+            x1_final = x_max_padded
+            y0_final = y_min_padded
+            y1_final = y_max_padded
+
+            # Handle categorical X-axis
+            if pd.api.types.is_object_dtype(df[x_col]):
+                if hasattr(fig.layout.xaxis, 'categoryarray') and fig.layout.xaxis.categoryarray is not None:
+                    x_categories = list(fig.layout.xaxis.categoryarray)
+                else:
+                    x_categories = df[x_col].unique().tolist()
+
+                if x_min_padded in x_categories:
+                    x0_final = x_categories.index(x_min_padded) - 0.4
+                if x_max_padded in x_categories:
+                    x1_final = x_categories.index(x_max_padded) + 0.4
+
+            # Handle categorical Y-axis
+            if pd.api.types.is_object_dtype(df[y_col]):
+                if hasattr(fig.layout.yaxis, 'categoryarray') and fig.layout.yaxis.categoryarray is not None:
+                    y_categories = list(fig.layout.yaxis.categoryarray)
+                else:
+                    y_categories = df[y_col].unique().tolist()
+
+                if y_min_padded in y_categories:
+                    y0_final = y_categories.index(y_min_padded) - 0.4
+                if y_max_padded in y_categories:
+                    y1_final = y_categories.index(y_max_padded) + 0.4
+
             fig.add_shape(
                 type="rect",
-                x0=x_min_padded, x1=x_max_padded,
-                y0=y_min_padded, y1=y_max_padded,
+                x0=x0_final, x1=x1_final,
+                y0=y0_final, y1=y1_final,
                 line=dict(color=color, width=3),
                 fillcolor=color,
                 opacity=0.15,

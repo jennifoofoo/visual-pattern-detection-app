@@ -354,8 +354,9 @@ def _display_temporal_cluster_tab():
                         st.write(f"**Start:** {burst['start_time']}")
                         st.write(f"**Duration:** {dur_str}")
                     with c2:
+                        y_axis_name = details.get('y_axis', 'Y')
                         st.write(f"**Events:** {burst['event_count']}")
-                        st.write(f"**Unique {details.get('y_axis', 'Y')}:** {burst.get(f'unique_{details.get('y_axis')}', 'N/A')}")
+                        st.write(f"**Unique {y_axis_name}:** {burst.get(f'unique_{y_axis_name}', 'N/A')}")
                     
                     # Concrete Events Table
                     if hasattr(detector, 'cluster_point_indices'):
