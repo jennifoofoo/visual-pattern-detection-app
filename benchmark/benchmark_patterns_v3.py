@@ -4,9 +4,14 @@ Benchmark Script for Pattern Detection Algorithms (v3).
 Modifications from v2:
 - Added support for custom output paths (--output-csv, --output-report).
 - Designed to be invoked by run_benchmark_suite.py.
+- Added 10-minute timeout per worker to prevent hangs.
 
 Usage:
     python benchmark_patterns_v3.py --output-csv "path/to/res.csv" --output-report "path/to/rep.md"
+
+Timeout:
+    Each worker process has a 10-minute timeout (configurable via WORKER_TIMEOUT constant).
+    Timeouts are logged and recorded in the CSV with Detected='Timeout'.
 """
 
 import time
@@ -41,6 +46,9 @@ from core.utils.demo_sampling import sample_eventlog_variant_aware, SamplingMode
 from core.app_utils.mappings import VIEW_PRESETS, X_AXIS_COLUMN_MAP, Y_AXIS_COLUMN_MAP, DOTS_COLOR_MAP
 
 
+# Timeout for each worker process (in seconds)
+WORKER_TIMEOUT = 600  # 10 minutes
+
 ALL_ALGORITHMS = [
     "Temporal Cluster",
     "Cluster (OPTICS)",
@@ -58,11 +66,21 @@ def log(msg: str) -> None:
 
 def format_time(seconds: float) -> str:
     """Format seconds as human-readable time."""
-    if seconds < 60:
-        return f"{seconds:.2f}s"
-    if seconds < 3600:
-        return f"{int(seconds // 60)}m {seconds % 60:.1f}s"
-    return f"{int(seconds // 3600)}h {int((seconds % 3600) // 60)}m"
+    try:
+        # Check for NaN or invalid values
+        if pd.isna(seconds) or seconds is None:
+            return "N/A"
+        
+        # Convert to float to handle any edge cases
+        seconds = float(seconds)
+        
+        if seconds < 60:
+            return f"{seconds:.2f}s"
+        if seconds < 3600:
+            return f"{int(seconds // 60)}m {seconds % 60:.1f}s"
+        return f"{int(seconds // 3600)}h {int((seconds % 3600) // 60)}m"
+    except (ValueError, TypeError):
+        return "N/A"
 
 
 def get_xes_files(data_dir: str) -> list[str]:
@@ -421,8 +439,65 @@ def run_orchestrator(args: argparse.Namespace) -> None:
                 cmd = cmd_base + ["--config_name", config_name]
                 
                 try:
-                    # Run Worker process (Direct output streaming)
-                    proc = subprocess.run(cmd, check=True)
+                    # Run Worker process with timeout (Direct output streaming)
+                    proc = subprocess.run(cmd, check=True, timeout=WORKER_TIMEOUT)
+                    
+                except subprocess.TimeoutExpired:
+                    log(f"    ⚠️ TIMEOUT: Worker exceeded {WORKER_TIMEOUT/60:.0f} minutes for {config_name}")
+                    
+                    # Record timeout in CSV
+                    timeout_rows = []
+                    preset = VIEW_PRESETS[config_name]
+                    config = {**preset, "name": config_name}
+                    
+                    # Get algorithms that would have run
+                    current_detectors = args.algorithms if args.algorithms else ALL_ALGORITHMS.copy()
+                    if mode == SamplingMode.FULL and args.exclude_on_full:
+                        current_detectors = [d for d in current_detectors if d not in args.exclude_on_full]
+                    
+                    # Create timeout entry for each algorithm
+                    for algo in current_detectors:
+                        timeout_row = {
+                            "File": file_name,
+                            "Sampling": mode.value,
+                            "Config": config_name,
+                            "X Axis": config["x_axis"],
+                            "Y Axis": config["y_axis"],
+                            "Color": config["color"],
+                            "Algorithm": algo,
+                            "Parameters": f"TIMEOUT after {WORKER_TIMEOUT}s",
+                            "Detection Time (s)": np.nan,
+                            "Sampling Time (s)": np.nan,
+                            "Patterns Found": np.nan,
+                            "Detected": "Timeout",
+                            "Original Events": np.nan,
+                            "Sampled Events": np.nan,
+                            "Events Lost": np.nan,
+                            "Events Lost %": "N/A",
+                            "Traces Lost": np.nan,
+                            "Traces Lost %": "N/A",
+                            "Patterns Lost": np.nan,
+                            "Patterns Lost %": "N/A",
+                            "Time Saved": np.nan,
+                            "Time Saved %": "N/A",
+                            "Retention Rate %": "N/A",
+                        }
+                        timeout_rows.append(timeout_row)
+                    
+                    # Write timeout entries to CSV
+                    if timeout_rows:
+                        df_timeout = pd.DataFrame(timeout_rows)
+                        header = not os.path.exists(csv_path)
+                        col_order = [
+                            "File", "Sampling", "Config", "X Axis", "Y Axis", "Color",
+                            "Algorithm", "Parameters",
+                            "Detection Time (s)", "Sampling Time (s)", "Patterns Found", "Detected",
+                            "Original Events", "Sampled Events", 
+                            "Events Lost", "Events Lost %", "Traces Lost", "Traces Lost %",
+                            "Patterns Lost", "Patterns Lost %", "Time Saved", "Time Saved %", "Retention Rate %",
+                        ]
+                        df_timeout = df_timeout.reindex(columns=col_order)
+                        df_timeout.to_csv(csv_path, mode='a', header=header, index=False)
                     
                 except subprocess.CalledProcessError as e:
                      log(f"    ERROR in worker (Exit {e.returncode})")
@@ -468,12 +543,23 @@ def generate_report(results_df: pd.DataFrame, timing_df: pd.DataFrame, output_pa
         "",
     ]
     
+    # Include all non-error results (including timeouts)
     valid_df = results_df[results_df["Detected"] != "Error"].copy()
+    timeout_df = results_df[results_df["Detected"] == "Timeout"].copy()
+    
     if valid_df.empty:
         lines.extend(["> [!WARNING]", "> No valid results were generated."])
         with open(output_path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
         return
+    
+    # Add timeout summary if any
+    if not timeout_df.empty:
+        lines.extend([
+            "> [!CAUTION]",
+            f"> **{len(timeout_df)} timeout(s) detected** - Some workers exceeded the {WORKER_TIMEOUT/60:.0f}-minute limit.",
+            ""
+        ])
 
     if not timing_df.empty:
         lines.extend(["## 📁 Data Management", "", "| File | Size (MB) | Events | Load Time |", "|:---|---:|---:|---:|"])

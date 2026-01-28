@@ -36,6 +36,29 @@ If you have already run the benchmarks and just want to regenerate the consolida
 python run_benchmark_suite.py --report-only
 ```
 
+## Timeout Handling
+
+Each worker process has a **10-minute timeout** to prevent indefinite hangs on problematic datasets or configurations. 
+
+### How It Works
+
+- If a detection algorithm exceeds 10 minutes, the worker process is automatically terminated
+- The timeout is logged in the console output with a ⚠️ warning
+- A timeout entry is recorded in the CSV results with `Detected='Timeout'`
+- The benchmark suite continues with the next configuration
+- Timeouts are highlighted in the final benchmark report
+
+### Customizing the Timeout
+
+To adjust the timeout duration, modify the `WORKER_TIMEOUT` constant in `benchmark_patterns_v3.py`:
+
+```python
+# Timeout for each worker process (in seconds)
+WORKER_TIMEOUT = 600  # 10 minutes (default)
+```
+
+You can increase this value for datasets that legitimately require longer processing times, or decrease it to fail faster on problematic configurations.
+
 ## Results
 
 Results are generated in the `results/` directory:
