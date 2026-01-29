@@ -136,14 +136,13 @@ def main():
             xes_path = st.text_input(
                 "XES file path",
                 value="data/Hospital_log.xes",
-                disabled=demo_mode,
             )
 
             st.markdown("<div style='height: 0.5rem'></div>",
                         unsafe_allow_html=True)
             if st.button("Load Data", type="primary"):
                 app_handler.load_data_button(
-                    xes_path, demo_mode=demo_mode, sampling_mode=sampling_mode)
+                    xes_path, use_sampling=demo_mode, sampling_mode=sampling_mode)
 
                 # Direkt mit ausgewähltem Preset plotten
                 preset = VIEW_PRESETS[initial_preset]
