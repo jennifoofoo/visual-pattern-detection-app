@@ -986,8 +986,8 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
         "sequence": {
             "can_be_found": True,
             "makes_sense": True,
-            "visual": "Colored horizontal lines showing sequences of cases processed by each resource over relative time. Colors show different sequences. Sequences elements can be spaced closer due to relative time.",
-            "interpretation": "Detects sequences of cases processed by resources over relative time. A resource often works in a specific order on cases.",
+            "visual": "Colored horizontal lines showing sequences of cases processed by each resource over relative ratio. Colors show different sequences. Sequences elements can be spaced closer due to relative ratio.",
+            "interpretation": "Detects sequences of cases processed by resources over relative ratio. A resource often works in a specific order on cases.",
             "use_case": "Finding cases that are frequently processed after each other by the same resource.",
             "output": "List of detected sequences with frequency counts."
         }
@@ -1030,12 +1030,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Sequence detection requires temporal ordering which relative_ratio does not provide.",
-            "use_case": "Use actual_time or relative_time for sequence detection",
-            "output": "N/A"
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of activities executed by each resource over relative ratio. Colors show different sequences.",
+            "interpretation": "Detects sequences of activities executed by resources over relative ratio. Resources often perform activities in a specific order.",
+            "use_case": "Finding activities that are frequently executed after each other by the same resource.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
 
@@ -1076,12 +1076,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
+            "can_be_found": True,
             "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Sequence detection requires temporal ordering which relative_ratio does not provide.",
-            "use_case": "Use actual_time or relative_time for sequence detection",
-            "output": "N/A"
+            "visual": "Colored horizontal lines showing sequences of resource used by each resource over relative ratio. Colors show different sequences.",
+            "interpretation": "Detects each resource as one sequence, which is redundant.",
+            "use_case": "N/A",
+            "output": "List of all resources."
         }
     },
 
@@ -1128,12 +1128,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Sequence detection requires temporal ordering which relative_ratio does not provide.",
-            "use_case": "Use actual_time or relative_time for sequence detection",
-            "output": "N/A"
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of case ids worked on by each activity over relative ratio. Colors show different sequences.",
+            "interpretation": "Detects sequences of case ids worked on by activity over relative ratio. Activities are often handling case ids in a specific order.",
+            "use_case": "Finding case ids that are frequently worked on after each other by the same activity.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
 
@@ -1174,12 +1174,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
+            "can_be_found": True,
             "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
-            "use_case": "Not recommended.",
-            "output": "N/A"
+            "visual": "Colored horizontal lines showing sequences of activities used by each activity over relative ratio. Colors show different sequences.",
+            "interpretation": "Detects each activity as one sequence, which is redundant.",
+            "use_case": "N/A",
+            "output": "List of all activities."
         }
     },
 
@@ -1220,12 +1220,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Sequence detection requires temporal ordering which relative_ratio does not provide.",
-            "use_case": "Use actual_time or relative_time for sequence detection",
-            "output": "N/A"
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of resources that are used by an activity over relative ratio. Colors show different sequences.",
+            "interpretation": "Detects sequences of resources that are used by an activity over relative ratio. Activities often involve resources in a specific order.",
+            "use_case": "Finding resources that are frequently used after each other by the same activity.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
 
@@ -1272,12 +1272,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
+            "can_be_found": True,
             "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
-            "use_case": "Not recommended.",
-            "output": "N/A"
+            "visual": "Colored horizontal lines showing sequences of case ids processed by each case id over relative ratio. Colors show different sequences.",
+            "interpretation": "Detects each case id as one sequence, which is redundant.",
+            "use_case": "N/A",
+            "output": "List of all case ids."
         }
     },
 
@@ -1318,12 +1318,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Sequence detection requires temporal ordering which relative_ratio does not provide.",
-            "use_case": "Use actual_time or relative_time for sequence detection",
-            "output": "N/A"
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of activities executed for each case id over relative ratio. Colors show different sequences.",
+            "interpretation": "Detects sequences of activities executed for each case id over relative ratio. Cases often execute activities in a specific order.",
+            "use_case": "Finding activities that are frequently executed after each other within cases.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
 
@@ -1364,12 +1364,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Sequence detection requires temporal ordering which relative_ratio does not provide.",
-            "use_case": "Use actual_time or relative_time for sequence detection",
-            "output": "N/A"
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of resources working on each case id over relative ratio. Colors show different sequences.",
+            "interpretation": "Detects sequences of resources working on each case id over relative ratio. Cases often use resources in a specific order.",
+            "use_case": "Finding resources that frequently work after each other within cases.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
     # ========================================================================
@@ -1467,12 +1467,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Sequence detection on logical_time provides limited insight compared to actual time.",
-            "use_case": "Use actual_time or relative_time for sequence detection",
-            "output": "N/A"
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of activities executed by each resource over logical time. Colors show different sequences.",
+            "interpretation": "Detects sequences of activities executed by resources over logical time. Resources often perform activities in a specific order.",
+            "use_case": "Finding activities that are frequently executed after each other by the same resource.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
 
@@ -1513,12 +1513,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
+            "can_be_found": True,
             "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
-            "use_case": "Not recommended.",
-            "output": "N/A"
+            "visual": "Colored horizontal lines showing sequences of resource used by each resource over logical time. Colors show different sequences.",
+            "interpretation": "Detects each resource as one sequence, which is redundant.",
+            "use_case": "N/A",
+            "output": "List of all resources."
         }
     },
 
@@ -1565,12 +1565,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Sequence detection on logical_time provides limited insight compared to actual time.",
-            "use_case": "Use actual_time or relative_time for sequence detection",
-            "output": "N/A"
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of case ids worked on by each activity over logical time. Colors show different sequences.",
+            "interpretation": "Detects sequences of case ids worked on by activity over logical time. Activities are often handling case ids in a specific order.",
+            "use_case": "Finding case ids that are frequently worked on after each other by the same activity.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
 
@@ -1611,12 +1611,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
+            "can_be_found": True,
             "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
-            "use_case": "Not recommended.",
-            "output": "N/A"
+            "visual": "Colored horizontal lines showing sequences of activities used by each activity over logical time. Colors show different sequences.",
+            "interpretation": "Detects each activity as one sequence, which is redundant.",
+            "use_case": "N/A",
+            "output": "List of all activities."
         }
     },
 
@@ -1657,12 +1657,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Sequence detection on logical_time provides limited insight compared to actual time.",
-            "use_case": "Use actual_time or relative_time for sequence detection",
-            "output": "N/A"
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of resources that are used by an activity over logical time. Colors show different sequences.",
+            "interpretation": "Detects sequences of resources that are used by an activity over logical time. Activities often involve resources in a specific order.",
+            "use_case": "Finding resources that are frequently used after each other by the same activity.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
     # ========================================================================
@@ -1708,12 +1708,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
+            "can_be_found": True,
             "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
-            "use_case": "Not recommended.",
-            "output": "N/A"
+            "visual": "Colored horizontal lines showing sequences of case ids processed by each case id over logical time. Colors show different sequences.",
+            "interpretation": "Detects each case id as one sequence, which is redundant.",
+            "use_case": "N/A",
+            "output": "List of all case ids."
         }
     },
 
@@ -1754,12 +1754,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Sequence detection on logical_time provides limited insight compared to actual time.",
-            "use_case": "Use actual_time or relative_time for sequence detection",
-            "output": "N/A"
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of activities executed for each case id over logical time. Colors show different sequences.",
+            "interpretation": "Detects sequences of activities executed for each case id over logical time. Cases often execute activities in a specific order.",
+            "use_case": "Finding activities that are frequently executed after each other within cases.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
 
@@ -1800,12 +1800,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Sequence detection on logical_time provides limited insight compared to actual time.",
-            "use_case": "Use actual_time or relative_time for sequence detection",
-            "output": "N/A"
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of resources working on each case id over logical time. Colors show different sequences.",
+            "interpretation": "Detects sequences of resources working on each case id over logical time. Cases often use resources in a specific order.",
+            "use_case": "Finding resources that frequently work after each other within cases.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
     # ========================================================================
@@ -1858,12 +1858,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Sequence detection requires temporal ordering which logical_relative does not provide.",
-            "use_case": "Use actual_time or relative_time for sequence detection",
-            "output": "N/A"
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of cases processed by each resource over logical relative time. Colors show different sequences. Sequences elements can be spaced further apart due to logical time.",
+            "interpretation": "Detects sequences of cases processed by resources over logical relative time. A resource often works in a specific order on cases.",
+            "use_case": "Finding cases that are frequently processed after each other by the same resource.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
 
@@ -1904,12 +1904,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Sequence detection requires temporal ordering which logical_relative does not provide.",
-            "use_case": "Use actual_time or relative_time for sequence detection",
-            "output": "N/A"
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of activities executed by each resource over logical relative time. Colors show different sequences.",
+            "interpretation": "Detects sequences of activities executed by resources over logical relative time. Resources often perform activities in a specific order.",
+            "use_case": "Finding activities that are frequently executed after each other by the same resource.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
 
@@ -1950,12 +1950,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
+            "can_be_found": True,
             "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
-            "use_case": "Not recommended.",
-            "output": "N/A"
+            "visual": "Colored horizontal lines showing sequences of resource used by each resource over logical relative time. Colors show different sequences.",
+            "interpretation": "Detects each resource as one sequence, which is redundant.",
+            "use_case": "N/A",
+            "output": "List of all resources."
         }
     },
     # ========================================================================
@@ -2001,12 +2001,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Sequence detection requires temporal ordering which logical_relative does not provide.",
-            "use_case": "Use actual_time or relative_time for sequence detection",
-            "output": "N/A"
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of case ids worked on by each activity over logical relative time. Colors show different sequences.",
+            "interpretation": "Detects sequences of case ids worked on by activity over logical relative time. Activities are often handling case ids in a specific order.",
+            "use_case": "Finding case ids that are frequently worked on after each other by the same activity.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
 
@@ -2047,12 +2047,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
+            "can_be_found": True,
             "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
-            "use_case": "Not recommended.",
-            "output": "N/A"
+            "visual": "Colored horizontal lines showing sequences of activities used by each activity over logical relative time. Colors show different sequences.",
+            "interpretation": "Detects each activity as one sequence, which is redundant.",
+            "use_case": "N/A",
+            "output": "List of all activities."
         }
     },
 
@@ -2093,12 +2093,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Sequence detection requires temporal ordering which logical_relative does not provide.",
-            "use_case": "Use actual_time or relative_time for sequence detection",
-            "output": "N/A"
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of resources that are used by an activity over logical relative time. Colors show different sequences.",
+            "interpretation": "Detects sequences of resources that are used by an activity over logical relative time. Activities often involve resources in a specific order.",
+            "use_case": "Finding resources that are frequently used after each other by the same activity.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
     # ========================================================================
@@ -2144,12 +2144,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
+            "can_be_found": True,
             "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Not meaningful: same dimension on Y-axis and color provides no additional insight.",
-            "use_case": "Not recommended.",
-            "output": "N/A"
+            "visual": "Colored horizontal lines showing sequences of case ids processed by each case id over logical relative time. Colors show different sequences.",
+            "interpretation": "Detects each case id as one sequence, which is redundant.",
+            "use_case": "N/A",
+            "output": "List of all case ids."
         }
     },
 
@@ -2190,12 +2190,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Sequence detection requires temporal ordering which logical_relative does not provide.",
-            "use_case": "Use actual_time or relative_time for sequence detection",
-            "output": "N/A"
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of activities executed for each case id over logical relative time. Colors show different sequences.",
+            "interpretation": "Detects sequences of activities executed for each case id over logical relative time. Cases often execute activities in a specific order.",
+            "use_case": "Finding activities that are frequently executed after each other within cases.",
+            "output": "List of detected sequences with frequency counts."
         }
     },
 
@@ -2236,12 +2236,12 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
             "output": "N/A"
         },
         "sequence": {
-            "can_be_found": False,
-            "makes_sense": False,
-            "visual": "N/A",
-            "interpretation": "Sequence detection requires temporal ordering which logical_relative does not provide.",
-            "use_case": "Use actual_time or relative_time for sequence detection",
-            "output": "N/A"
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Colored horizontal lines showing sequences of resources working on each case id over logical relative time. Colors show different sequences.",
+            "interpretation": "Detects sequences of resources working on each case id over logical relative time. Cases often use resources in a specific order.",
+            "use_case": "Finding resources that frequently work after each other within cases.",
+            "output": "List of detected sequences with frequency counts."
         }
     }
 }
