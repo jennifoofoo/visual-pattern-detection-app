@@ -14,6 +14,33 @@ def _build_hovertemplate(labels: dict, x: str, y: str, has_pattern_info: bool = 
     return base + "<extra></extra>"
 
 
+def _apply_consistent_xaxis_format(fig: go.Figure, df, x: str) -> go.Figure:
+    """Apply consistent x-axis tick format based on the data range."""
+    import pandas as pd
+
+    # Only apply to datetime columns
+    if not pd.api.types.is_datetime64_any_dtype(df[x]):
+        return fig
+
+    # Calculate the time span
+    time_range = df[x].max() - df[x].min()
+    days = time_range.days if hasattr(time_range, 'days') else time_range.total_seconds() / 86400
+
+    # Choose tick format based on data span
+    if days > 365 * 2:  # More than 2 years: show years only
+        fig.update_xaxes(tickformat="%Y", dtick="M12")
+    elif days > 365:  # 1-2 years: show year with optional month
+        fig.update_xaxes(tickformat="%b %Y", dtick="M6")
+    elif days > 90:  # 3-12 months
+        fig.update_xaxes(tickformat="%b %Y", dtick="M3")
+    elif days > 30:  # 1-3 months
+        fig.update_xaxes(tickformat="%d %b", dtick="M1")
+    else:  # Less than a month
+        fig.update_xaxes(tickformat="%d %b")
+
+    return fig
+
+
 def plot_dotted_chart(
     df,
     x: str,
@@ -39,6 +66,8 @@ def plot_dotted_chart(
             fig.update_traces(
                 hovertemplate=_build_hovertemplate(labels, x, y, has_pattern_info=True)
             )
+        # Fix x-axis tick format for datetime columns to ensure consistency
+        fig = _apply_consistent_xaxis_format(fig, df, x)
         return fig
 
     # Focus mode: Use px.scatter first to get correct axis handling, then modify colors
@@ -81,5 +110,8 @@ def plot_dotted_chart(
 
             # Update marker colors
             trace.marker.color = colors
+
+    # Fix x-axis tick format for datetime columns to ensure consistency
+    fig = _apply_consistent_xaxis_format(fig, df, x)
 
     return fig
