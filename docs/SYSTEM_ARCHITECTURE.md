@@ -217,10 +217,10 @@ This is a **Streamlit-based web application** for detecting visual patterns in P
 
 **Key Components**:
 - **File Input**: XES/CSV file path input
-- **Demo Mode**: Toggle for sampling data (100 cases for fast detection)
-- **Chart Configuration**: X-axis, Y-axis, Color selectors
+- **Sampling Mode**: Toggle for variant-aware sampling (FULL, MINIMAL, SQRT, OPTIMIZED)
+- **Chart Configuration**: X-axis, Y-axis, Color selectors with predefined view configs
 - **Pattern Detection Section**: Tabs for each detected pattern
-- **Sidebar**: Pattern layer visibility toggles, AI description button
+- **Sidebar**: Pattern layer visibility toggles, matrix viewer, focus view controls
 
 **User Flow**:
 1. User enters file path → Click "Load Data"
@@ -236,30 +236,39 @@ This is a **Streamlit-based web application** for detecting visual patterns in P
 #### **app_handler.py**
 Central orchestrator for all UI operations:
 - `init_state()`: Initialize session state variables
-- `load_data_button()`: Load XES/CSV using cached loader
+- `load_data_button()`: Load XES/CSV using cached loader with sampling
 - `get_chart_config_with_selectboxes()`: Generate axis selectors
 - `plot_chart_button()`: Create Plotly chart and trigger auto-detection
 - `display_chart()`: Persistent chart display with pattern overlays
-- `auto_detect_patterns()`: Trigger all meaningful pattern detections based on matrix
 - `sidebar_pattern_layer_controls()`: Manage visibility toggles
 
 **Caching**:
 - `@st.cache_data` for `load_xes_log()` (1 hour TTL)
 - `@st.cache_data` for `generate_summary()` (1 hour TTL)
 
-#### **app_handler_pattern_detection.py**
+#### **pattern_detection.py**
 Pattern detection orchestration:
-- `_detect_temporal_clusters()`: Instantiate TemporalClusterPattern
-- `_detect_outliers()`: Instantiate OutlierDetectionPattern
-- `_detect_gaps()`: Instantiate GapPattern
-- `_detect_sequences()`: Instantiate HorizontalSequencePatternDetector
-- `_detect_clusters()`: Instantiate ClusterPattern (OPTICS/DBSCAN)
-- `display_*_tab()`: Render pattern-specific UI tabs with results
+- `auto_detect_patterns()`: Orchestrate all meaningful pattern detections
+- `_detect_temporal_clusters()`: Temporal cluster detection
+- `_detect_clusters()`: OPTICS/DBSCAN clustering
+- `_detect_outliers()`: Outlier detection logic
+- `_detect_gaps()`: Gap detection logic
+- `_detect_case_arrival_trend()`: Case arrival trend analysis
+- `_detect_sequences()`: Sequence detection (PrefixSpan)
 
-#### **app_handler_pattern_filtering.py**
-UI filtering helpers:
-- `list_to_multicheckbox()`: Multi-select checkboxes for filtering
-- `dict_to_multicheckbox()`: Dictionary-based multi-select
+#### **pattern_ui.py**
+Pattern UI rendering:
+- `display_pattern_detection_section()`: Main pattern UI orchestrator
+- `_display_gap_tab()`: Gap pattern tab rendering
+- `_display_temporal_cluster_tab()`: Temporal cluster tab
+- `_display_outlier_tab()`: Outlier detection tab
+- `_display_cluster_tab()`: Clustering tab
+- `_display_sequence_tab()`: Sequence detection tab
+- `_display_case_arrival_trend_tab()`: Trend analysis tab
+
+#### **matrix_viewer.py**
+- `display_matrix_viewer()`: Interactive pattern matrix UI
+- View and explore pattern applicability for view configurations
 
 ---
 
@@ -303,32 +312,52 @@ class Pattern(ABC):
 
 1. **gap_pattern.py** - `GapPattern`
    - Detects abnormal gaps between consecutive events
-   - Transition-aware (Activity A → Activity B)
-   - Statistical thresholds: Q3 + 1.5*IQR, P95
+   - **Two modes**:
+     - Transition mode: Process-aware (Activity A → B)
+     - Resource mode: Resource inactivity detection
+   - Statistical thresholds: Q3 + 1.5*IQR, median + 2*MAD
    - Severity scoring: duration / threshold
-   - Supports 1D (time-based) and 2D (categorical Y) detection
+   - Configurable min_samples for statistical validity
 
 2. **outlier_detection.py** - `OutlierDetectionPattern`
-   - IQR method: Q1 - 1.5*IQR, Q3 + 1.5*IQR
-   - Z-score method: |z| > threshold
-   - Isolation Forest (optional)
+   - Combined approach: Isolation Forest + Statistical methods
+   - Feature-based detection (timing, complexity, workload)
+   - Human-readable explanations for each outlier
+   - Adaptive feature engineering based on available columns
    - Multi-dimensional outlier detection
 
 3. **temporal_cluster.py** - `TemporalClusterPattern`
    - DBSCAN-based temporal clustering
    - Detects time periods with high event density
-   - Configurable `min_cluster_size`, `eps`
-   - X-axis temporal bursts
+   - Dynamic hyperparameters based on data characteristics
+   - X-axis temporal bursts and parallel case detection
 
 4. **cluster_pattern.py** - `ClusterPattern`
    - OPTICS and DBSCAN spatial clustering
    - 2D clustering in X-Y space
-   - Color-coded cluster visualization
+   - Categorical encoding via TF-IDF + PCA
+   - Dynamic min_samples calculation
+   - Color-coded cluster visualization with noise handling
 
-5. **sequence_detection.py** - `HorizontalSequencePatternDetector`
-   - Detects horizontal sequences (repeated patterns)
-   - Activity sequence recognition
-   - Pattern frequency analysis
+5. **sequence_detector.py** - `HorizontalSequencePatternDetector`
+   - PrefixSpan algorithm for frequent subsequence mining
+   - Strict vs. non-strict matching modes
+   - Top-k filtering by support count
+   - Pattern visualization with event highlighting
+   - Configurable min_support and max_patterns
+
+6. **case_arrival_trend_pattern.py** - `CaseArrivalTrendPattern`
+   - Mann-Kendall test for trend significance
+   - Sen's slope estimator for trend magnitude
+   - Optional Prophet integration:
+     - Weekly seasonality detection
+     - Changepoint identification
+     - Weekend effect analysis
+   - Aggregates by case start time (not event time)
+
+7. **trend_pattern.py** - `TrendPattern`
+   - General event-level trend analysis
+   - Analyzes all events over time (vs. case arrivals)
 
 #### **Visualization** ([core/visualization/](core/visualization/))
 
@@ -348,13 +377,25 @@ class Pattern(ABC):
   - Start/end activities
   - Average case duration
   - Log date range
+  - Variant distribution
 
 #### **Utilities** ([core/utils/](core/utils/))
 
 **demo_sampling.py**:
-- `sample_small_eventlog()`: Sample for demo mode
-- Limits to 100 cases, 30 events per case
-- Faster gap detection for large logs
+- `VariantAwareSampler` class: Intelligent trace-preserving sampling
+- `sample_eventlog_variant_aware()`: Main sampling entry point
+- **Sampling Strategies**:
+  - **FULL**: No sampling (complete dataset)
+  - **MINIMAL**: Aggressive sampling (1-2 traces/variant, max 5K events)
+  - **SQRT**: Balanced sampling (√n traces for frequent variants)
+  - **OPTIMIZED**: Gentle reduction (~70% data retained)
+  - **LEGACY**: First-N cases (backward compatible)
+- **Features**:
+  - Trace-level sampling (preserves complete traces)
+  - Variant-stratified (keeps rare variants)
+  - Configurable caps (max events, traces, variants)
+  - Statistical tracking (retention rates, reduction metrics)
+- **Use Cases**: Fast demo mode, large log analysis, benchmarking
 
 ---
 
@@ -372,6 +413,7 @@ class Pattern(ABC):
 - `X_AXIS_COLUMN_MAP`: UI labels → DataFrame columns
 - `Y_AXIS_COLUMN_MAP`: UI labels → DataFrame columns
 - `DOTS_COLOR_MAP`: UI labels → DataFrame columns
+- `VIEW_CONFIGS`: Predefined view configurations (Resource Timeline, Case Progression, Activity Overview)
 
 ---
 
@@ -593,19 +635,26 @@ Streamlit uses session state (`st.session_state`) to persist data across reruns:
 | `cluster_detector`           | ClusterPattern        | Cluster detection instance                 |
 | `temporal_detected`          | bool                  | Whether temporal clusters found            |
 | `outlier_detected`           | bool                  | Whether outliers found                     |
+| `case_arrival_trend_detected`| bool                  | Whether case arrival trend detected        |
 | `cluster_detected`           | bool                  | Whether clusters found                     |
+| `sequence_detected`          | bool                  | Whether sequences detected                 |
 | `visible_gap`                | bool                  | Gap layer visibility toggle                |
 | `visible_outlier`            | bool                  | Outlier layer visibility toggle            |
+| `visible_case_arrival_trend` | bool                  | Case arrival trend visibility              |
+| `visible_sequence`           | bool                  | Sequence pattern visibility                |
 | `visible_temporal_cluster`   | bool                  | Temporal cluster layer visibility          |
 | `visible_cluster`            | bool                  | Cluster layer visibility                   |
 
 ---
 
 ## Performance Optimizations
-
-1. **Caching**: `@st.cache_data` for expensive operations (XES loading, summary generation)
-2. **Demo Mode**: Sample to 100 cases for fast gap detection
+Variant-Aware Sampling**: Four sampling strategies (FULL, MINIMAL, SQRT, OPTIMIZED) for scalable analysis
 3. **Lazy Detection**: Patterns only detected when meaningful (matrix check)
+4. **Detection Caching**: Cache key based on (x, y, color, df_len) prevents redundant detection
+5. **Incremental Visualization**: Overlays added conditionally based on visibility flags
+6. **Session State**: Avoid redundant computations across reruns
+7. **Dynamic Hyperparameters**: Pattern detectors auto-tune based on dataset size
+8. **PrefixSpan Guards**: Recursion limits and sequence truncation for large datasetmatrix check)
 4. **Incremental Visualization**: Overlays added conditionally based on visibility flags
 5. **Session State**: Avoid redundant computations across reruns
 
@@ -636,26 +685,36 @@ To add a new pattern detector:
            "visual": "...",
            "interpretation": "...",
            "use_case": "...",
-           "output": "..."
-       }
-   }
-   ```
-
-3. **Add detection logic** in [core/app_utils/app_handler_pattern_detection.py](core/app_utils/app_handler_pattern_detection.py):
+           "output": "..."pattern_detection.py](core/app_utils/pattern_detection.py):
    ```python
    def _detect_my_new_pattern(x_col, y_col, df_selected):
        detector = MyNewPattern(view_config=...)
        detector.detect(df_selected)
        st.session_state.my_new_pattern_detector = detector
+       st.session_state.my_new_pattern_detected = True
    ```
 
-4. **Update auto-detect** in [core/app_utils/app_handler.py](core/app_utils/app_handler.py):
+4. **Update auto-detect** in [core/app_utils/pattern_detection.py](core/app_utils/pattern_detection.py):
    ```python
    def auto_detect_patterns(...):
        if is_pattern_meaningful(x, y, color, 'my_new_pattern'):
            _detect_my_new_pattern(x_col, y_col, df_selected)
    ```
 
+5. **Add UI tab** in [core/app_utils/pattern_ui.py](core/app_utils/pattern_ui.py):
+   ```python
+   def _display_my_new_pattern_tab():
+       st.write("My New Pattern Results")
+       # Render results with metrics and visualizations
+   ```
+
+6. **Register in pattern UI** in [core/app_utils/pattern_ui.py](core/app_utils/pattern_ui.py):
+   ```python
+   def display_pattern_detection_section():
+       # Add tab to tab list
+       if st.session_state.get('my_new_pattern_detected', False):
+           with tabs[n]:
+               _display_my_new_pattern_tab()
 5. **Add UI tab** in [core/app_utils/app_handler_pattern_detection.py](core/app_utils/app_handler_pattern_detection.py):
    ```python
    def display_my_new_pattern_tab():
