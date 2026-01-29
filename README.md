@@ -41,7 +41,7 @@ Analyzes event logs (XES/CSV) and automatically detects:
 streamlit run app.py
 ```
 
-Or simply double-click `startApp.bat` (Windows)
+Or simply double-click `startApp.bat` or run `./startApp.bat` from repository root (Windows)
 
 The app will open in your browser at `http://localhost:8501`
 
