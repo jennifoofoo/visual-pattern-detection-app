@@ -1,0 +1,6 @@
+File,Sampling,Config,X Axis,Y Axis,Color,Algorithm,Parameters,Detection Time (s),Sampling Time (s),Patterns Found,Detected,Events Lost,Events Lost %,Traces Lost,Traces Lost %,Patterns Lost,Patterns Lost %,Time Saved,Time Saved %,Retention Rate %
+BPI_Challenge_2019.xes,full,Resource Timeline,Actual time,Resource,Activity,Temporal Cluster,"min_cluster_size=421, temporal_eps=1.00",13.583224058151245,0.1844489574432373,436,,0,0.0%,0,0.0%,,N/A,,N/A,N/A
+BPI_Challenge_2019.xes,full,Resource Timeline,Actual time,Resource,Activity,Outlier Detection,isolation_forest + statistical,17.112532138824463,0.1844489574432373,79797,True,0,0.0%,0,0.0%,,N/A,,N/A,N/A
+BPI_Challenge_2019.xes,full,Resource Timeline,Actual time,Resource,Activity,Gap (Transition),"mode=transition, min_samples=5",223.17441940307617,0.1844489574432373,43269,True,0,0.0%,0,0.0%,,N/A,,N/A,N/A
+BPI_Challenge_2019.xes,full,Resource Timeline,Actual time,Resource,Activity,Sequence Detection,"min_support=30, prefixspan",51.08990931510925,0.1844489574432373,293214,True,0,0.0%,0,0.0%,,N/A,,N/A,N/A
+BPI_Challenge_2019.xes,full,Resource Timeline,Actual time,Resource,Activity,Case Arrival Trend,"aggregation=W, mann_kendall",12.441983461380005,0.1844489574432373,1,True,0,0.0%,0,0.0%,,N/A,,N/A,N/A

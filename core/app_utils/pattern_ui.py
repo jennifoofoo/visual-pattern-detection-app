@@ -19,7 +19,9 @@ def _get_parent_visibility(key_prefix: str) -> bool:
     prefix_to_sidebar = {
         'temporal_cluster': 'visible_temporal_cluster',
         'outlier_type': 'visible_outlier',
-        'gap_transition': 'visible_gap'
+        'gap_transition': 'visible_gap',
+        'OPTICS_cluster': 'visible_cluster',
+        'sequence': 'visible_sequence'
     }
     sidebar_key = prefix_to_sidebar.get(key_prefix)
     return st.session_state.get(sidebar_key, True) if sidebar_key else True
@@ -27,18 +29,27 @@ def _get_parent_visibility(key_prefix: str) -> bool:
 
 def _sync_sidebar_checkbox(key_prefix: str, value: bool):
     """Sync sidebar checkbox with tab selection."""
-    prefix_to_sidebar = {
-        'temporal_cluster': 'visible_temporal_cluster',
-        'outlier_type': 'visible_outlier',
-        'gap_transition': 'visible_gap'
-    }
-    sidebar_key = prefix_to_sidebar.get(key_prefix)
-    if sidebar_key:
-        st.session_state[sidebar_key] = value
+    # causes crash when selecting all/none in tabs
+    pass
+    # prefix_to_sidebar = {
+    #     'temporal_cluster': 'visible_temporal_cluster',
+    #     'outlier_type': 'visible_outlier',
+    #     'gap_transition': 'visible_gap'
+    # }
+    # sidebar_key = prefix_to_sidebar.get(key_prefix)
+    # if sidebar_key:
+    #     st.session_state[sidebar_key] = value
 
 
-def list_to_multicheckbox(item_list: list, title: str, key_prefix: str) -> list:
-    """Render multi-checkbox UI for a list of items."""
+def list_to_multicheckbox(
+    item_list: list, 
+    title: str, 
+    key_prefix: str, 
+    label_func=None,
+    sort_metadata: dict = None,
+    default_sort: str = "Default"
+) -> list:
+    """Render multi-checkbox UI for a list of items with sorting."""
     if not item_list:
         return []
 
@@ -50,26 +61,55 @@ def list_to_multicheckbox(item_list: list, title: str, key_prefix: str) -> list:
         return []
 
     with st.container(border=True):
-        col_a, col_b = st.columns(2)
-        with col_a:
+        col_sort, col_all, col_none = st.columns([2, 1, 1])
+        
+        # Prepare items with labels and metadata for sorting
+        labeled_items = []
+        for i, item in enumerate(item_list):
+            label = label_func(item, i) if label_func else str(item)
+            meta = {k: v[i] for k, v in sort_metadata.items()} if sort_metadata else {}
+            labeled_items.append({'item': item, 'label': label, 'index': i, 'meta': meta})
+
+        # Sorting UI
+        sort_options = ["Default", "A-Z", "Z-A"]
+        if sort_metadata:
+            sort_options.extend(list(sort_metadata.keys()))
+        
+        # Determine default index
+        def_idx = sort_options.index(default_sort) if default_sort in sort_options else 0
+        
+        sort_by = col_sort.selectbox(
+            "Sort by", options=sort_options, index=def_idx, key=f"{key_prefix}_sort_by", label_visibility="collapsed")
+
+        # Apply Sorting
+        if sort_by == "A-Z":
+            labeled_items.sort(key=lambda x: x['label'])
+        elif sort_by == "Z-A":
+            labeled_items.sort(key=lambda x: x['label'], reverse=True)
+        elif sort_by in (sort_metadata or {}):
+            labeled_items.sort(key=lambda x: x['meta'].get(sort_by, 0), reverse=True)
+
+        with col_all:
             if st.button("All", key=f"{key_prefix}_select_all", use_container_width=True):
-                for index in range(len(item_list)):
-                    st.session_state[f"list_checkbox_{key_prefix}_{index}"] = True
+                for entry in labeled_items:
+                    st.session_state[f"list_checkbox_{key_prefix}_{entry['index']}"] = True
                 _sync_sidebar_checkbox(key_prefix, True)
                 st.rerun()
-        with col_b:
+        with col_none:
             if st.button("None", key=f"{key_prefix}_deselect_all", use_container_width=True):
-                for index in range(len(item_list)):
-                    st.session_state[f"list_checkbox_{key_prefix}_{index}"] = False
+                for entry in labeled_items:
+                    st.session_state[f"list_checkbox_{key_prefix}_{entry['index']}"] = False
                 _sync_sidebar_checkbox(key_prefix, False)
                 st.rerun()
 
-        for index, item in enumerate(item_list):
-            state_key = f"list_checkbox_{key_prefix}_{index}"
+        for i, entry in enumerate(labeled_items):
+            state_key = f"list_checkbox_{key_prefix}_{entry['index']}"
             if state_key not in st.session_state:
-                st.session_state[state_key] = True
-            if st.checkbox(str(item), key=state_key):
-                selected_items.append(item)
+                # Default to selected for the first 5 items in the sorted list
+                st.session_state[state_key] = (i < 5)
+            
+            if st.checkbox(entry['label'], key=state_key):
+                selected_items.append(entry['item'])
 
     return selected_items
 
@@ -78,9 +118,11 @@ def dict_to_multicheckbox(
     data_dict: dict,
     title: str,
     key_prefix: str,
-    default_checked: bool = True
+    default_checked: bool = True,
+    sort_metadata: dict = None,
+    default_sort: str = "Default"
 ) -> list:
-    """Render multi-checkbox UI for a dictionary."""
+    """Render multi-checkbox UI for a dictionary with sorting."""
     if not data_dict:
         return []
 
@@ -92,26 +134,54 @@ def dict_to_multicheckbox(
         return []
 
     with st.container(border=True):
-        col_a, col_b = st.columns(2)
-        with col_a:
+        col_sort, col_all, col_none = st.columns([2, 1, 1])
+        
+        # Prepare items for sorting
+        labeled_items = []
+        for i, (key, value) in enumerate(data_dict.items()):
+            meta = {k: v[i] if isinstance(v, list) else v.get(key) for k, v in (sort_metadata or {}).items()}
+            labeled_items.append({'key': key, 'value': value, 'index': i, 'meta': meta})
+
+        # Sorting UI
+        sort_options = ["Default", "A-Z", "Z-A"]
+        if sort_metadata:
+            sort_options.extend(list(sort_metadata.keys()))
+        
+        # Determine default index
+        def_idx = sort_options.index(default_sort) if default_sort in sort_options else 0
+            
+        sort_by = col_sort.selectbox(
+            "Sort by", options=sort_options, index=def_idx, key=f"{key_prefix}_sort_by", label_visibility="collapsed")
+
+        # Apply Sorting
+        if sort_by == "A-Z":
+            labeled_items.sort(key=lambda x: x['key'])
+        elif sort_by == "Z-A":
+            labeled_items.sort(key=lambda x: x['key'], reverse=True)
+        elif sort_by in (sort_metadata or {}):
+            labeled_items.sort(key=lambda x: x['meta'].get(sort_by, 0), reverse=True)
+
+        with col_all:
             if st.button("All", key=f"{key_prefix}_select_all", use_container_width=True):
-                for key in data_dict.keys():
-                    st.session_state[f"dict_checkbox_{key_prefix}_{key}"] = True
+                for entry in labeled_items:
+                    st.session_state[f"dict_checkbox_{key_prefix}_{entry['key']}"] = True
                 _sync_sidebar_checkbox(key_prefix, True)
                 st.rerun()
-        with col_b:
+        with col_none:
             if st.button("None", key=f"{key_prefix}_deselect_all", use_container_width=True):
-                for key in data_dict.keys():
-                    st.session_state[f"dict_checkbox_{key_prefix}_{key}"] = False
+                for entry in labeled_items:
+                    st.session_state[f"dict_checkbox_{key_prefix}_{entry['key']}"] = False
                 _sync_sidebar_checkbox(key_prefix, False)
                 st.rerun()
 
-        for key, value in data_dict.items():
-            state_key = f"dict_checkbox_{key_prefix}_{key}"
+        for i, entry in enumerate(labeled_items):
+            state_key = f"dict_checkbox_{key_prefix}_{entry['key']}"
             if state_key not in st.session_state:
-                st.session_state[state_key] = default_checked
-            if st.checkbox(key, key=state_key):
-                selected_items.append(value)
+                # Default to selected for the first 5 items in the sorted list
+                # only if default_checked is True (Respect False if provided)
+                st.session_state[state_key] = (i < 5) if default_checked else False
+            if st.checkbox(entry['key'], key=state_key):
+                selected_items.append(entry['value'])
 
     return selected_items
 
@@ -202,23 +272,131 @@ def _display_temporal_cluster_tab():
 
     detector = st.session_state.temporal_clusters
     summary = detector.get_summary()
+    details = summary['details']
+    clusters = details.get('clusters', {})
     layer_visible = st.session_state.get('visible_temporal_cluster', True)
 
     if not layer_visible:
         st.caption("Hidden - enable in sidebar")
 
-    st.metric("Clusters", summary['count'])
+    st.caption("**Detects time periods with unusually high event density (bursts of activity) and activity-specific temporal patterns.**", 
+               help="Temporal Burst Detection identifies periods when significantly more events happen than usual. "
+                    "Activity-Time Clustering finds activities that occur in specific 'blocks' of time.")
+
+    # Calculate refined metrics from bursts
+    bursts = clusters.get('temporal_bursts', [])
+    total_relevant_events = sum(b['event_count'] for b in bursts)
+    
+    earliest_b = min(bursts, key=lambda x: x['start_time']) if bursts else None
+    latest_b = max(bursts, key=lambda x: x['start_time']) if bursts else None
+    maximal_b = max(bursts, key=lambda x: x['event_count']) if bursts else None
+    smallest_b = min(bursts, key=lambda x: x['event_count']) if bursts else None
+
+    # Top-level metrics - Summary Row (Simplified)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Clusters", summary['count'], help="Total number of distinct temporal patterns found (Bursts + Activity Clusters).")
+    with col2:
+        st.metric("Relevant Events", total_relevant_events, help="Total number of events contained within all detected burst periods.")
+    with col3:
+        activity_clusters = clusters.get('activity_time', {})
+        st.metric("Activity Clusters", len(activity_clusters), help="Number of activities that show significant temporal clustering.")
 
     subtab1, subtab2 = st.tabs(["Overview", "Selection"])
 
     with subtab1:
-        st.caption(summary['details']['summary_text'])
+        # --- Timeline and Magnitude Metrics (Moved here) ---
+        m_col1, m_col2 = st.columns(2)
+        
+        def format_time(t):
+            if hasattr(t, 'strftime'):
+                return t.strftime('%Y-%m-%d %H:%M')
+            return f"{t:.2f}"
+
+        with m_col1:
+            st.markdown("**Burst Timeline**")
+            e_time = format_time(earliest_b['start_time']) if earliest_b else "N/A"
+            l_time = format_time(latest_b['start_time']) if latest_b else "N/A"
+            e_id = f" (Burst {earliest_b['cluster_id']+1})" if earliest_b else ""
+            l_id = f" (Burst {latest_b['cluster_id']+1})" if latest_b else ""
+            st.caption(f"🕒 **Earliest{e_id}:** {e_time}", help="The start time/position of the first detected burst.")
+            st.caption(f"🕕 **Latest{l_id}:** {l_time}", help="The start time/position of the last detected burst.")
+
+        with m_col2:
+            st.markdown("**Burst Magnitude**")
+            max_val = maximal_b['event_count'] if maximal_b else 0
+            min_val = smallest_b['event_count'] if smallest_b else 0
+            max_id = f" (Burst {maximal_b['cluster_id']+1})" if maximal_b else ""
+            min_id = f" (Burst {smallest_b['cluster_id']+1})" if smallest_b else ""
+            st.caption(f"📈 **Maximal{max_id}:** {max_val} events", help="The highest number of events found in a single burst.")
+            st.caption(f"📉 **Smallest{min_id}:** {min_val} events", help="The lowest number of events in a burst (meeting the minimum threshold).")
+
+        st.divider()
+
+        # --- Temporal Bursts ---
+        if bursts:
+            st.markdown("#### ⚡ Top Temporal Bursts")
+            st.caption("Periods of intense activity across cases/activities.", 
+                       help="A burst is a short period with a high concentration of events. "
+                            "These often indicate batch processing, shift handovers, or system-wide events.")
+            
+            # Show top 5 by event count
+            sorted_bursts = sorted(bursts, key=lambda x: x['event_count'], reverse=True)[:5]
+            
+            for burst in sorted_bursts:
+                b_id = burst['cluster_id'] + 1
+                with st.expander(f"Burst {b_id}: {burst['event_count']} events"):
+                    dur = burst['duration_seconds']
+                    dur_str = f"{dur:.1f}s" if dur < 60 else (f"{dur/60:.1f}m" if dur < 3600 else f"{dur/3600:.1f}h")
+                    
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        st.write(f"**Start:** {burst['start_time']}")
+                        st.write(f"**Duration:** {dur_str}")
+                    with c2:
+                        y_axis_name = details.get('y_axis', 'Y')
+                        st.write(f"**Events:** {burst['event_count']}")
+                        st.write(f"**Unique {y_axis_name}:** {burst.get(f'unique_{y_axis_name}', 'N/A')}")
+                    
+                    # Concrete Events Table
+                    if hasattr(detector, 'cluster_point_indices'):
+                        cluster_id = burst.get('cluster_id')
+                        indices = detector.cluster_point_indices.get(cluster_id, [])
+                        if indices:
+                            # Show relevant columns from original df
+                            df_burst = detector.df.loc[indices]
+                            cols_to_show = ['case_id', 'activity', 'timestamp']
+                            # Filter only existing columns
+                            existing_cols = [c for c in cols_to_show if c in df_burst.columns]
+                            if not existing_cols:
+                                # Fallback to first few columns if standard ones not found
+                                existing_cols = df_burst.columns[:3].tolist()
+                            
+                            with st.expander("🔍 View Concrete Events"):
+                                st.dataframe(df_burst[existing_cols], hide_index=True, use_container_width=True)
+
+        # --- Activity-Time Patterns ---
+        if activity_clusters:
+            st.markdown("#### 🎯 Activity-Time Patterns")
+            st.caption("Activities that cluster at specific times.", 
+                       help="These patterns show when specific activities (like 'Approve') tend to be grouped together in time, "
+                            "revealing periodic behavior or specific processing windows.")
+            
+            for activity, activity_clusters_list in list(activity_clusters.items())[:5]:
+                st.write(f"**{activity}**: {len(activity_clusters_list)} clusters")
+                # Show a small summary for the largest cluster of this activity
+                max_c = max(activity_clusters_list, key=lambda x: x['event_count'])
+                st.caption(f"  • Largest cluster: {max_c['event_count']} events")
 
     with subtab2:
-        if hasattr(detector, 'clusters') and 'temporal_bursts' in detector.clusters:
-            cluster_list = detector.clusters['temporal_bursts']
+        if bursts:
+            def burst_label(b, i):
+                return f"Burst {b['cluster_id']+1} ({b['event_count']} events)"
+            
+            sort_meta = {"Events ↓": [b['event_count'] for b in bursts]}
             selected = list_to_multicheckbox(
-                cluster_list, "Select Clusters", "temporal_cluster")
+                bursts, "Select Clusters", "temporal_cluster", label_func=burst_label, 
+                sort_metadata=sort_meta, default_sort="Events ↓")
             st.session_state['selected_temporal_clusters'] = selected
 
 
@@ -229,20 +407,73 @@ def _display_cluster_tab():
 
     detector = st.session_state.cluster_detector
     summary = detector.get_summary()
+    details = summary.get('details', {})
     layer_visible = st.session_state.get('visible_cluster', True)
 
     if not layer_visible:
         st.caption("Hidden - enable in sidebar")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Clusters", summary.get('count', 0))
-    with col2:
-        noise_count = summary.get('details', {}).get('noise_count', 0)
-        st.metric("Noise Points", noise_count)
+    st.caption("**Shows dense groups of points based on visual proximity (X/Y coordinates).**", 
+               help="Point Clustering identifies regions where many events are concentrated. "
+                    "This helps find common process paths or hotspot regions in the visualization.")
 
-    st.caption(
-        f"Algorithm: {summary.get('details', {}).get('algorithm', 'OPTICS')}")
+    # Top-level metrics
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Clusters", summary.get('count', 0), help="Number of dense regions accurately identified.")
+    with col2:
+        noise_count = details.get('noise_count', 0)
+        st.metric("Noise Points", noise_count, help="Number of points that do not belong to any cluster (outliers/noise).")
+    with col3:
+        total = details.get('total_points', 1)
+        clustered = details.get('clustered_points', 0)
+        coverage = (clustered / total) if total > 0 else 0
+        st.metric("Cluster Coverage", f"{coverage:.1%}", help="Percentage of total events that are part of a cluster.")
+
+    subtab1, subtab2 = st.tabs(["Overview", "Selection"])
+
+    with subtab1:
+    
+        # --- Cluster Breakdown ---
+        clusters_data = details.get('clusters', {})
+        if clusters_data:
+            st.markdown("#### 📊 Top 5 Cluster Breakdown")
+            
+            # Prepare data: Sort by size descending and take top 5
+            sorted_clusters = sorted(clusters_data.items(), key=lambda x: x[1]['size'], reverse=True)[:5]
+            
+            for cid, stats in sorted_clusters:
+                with st.expander(f"Cluster {cid}: {stats['size']} events ({stats['percentage']:.1f}%)"):
+                    # Concrete Events Table
+                    mask = detector.detected['labels'] == cid
+                    indices = detector.detected['original_indices'][mask]
+                    
+                    if len(indices) > 0 and hasattr(detector, 'df') and detector.df is not None:
+                        df_cluster = detector.df.loc[indices]
+                        cols_to_show = ['case_id', 'activity', 'timestamp', 'resource']
+                        existing_cols = [c for c in cols_to_show if c in df_cluster.columns]
+                        if not existing_cols:
+                            existing_cols = df_cluster.columns[:3].tolist()
+                        
+                        st.dataframe(df_cluster[existing_cols], hide_index=True, use_container_width=True)
+                    else:
+                        st.caption("No event data available")
+
+    with subtab2:
+        clusters_data = details.get('clusters', {})
+        if clusters_data:
+            # Create dict for multi-checkbox
+            cluster_dict = {f"Cluster {cid} ({stats['size']} events)": cid for cid, stats in clusters_data.items()}
+            sort_meta = {"Events ↓": {f"Cluster {cid} ({stats['size']} events)": stats['size'] for cid, stats in clusters_data.items()}}
+            
+            # Add Noise Points toggle
+            st.checkbox("Show Noise Points", key="show_cluster_noise", value=False, help="Show points that don't belong to any cluster with 'x' markers")
+            
+            selected = dict_to_multicheckbox(
+                cluster_dict, "Select Clusters", "OPTICS_cluster", sort_metadata=sort_meta, default_sort="Events ↓")
+            st.session_state['selected_OPTICS_clusters'] = selected
+        else:
+            st.caption("No clusters available for selection.")
 
 
 def _display_outlier_tab():
@@ -260,9 +491,11 @@ def _display_outlier_tab():
     stats = summary['details'].get('statistics', {})
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Outliers", summary['count'])
+        st.metric("Outliers", summary['count'], help="Total count of anomalous events detected.")
     with col2:
-        st.metric("Percentage", f"{stats.get('outlier_percentage', 0):.1f}%")
+        st.metric("Percentage", f"{stats.get('outlier_percentage', 0):.1f}%", help="Proportion of the dataset flagged as outliers.")
+
+    st.caption("**Identifies individual events that are anomalous (statistical outliers).**")
 
     subtab1, subtab2 = st.tabs(["Overview", "Selection"])
 
@@ -271,38 +504,93 @@ def _display_outlier_tab():
         detailed_summary = outlier_pattern.get_outlier_summary()
 
         # Top reasons for outliers
-        if 'top_reasons' in detailed_summary:
-            st.subheader("🔍 Most Common Anomaly Types")
+        if 'top_reasons' in detailed_summary and detailed_summary['top_reasons']:
+            st.subheader("🔍 Anomaly Type Distribution")
+            
+            anomaly_data = []
             for reason_info in detailed_summary['top_reasons']:
-                st.caption(
-                    f"**{reason_info['reason']}**: {reason_info['count']} events "
-                    f"({reason_info['percentage']:.1f}% of outliers)"
-                )
+                anomaly_data.append({
+                    "Type": reason_info['reason'],
+                    "Count": reason_info['count'],
+                    "Percentage": f"{reason_info['percentage']:.1f}%"
+                })
+            
+            st.dataframe(
+                anomaly_data,
+                column_config={
+                    "Type": st.column_config.TextColumn("Anomaly Type", width="medium"),
+                    "Count": st.column_config.NumberColumn("Occurrences", format="%d"),
+                    "Percentage": st.column_config.TextColumn("Prop.")
+                },
+                hide_index=True,
+                use_container_width=True
+            )
 
         # Most common specific explanations
         if 'most_common_explanations' in detailed_summary and detailed_summary['most_common_explanations']:
-            st.subheader("💡 Most Frequent Specific Reasons")
+            st.subheader("💡 Top Specific Explanations")
+            
+            explanation_data = []
             for exp_info in detailed_summary['most_common_explanations']:
-                st.caption(
-                    f"• *{exp_info['explanation']}* — {exp_info['count']} times "
-                    f"({exp_info['percentage']:.1f}%)"
+                explanation_data.append({
+                    "Explanation": exp_info['explanation'],
+                    "Count": exp_info['count'],
+                    "Percentage": f"{exp_info['percentage']:.1f}%"
+                })
+                
+            st.dataframe(
+                explanation_data,
+                column_config={
+                    "Explanation": st.column_config.TextColumn("Reason", width="large"),
+                    "Count": st.column_config.NumberColumn("Count", format="%d"),
+                    "Percentage": st.column_config.TextColumn("Prop.")
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+
+        # Cases and Activities breakdown
+        col_c, col_a = st.columns(2)
+        
+        with col_c:
+            if 'top_outlier_cases' in detailed_summary and detailed_summary['top_outlier_cases']:
+                st.subheader("📋 Affected Cases")
+                case_data = []
+                for case_info in detailed_summary['top_outlier_cases'][:10]:
+                    case_data.append({
+                        "Case ID": str(case_info['case_id']),
+                        "Outliers": case_info['outlier_events']
+                    })
+                
+                st.dataframe(
+                    case_data,
+                    column_config={
+                        "Case ID": st.column_config.TextColumn("Case"),
+                        "Outliers": st.column_config.NumberColumn("Count", format="%d")
+                    },
+                    hide_index=True,
+                    use_container_width=True
                 )
 
-        # Top affected cases
-        if 'top_outlier_cases' in detailed_summary and detailed_summary['top_outlier_cases']:
-            st.subheader("📋 Most Affected Cases")
-            top_cases = detailed_summary['top_outlier_cases'][:5]
-            for case_info in top_cases:
-                st.caption(
-                    f"• Case **{case_info['case_id']}**: {case_info['outlier_events']} outlier events")
-
-        # Top affected activities
-        if 'outlier_activities' in detailed_summary and detailed_summary['outlier_activities']:
-            st.subheader("📊 Most Affected Activities")
-            top_activities = detailed_summary['outlier_activities'][:5]
-            for activity_info in top_activities:
-                st.caption(
-                    f"• **{activity_info['activity']}**: {activity_info['outlier_count']} outliers")
+        with col_a:
+            if 'outlier_activities' in detailed_summary and detailed_summary['outlier_activities']:
+                st.subheader("📊 Affected Activities")
+                activity_data = []
+                for activity_info in detailed_summary['outlier_activities'][:10]:
+                    activity_data.append({
+                        "Activity": activity_info['activity'],
+                        "Outliers": activity_info['outlier_count']
+                    })
+                
+                st.dataframe(
+                    activity_data,
+                    column_config={
+                        "Activity": st.column_config.TextColumn("Activity"),
+                        "Outliers": st.column_config.NumberColumn("Count", format="%d")
+                    },
+                    hide_index=True,
+                    use_container_width=True
+                )
 
     with subtab2:
         # --- Select individual outliers ---
@@ -322,6 +610,8 @@ def _display_outlier_tab():
 
             # Create dict for multi-checkbox selection
             outlier_dict = {}
+            sort_meta = {"Case ID ↓": {}, "Score ↓": {}}
+            
             for idx in all_indices:
                 case_id = df.loc[idx,
                                  case_col] if case_col and case_col in df.columns else 'N/A'
@@ -336,9 +626,19 @@ def _display_outlier_tab():
                 # Create display label with case, activity, reason, and score
                 label = f"Case {case_id} | {activity} | {explanation} (Score: {score})"
                 outlier_dict[label] = idx
+                
+                # Sorting metadata - try to convert case_id to numeric if possible for better sorting
+                try:
+                    c_id_val = float(case_id)
+                except (ValueError, TypeError):
+                    c_id_val = str(case_id)
+                
+                sort_meta["Case ID ↓"][label] = c_id_val
+                sort_meta["Score ↓"][label] = score
 
             selected_indices = dict_to_multicheckbox(
-                outlier_dict, "Select Outliers", "outlier_individual")
+                outlier_dict, "Select Outliers", "outlier_individual", 
+                sort_metadata=sort_meta, default_sort="Score ↓")
             st.session_state['selected_outlier_indices'] = selected_indices
         else:
             st.caption("No outliers found.")
@@ -347,6 +647,11 @@ def _display_outlier_tab():
 def _display_gap_tab():
     """Display Gap Detection pattern details with mode selection and severity distribution."""
     from core.app_utils.pattern_detection import _detect_gaps
+    
+    # Description moved to top
+    st.caption("**Identifies abnormally long time gaps using statistical normality learning.**", 
+               help="Gap Detection learns what is 'normal' for each transition or resource from the data itself. "
+                    "It then flags any duration that significantly exceeds this normal range (e.g. > 3x longer than usual).")
 
     # Mode selection dropdown
     gap_mode_options = {
@@ -422,23 +727,25 @@ def _display_gap_tab():
             sev_counts['Mild (1-2x)'] += 1
 
     # Header metrics - mode-specific labels
+
     col1, col2, col3, col4 = st.columns([1, 1, 1, 0.3])
     with col1:
-        st.metric("Gaps", summary['count'])
+        st.metric("Gaps", summary['count'], help="Total detected delays.")
     with col2:
         if gap_mode == 'resource_inactivity':
-            st.metric("Resources", details.get('resources_with_anomalies', 0))
+            st.metric("Resources", details.get('resources_with_anomalies', 0), help="Number of resources with abnormal idle time.")
         else:
             st.metric("Transitions", details.get(
-                'transitions_with_anomalies', 0))
+                'transitions_with_anomalies', 0), help="Number of process steps with delays.")
     with col3:
         st.metric(
-            "Worst", f"{worst_severity:.1f}x" if worst_severity > 0 else "-")
+            "Worst", f"{worst_severity:.1f}x" if worst_severity > 0 else "-", help="Severity multiplier (e.g. 5x normal duration).")
     with col4:
         with st.popover("..."):
             current = st.session_state.get('gap_min_samples', 15)
             min_samples = st.number_input(
-                "Min samples", 3, 30, current, key="gap_min_samples_input")
+                "Min samples", min_value=3, max_value=30, value=current, key="gap_min_samples_input",
+                help="Minimum events per transition to analyze. Lower = more detail but potentially noisy. Default 15 works well.")
             if min_samples != current and st.button("Apply", key="gap_apply"):
                 st.session_state['gap_min_samples'] = min_samples
                 if plot_config and df_selected is not None:
@@ -455,44 +762,72 @@ def _display_gap_tab():
     with subtab1:
         # Severity distribution
         if abnormal_gaps:
-            st.caption("**Severity Distribution**")
+            st.caption("**Severity Distribution**", 
+                       help="Severity indicates how much longer a gap is compared to the normal duration.\n\n"
+                            "• **Mild (1-2x)**: Slightly delayed.\n\n"
+                            "• **Moderate (2-3x)**: Noticeable delay.\n\n"
+                            "• **Severe (3-5x)**: Significant interruption.\n\n"
+                            "• **Critical (>5x)**: Extreme delay (requires attention).")
             for label, count in sev_counts.items():
                 if count > 0:
                     bar_len = min(count, 20)
                     bar = "█" * bar_len + "░" * (20 - bar_len)
                     st.caption(f"`{bar}` {count} {label}")
 
-            # Worst gaps - mode-specific labels
-            if gap_mode == 'resource_inactivity':
-                st.caption("**Worst by Resource**")
-                worst_per_group = {}
+            # Worst gaps Table
+            if abnormal_gaps:
+                label = "Transition" if gap_mode == 'transition' else "Resource"
+                st.subheader(f"⚠️ Worst by {label}")
+                
+                # Aggregate data for the table
+                summary_map = {}
                 for gap in abnormal_gaps:
-                    resource = gap.get('resource', 'unknown')
-                    if resource not in worst_per_group or gap['severity'] > worst_per_group[resource]['severity']:
-                        worst_per_group[resource] = gap
+                    key = gap.get('transition' if gap_mode == 'transition' else 'resource', 'unknown')
+                    if key not in summary_map:
+                        summary_map[key] = {
+                            "Group": key,
+                            "Occurrences": 0,
+                            "Max Severity": 0,
+                            "Max Duration Sec": 0,
+                            "Example Case": gap.get('case_id' if gap_mode == 'transition' else 'case_from', 'N/A')
+                        }
+                    
+                    stats = summary_map[key]
+                    stats["Occurrences"] += 1
+                    stats["Max Severity"] = max(stats["Max Severity"], gap['severity'])
+                    if gap['duration'] > stats["Max Duration Sec"]:
+                        stats["Max Duration Sec"] = gap['duration']
+                        stats["Example Case"] = gap.get('case_id' if gap_mode == 'transition' else 'case_from', 'N/A')
 
-                sorted_worst = sorted(worst_per_group.values(
-                ), key=lambda g: g['severity'], reverse=True)[:3]
-                for gap in sorted_worst:
-                    dur_h = gap['duration'] / 3600
-                    dur_str = f"{dur_h:.1f}h" if dur_h < 24 else f"{dur_h/24:.1f}d"
-                    st.caption(
-                        f"⚠️ {gap['resource']}: {dur_str} ({gap['severity']:.1f}x)")
-            else:
-                st.caption("**Worst by Transition**")
-                worst_per_trans = {}
-                for gap in abnormal_gaps:
-                    trans = gap.get('transition', 'unknown')
-                    if trans not in worst_per_trans or gap['severity'] > worst_per_trans[trans]['severity']:
-                        worst_per_trans[trans] = gap
+                # Format for display
+                table_data = []
+                for entry in summary_map.values():
+                    dur = entry["Max Duration Sec"]
+                    dur_str = f"{dur:.1f}s" if dur < 60 else (f"{dur/60:.1f}m" if dur < 3600 else (f"{dur/3600:.1f}h" if dur < 86400 else f"{dur/86400:.1f}d"))
+                    
+                    table_data.append({
+                        label: entry["Group"],
+                        "Occurrences": entry["Occurrences"],
+                        "Max Severity": entry["Max Severity"],
+                        "Max Duration": dur_str,
+                        "Example Case": entry["Example Case"]
+                    })
 
-                sorted_worst = sorted(worst_per_trans.values(
-                ), key=lambda g: g['severity'], reverse=True)[:3]
-                for gap in sorted_worst:
-                    dur_h = gap['duration'] / 3600
-                    dur_str = f"{dur_h:.1f}h" if dur_h < 24 else f"{dur_h/24:.1f}d"
-                    st.caption(
-                        f"⚠️ {gap.get('transition', 'N/A')}: {dur_str} ({gap['severity']:.1f}x)")
+                # Sort by severity
+                table_data.sort(key=lambda x: x["Max Severity"], reverse=True)
+
+                st.dataframe(
+                    table_data[:10],
+                    column_config={
+                        label: st.column_config.TextColumn(label, width="medium"),
+                        "Occurrences": st.column_config.NumberColumn("Count"),
+                        "Max Severity": st.column_config.NumberColumn("Severity", format="%.1fx"),
+                        "Max Duration": st.column_config.TextColumn("Longest"),
+                        "Example Case": st.column_config.TextColumn("Case ID")
+                    },
+                    hide_index=True,
+                    use_container_width=True
+                )
 
     with subtab2:
         group_stats = details.get(
@@ -500,17 +835,51 @@ def _display_gap_tab():
         if group_stats:
             if gap_mode == 'resource_inactivity':
                 # Resource selection
-                resource_dict = {
-                    f"{r} ({s['count']})": r for r, s in group_stats.items()}
+                resource_dict = {}
+                sort_meta = {"Occurrences ↓": {}, "Max Severity ↓": {}}
+                
+                # Fetch max severity per group for sorting
+                max_sevs = {}
+                for g_idx in abnormal_gaps:
+                    r = g_idx.get('resource')
+                    sev = g_idx.get('severity', 0)
+                    if r not in max_sevs or sev > max_sevs[r]:
+                        max_sevs[r] = sev
+
+                for r, s in group_stats.items():
+                    m_sev = max_sevs.get(r, 0)
+                    label = f"{r} ({s['count']}) - Max Sev: {m_sev:.1f}x"
+                    resource_dict[label] = r
+                    sort_meta["Occurrences ↓"][label] = s['count']
+                    sort_meta["Max Severity ↓"][label] = m_sev
+
                 selected = dict_to_multicheckbox(
-                    resource_dict, "Select Resources", "gap_resource")
+                    resource_dict, "Select Resources", "gap_resource", 
+                    sort_metadata=sort_meta, default_sort="Max Severity ↓")
                 st.session_state['selected_gap_resources'] = selected
             else:
                 # Transition selection
-                trans_dict = {f"{t} ({s['count']})": t for t,
-                              s in group_stats.items()}
+                trans_dict = {}
+                sort_meta = {"Occurrences ↓": {}, "Max Severity ↓": {}}
+                
+                # Fetch max severity per transition for sorting
+                max_sevs = {}
+                for g_idx in abnormal_gaps:
+                    t = g_idx.get('transition')
+                    sev = g_idx.get('severity', 0)
+                    if t not in max_sevs or sev > max_sevs[t]:
+                        max_sevs[t] = sev
+
+                for t, s in group_stats.items():
+                    m_sev = max_sevs.get(t, 0)
+                    label = f"{t} ({s['count']}) - Max Sev: {m_sev:.1f}x"
+                    trans_dict[label] = t
+                    sort_meta["Occurrences ↓"][label] = s['count']
+                    sort_meta["Max Severity ↓"][label] = m_sev
+
                 selected = dict_to_multicheckbox(
-                    trans_dict, "Select Transitions", "gap_transition")
+                    trans_dict, "Select Transitions", "gap_transition", 
+                    sort_metadata=sort_meta, default_sort="Max Severity ↓")
                 st.session_state['selected_gap_transitions'] = selected
 
 
@@ -527,20 +896,145 @@ def _display_sequence_tab():
     if not layer_visible:
         st.caption("Hidden - enable in sidebar")
 
-    st.metric("Sequences", summary['count'])
+
+    st.caption("**Identifies frequent event patterns (e.g. A->B).**")
+
+    # Strict Mode Toggle
+    is_strict = st.session_state.get('sequence_strict_mode', False)
+    if st.checkbox("Strict Matching ", value=is_strict, key="seq_strict_toggle",
+                   help="Strict Matching: patterns are found only if events occur consecutively (A immediately followed by B).  \n"
+                        "Turn off to detect sequences that may have other events in between (A followed eventually by B)."):
+        if not is_strict:
+            st.session_state['sequence_strict_mode'] = True
+            # Trigger re-detection
+            from core.app_utils.pattern_detection import _detect_sequences
+            plot_config = st.session_state.get('current_plot_config', {})
+            if plot_config:
+                 _detect_sequences(
+                     plot_config['x_col'], plot_config['y_col'], plot_config['dots_config_col'], 
+                     plot_config['df_selected']
+                 )
+            st.rerun()
+    else:
+        if is_strict:
+            st.session_state['sequence_strict_mode'] = False
+            # Trigger re-detection
+            from core.app_utils.pattern_detection import _detect_sequences
+            plot_config = st.session_state.get('current_plot_config', {})
+            if plot_config:
+                 _detect_sequences(
+                     plot_config['x_col'], plot_config['y_col'], plot_config['dots_config_col'], 
+                     plot_config['df_selected']
+                 )
+            st.rerun()
+    # Top-level metrics
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Unique Patterns", summary.get('unique_patterns_count', '-'), help="Number of distinct sequence types found.")
+    with col2:
+        st.metric("Total Instances", summary['count'], help="Total occurrence count of all patterns.")
+    with col3:
+        group_cov = summary.get('group_coverage', 0)
+        st.metric("Group Coverage", f"{group_cov:.1%}", help="Percentage of cases that contain at least one pattern.")
+    with col4:
+        avg_sup = summary.get('avg_support', 0)
+        st.metric("Avg Support", f"{avg_sup:.1f}", help="Average frequency of patterns.")
 
     subtab1, subtab2 = st.tabs(["Overview", "Selection"])
 
     with subtab1:
-        pass  # TODO: Add overview content
+        # --- Detailed Statistics ---
+        st.markdown("#### 📊 Statistics")
+        stat_col1, stat_col2 = st.columns(2)
+        
+        with stat_col1:
+            st.markdown("**Pattern Lengths**")
+            st.caption(
+                f"• Range: **{summary.get('min_pattern_length', 0)} - {summary.get('max_pattern_length', 0)}** items\n"
+                f"• Average: **{summary.get('avg_pattern_length', 0):.1f}** items"
+            )
+            
+            # Pattern Length Distribution
+            length_dist = summary.get('length_distribution', {})
+            if length_dist:
+                max_len = max(length_dist.values()) if length_dist else 1
+                for length, count in sorted(length_dist.items()):
+                    bar_len = int((count / max_len) * 15)
+                    bar = "█" * bar_len + "░" * (15 - bar_len)
+                    st.caption(f"Length {length}: `{bar}` ({count})")
+
+        with stat_col2:
+            st.markdown("**Support & Coverage**")
+            min_sup = summary.get('min_support_found', 0)
+            max_sup = summary.get('max_support_found', 0)
+            min_pct = summary.get('min_support_percentage', 0)
+            max_pct = summary.get('max_support_percentage', 0)
+            
+            st.caption(
+                f"• Support Range: **{min_sup} ({min_pct:.1%}) - {max_sup} ({max_pct:.1%})**\n"
+                f"• Event Coverage: **{summary.get('event_coverage', 0):.1%}**"
+            )
+
+            # Top Frequent Elements
+            top_elements = summary.get('top_frequent_elements', {})
+            if top_elements:
+                st.markdown("**Common Elements**")
+                for element, count in list(top_elements.items())[:5]:
+                    st.caption(f"• **{element}**: {count}")
+
+        # --- Top Patterns Table ---
+        st.divider()
+        st.markdown("#### 🏆 Top Detected Patterns")
+        
+        pattern_stats = details.get('pattern_stats', {})
+        if pattern_stats:
+            # Create a list of dictionaries for the table
+            table_data = []
+            for pat_str, stats in pattern_stats.items():
+                table_data.append({
+                    "Pattern Sequence": pat_str,
+                    "Support": stats['count'],
+                    "Groups": ", ".join(map(str, stats.get('group_ids', []))),
+                    "Support %": f"{stats.get('support_percentile', 0):.1%}",
+                    "Length": len(stats.get('sequence', []))
+                })
+            
+            # Sort by support count descending
+            table_data.sort(key=lambda x: x['Support'], reverse=True)
+            
+            # Show top 10
+            top_10 = table_data[:10]
+            st.dataframe(
+                top_10,
+                column_config={
+                    "Pattern Sequence": st.column_config.TextColumn("Sequence", width="medium"),
+                    "Support": st.column_config.NumberColumn("Count", format="%d"),
+                    "Groups": st.column_config.TextColumn("Groups", width="large"),
+                    "Support %": st.column_config.TextColumn("Support Frequency"),
+                    "Length": st.column_config.NumberColumn("Length")
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+        else:
+            st.caption("No pattern statistics available.")
 
     with subtab2:
         pattern_stats = details.get('pattern_stats', {})
         if pattern_stats:
-            seq_dict = {f"{p} ({s['count']} cases)": p for p,
-                        s in pattern_stats.items()}
+            seq_dict = {}
+            sort_meta = {"Support ↓": {}, "Length ↓": {}}
+            
+            for p, data in pattern_stats.items():
+                p_len = len(data.get('sequence', []))
+                label = f"{p} (Support: {data['count']}, Len: {p_len})"
+                seq_dict[label] = p
+                sort_meta["Support ↓"][label] = data['count']
+                sort_meta["Length ↓"][label] = p_len
+            
             selected = dict_to_multicheckbox(
-                seq_dict, "Select Sequences", "seq_pattern", default_checked=False)
+                seq_dict, "Select Sequences", "seq_pattern", default_checked=False, 
+                sort_metadata=sort_meta, default_sort="Support ↓")
             st.session_state['selected_seq_patterns'] = selected
 
 
@@ -556,6 +1050,8 @@ def _display_case_arrival_trend_tab():
     if not layer_visible:
         st.caption("Hidden - enable in sidebar")
 
+    st.caption("**Analyzes the rate of new cases over time (increasing/decreasing).**")
+
     direction = summary.get('direction', 'no_trend')
     slope_pct = summary.get('slope_percent', 0)
     p_value = summary.get('p_value', 1.0)
@@ -563,12 +1059,12 @@ def _display_case_arrival_trend_tab():
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Cases", total_cases)
+        st.metric("Cases", total_cases, help="Total number of cases analyzed.")
     with col2:
         slope_str = f"{slope_pct:+.1f}%" if abs(slope_pct) >= 0.1 else "~0%"
-        st.metric("Change/week", slope_str)
+        st.metric("Change/week", slope_str, help="Estimated percentage growth (+) or decline (-) in case volume per week.")
     with col3:
-        st.metric("p-value", f"{p_value:.4f}")
+        st.metric("p-value", f"{p_value:.4f}", help="Statistical significance (values < 0.05 indicate a strong trend).")
 
     direction_labels = {
         'increasing': '↗ Increasing',

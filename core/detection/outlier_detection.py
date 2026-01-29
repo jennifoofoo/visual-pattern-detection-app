@@ -109,8 +109,7 @@ class OutlierDetectionPattern(Pattern):
             self._calculate_statistics(feature_names)
 
             self.detected = len(self.outlier_indices) > 0
-            print(
-                f"Isolation Forest detected {len(self.outlier_indices)} outliers using {len(feature_names)} features")
+           
             return self.detected
 
         except Exception as e:
@@ -344,10 +343,8 @@ class OutlierDetectionPattern(Pattern):
 
         # Filter outliers based on session state selection if available
         import streamlit as st
-        selected_outliers = st.session_state.get(
-            'selected_outlier_indices', [])
-
-        if selected_outliers:
+        if 'selected_outlier_indices' in st.session_state:
+            selected_outliers = st.session_state['selected_outlier_indices']
             display_indices = [
                 idx for idx in self.outlier_indices if idx in selected_outliers]
         else:
