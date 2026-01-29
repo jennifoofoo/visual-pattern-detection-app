@@ -223,7 +223,6 @@ def main():
             st.info("👈 Load data from the sidebar to get started")
         else:
             # Use CSS column-reverse to show chart at top while pattern UI executes first
-            # This avoids placeholder flickering while ensuring session state is populated
             st.markdown("""
                 <style>
                     div[data-testid="stVerticalBlock"]:has(.chart-first-container) {
