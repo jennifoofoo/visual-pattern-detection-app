@@ -207,7 +207,7 @@ def _detect_case_arrival_trend(x_col, df_selected):
     except Exception as e:
         st.warning(f"Case arrival trend detection skipped: {str(e)}")
 
-def _detect_sequences(x_col: str, y_col: str, color_col: str, df_selected, top_k: int = 5):
+def _detect_sequences(x_col: str, y_col: str, color_col: str, df_selected, top_k: int = 150):
     """Detect horizontal sequences using PrefixSpan and filter to top k.
 
     Args:
@@ -215,7 +215,7 @@ def _detect_sequences(x_col: str, y_col: str, color_col: str, df_selected, top_k
         y_col: Column key for the y-axis (grouping key).
         color_col: Column key for the dot color (event key).
         df_selected: DataFrame containing the event log data.
-        top_k: Number of top patterns by support_count to keep (default: 5).
+        top_k: Number of top patterns by support_count to keep (default: 150).
     """
     try:
         sequence_detector = HorizontalSequencePatternDetector(
