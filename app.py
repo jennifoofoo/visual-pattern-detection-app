@@ -222,17 +222,26 @@ def main():
         if not st.session_state.get("data_loaded", False):
             st.info("👈 Load data from the sidebar to get started")
         else:
-            # Use placeholder to decouple visual order from execution order
-            # This allows pattern selection UI to run first (populating session state)
-            # while the chart still appears visually at the top
-            chart_placeholder = st.empty()
+            # Use CSS column-reverse to show chart at top while pattern UI executes first
+            st.markdown("""
+                <style>
+                    div[data-testid="stVerticalBlock"]:has(.chart-first-container) {
+                        display: flex;
+                        flex-direction: column-reverse;
+                    }
+                </style>
+            """, unsafe_allow_html=True)
             
-            if st.session_state.get("chart_plotted", False):
-                st.divider()
-                pattern_ui.handle_pattern_detection()
-            
-            # Now render the chart - selection state is populated
-            with chart_placeholder.container():
+            # Container with marker class for CSS targeting
+            with st.container():
+                st.markdown('<div class="chart-first-container"></div>', unsafe_allow_html=True)
+                
+                # Pattern UI runs first - populates session state
+                if st.session_state.get("chart_plotted", False):
+                    st.divider()
+                    pattern_ui.handle_pattern_detection()
+                
+                # Chart renders second but appears visually at top due to column-reverse
                 app_handler.display_chart()
 
     with tab2:
