@@ -12,8 +12,9 @@ from typing import List, Dict, Tuple
 
 
 # Define the pattern order and display names
-PATTERNS = ["gap", "burst", "outlier", "cluster", "sequence"]
+PATTERNS = ["trend", "gap", "burst", "outlier", "cluster", "sequence"]
 PATTERN_DISPLAY_NAMES = {
+    "trend": "Trend",
     "gap": "Gap",
     "burst": "Burst",
     "outlier": "Outlier",
@@ -23,6 +24,7 @@ PATTERN_DISPLAY_NAMES = {
 
 # Map pattern names in matrix to display pattern names
 PATTERN_NAME_MAPPING = {
+    "trend": "trend",
     "temporal_cluster_x": "burst",
     "gap": "gap",
     "outlier": "outlier",
