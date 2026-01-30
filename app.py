@@ -94,13 +94,13 @@ def main():
     # -----------------------------
     with st.sidebar:
         with st.expander("Load Data", expanded=st.session_state.ui_step == "load"):
-            demo_mode = st.checkbox(
-                "Demo Mode",
+            sampling_mode = st.checkbox(
+                "Sampling Mode",
                 value=True,
                 help="Enable sampling for faster analysis. Choose a sampling strategy below."
             )
             sampling_mode = SamplingMode.FULL  # Default
-            if demo_mode:
+            if sampling_mode:
                 sampling_options = {
                     "Minimal (fastest)": SamplingMode.MINIMAL,
                     "Balanced (√n)": SamplingMode.SQRT,
@@ -136,14 +136,13 @@ def main():
             xes_path = st.text_input(
                 "XES file path",
                 value="data/Hospital_log.xes",
-                disabled=demo_mode,
             )
 
             st.markdown("<div style='height: 0.5rem'></div>",
                         unsafe_allow_html=True)
             if st.button("Load Data", type="primary"):
                 app_handler.load_data_button(
-                    xes_path, demo_mode=demo_mode, sampling_mode=sampling_mode)
+                    xes_path, use_sampling=sampling_mode, sampling_mode=sampling_mode)
 
                 # Direkt mit ausgewähltem Preset plotten
                 preset = VIEW_PRESETS[initial_preset]
