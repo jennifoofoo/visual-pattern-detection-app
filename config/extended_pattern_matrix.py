@@ -34,6 +34,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # ACTUAL_TIME × RESOURCE × CASE_ID
     # ========================================================================
     ("actual_time", "resource", "case_id"): {
+        "trend": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Trend line overlay showing case arrival rate changes over time. Color shows case distribution.",
+            "interpretation": "Detects monotonic trends (increasing/decreasing) in case arrival rates using Mann-Kendall test.",
+            "use_case": "Identifying workload changes, seasonal patterns, demand shifts",
+            "output": "Trend direction, slope magnitude, statistical significance (p-value)"
+        },
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
@@ -84,6 +92,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # ACTUAL_TIME × RESOURCE × ACTIVITY
     # ========================================================================
     ("actual_time", "resource", "activity"): {
+        "trend": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Trend line overlay showing case arrival rate changes over time. Activity colors show which activities are involved.",
+            "interpretation": "Detects monotonic trends (increasing/decreasing) in case arrival rates using Mann-Kendall test.",
+            "use_case": "Identifying workload changes, seasonal patterns, demand shifts per activity",
+            "output": "Trend direction, slope magnitude, statistical significance (p-value)"
+        },
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
@@ -134,6 +150,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # ACTUAL_TIME × RESOURCE × RESOURCE (Same dimension on Y and Color)
     # ========================================================================
     ("actual_time", "resource", "resource"): {
+        "trend": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Trend line overlay showing case arrival rate changes over time.",
+            "interpretation": "Detects monotonic trends (increasing/decreasing) in case arrival rates using Mann-Kendall test.",
+            "use_case": "Identifying workload changes, seasonal patterns, demand shifts",
+            "output": "Trend direction, slope magnitude, statistical significance (p-value)"
+        },
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
@@ -190,6 +214,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # ACTUAL_TIME × ACTIVITY × CASE_ID
     # ========================================================================
     ("actual_time", "activity", "case_id"): {
+        "trend": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Trend line overlay showing case arrival rate changes over time. Case colors show distribution.",
+            "interpretation": "Detects monotonic trends (increasing/decreasing) in case arrival rates using Mann-Kendall test.",
+            "use_case": "Identifying workload changes, activity frequency trends per case",
+            "output": "Trend direction, slope magnitude, statistical significance (p-value)"
+        },
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
@@ -240,6 +272,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # ACTUAL_TIME × ACTIVITY × ACTIVITY (Same dimension on Y and Color)
     # ========================================================================
     ("actual_time", "activity", "activity"): {
+        "trend": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Trend line overlay showing case arrival rate changes over time.",
+            "interpretation": "Detects monotonic trends (increasing/decreasing) in case arrival rates using Mann-Kendall test.",
+            "use_case": "Identifying workload changes, activity frequency trends",
+            "output": "Trend direction, slope magnitude, statistical significance (p-value)"
+        },
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
@@ -290,6 +330,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # ACTUAL_TIME × ACTIVITY × RESOURCE
     # ========================================================================
     ("actual_time", "activity", "resource"): {
+        "trend": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Trend line overlay showing case arrival rate changes over time. Resource colors show involvement.",
+            "interpretation": "Detects monotonic trends (increasing/decreasing) in case arrival rates using Mann-Kendall test.",
+            "use_case": "Identifying workload changes, resource-specific demand shifts",
+            "output": "Trend direction, slope magnitude, statistical significance (p-value)"
+        },
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
@@ -346,6 +394,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # ACTUAL_TIME × CASE_ID × CASE_ID (Same dimension on Y and Color)
     # ========================================================================
     ("actual_time", "case_id", "case_id"): {
+        "trend": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Trend line overlay showing case arrival rate changes over time.",
+            "interpretation": "Detects monotonic trends (increasing/decreasing) in case arrival rates using Mann-Kendall test.",
+            "use_case": "Identifying workload changes, demand shifts",
+            "output": "Trend direction, slope magnitude, statistical significance (p-value)"
+        },
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
@@ -396,6 +452,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # ACTUAL_TIME × CASE_ID × ACTIVITY
     # ========================================================================
     ("actual_time", "case_id", "activity"): {
+        "trend": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Trend line overlay showing case arrival rate changes over time. Activity colors show distribution.",
+            "interpretation": "Detects monotonic trends (increasing/decreasing) in case arrival rates using Mann-Kendall test.",
+            "use_case": "Identifying workload changes, activity-specific demand shifts",
+            "output": "Trend direction, slope magnitude, statistical significance (p-value)"
+        },
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
@@ -446,6 +510,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # ACTUAL_TIME × CASE_ID × RESOURCE
     # ========================================================================
     ("actual_time", "case_id", "resource"): {
+        "trend": {
+            "can_be_found": True,
+            "makes_sense": True,
+            "visual": "Trend line overlay showing case arrival rate changes over time. Resource colors show involvement.",
+            "interpretation": "Detects monotonic trends (increasing/decreasing) in case arrival rates using Mann-Kendall test.",
+            "use_case": "Identifying workload changes, resource-specific demand shifts",
+            "output": "Trend direction, slope magnitude, statistical significance (p-value)"
+        },
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
@@ -510,6 +582,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # RELATIVE_TIME × RESOURCE × CASE_ID
     # ========================================================================
     ("relative_time", "resource", "case_id"): {
+        "trend": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Trend detection requires actual time to analyze case arrival patterns. Relative time removes the absolute temporal reference needed for trend analysis.",
+            "use_case": "Not applicable for relative time views.",
+            "output": "N/A"
+        },
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
@@ -556,6 +636,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # RELATIVE_TIME × RESOURCE × ACTIVITY
     # ========================================================================
     ("relative_time", "resource", "activity"): {
+        "trend": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Trend detection requires actual time to analyze case arrival patterns. Relative time removes the absolute temporal reference needed for trend analysis.",
+            "use_case": "Not applicable for relative time views.",
+            "output": "N/A"
+        },
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
@@ -602,6 +690,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # RELATIVE_TIME × RESOURCE × RESOURCE (Same dimension on Y and Color)
     # ========================================================================
     ("relative_time", "resource", "resource"): {
+        "trend": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Trend detection requires actual time to analyze case arrival patterns. Relative time removes the absolute temporal reference needed for trend analysis.",
+            "use_case": "Not applicable for relative time views.",
+            "output": "N/A"
+        },
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
@@ -655,6 +751,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # RELATIVE_TIME × ACTIVITY × CASE_ID
     # ========================================================================
     ("relative_time", "activity", "case_id"): {
+        "trend": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Trend detection requires actual time to analyze case arrival patterns. Relative time removes the absolute temporal reference needed for trend analysis.",
+            "use_case": "Not applicable for relative time views.",
+            "output": "N/A"
+        },
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
@@ -701,6 +805,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # RELATIVE_TIME × ACTIVITY × ACTIVITY (Same dimension on Y and Color)
     # ========================================================================
     ("relative_time", "activity", "activity"): {
+        "trend": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Trend detection requires actual time to analyze case arrival patterns. Relative time removes the absolute temporal reference needed for trend analysis.",
+            "use_case": "Not applicable for relative time views.",
+            "output": "N/A"
+        },
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
@@ -747,6 +859,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # RELATIVE_TIME × ACTIVITY × RESOURCE
     # ========================================================================
     ("relative_time", "activity", "resource"): {
+        "trend": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Trend detection requires actual time to analyze case arrival patterns. Relative time removes the absolute temporal reference needed for trend analysis.",
+            "use_case": "Not applicable for relative time views.",
+            "output": "N/A"
+        },
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
@@ -799,6 +919,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # RELATIVE_TIME × CASE_ID × CASE_ID (Same dimension on Y and Color)
     # ========================================================================
     ("relative_time", "case_id", "case_id"): {
+        "trend": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Trend detection requires actual time to analyze case arrival patterns. Relative time removes the absolute temporal reference needed for trend analysis.",
+            "use_case": "Not applicable for relative time views.",
+            "output": "N/A"
+        },
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
@@ -845,6 +973,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # RELATIVE_TIME × CASE_ID × ACTIVITY
     # ========================================================================
     ("relative_time", "case_id", "activity"): {
+        "trend": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Trend detection requires actual time to analyze case arrival patterns. Relative time removes the absolute temporal reference needed for trend analysis.",
+            "use_case": "Not applicable for relative time views.",
+            "output": "N/A"
+        },
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
@@ -891,6 +1027,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # RELATIVE_TIME × CASE_ID × RESOURCE
     # ========================================================================
     ("relative_time", "case_id", "resource"): {
+        "trend": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Trend detection requires actual time to analyze case arrival patterns. Relative time removes the absolute temporal reference needed for trend analysis.",
+            "use_case": "Not applicable for relative time views.",
+            "output": "N/A"
+        },
         "gap": {
             "can_be_found": True,
             "makes_sense": True,
@@ -1388,6 +1532,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # LOGICAL_TIME × RESOURCE × CASE_ID
     # ========================================================================
     ("logical_time", "resource", "case_id"): {
+        "trend": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Trend detection requires actual time to analyze case arrival patterns. Logical time (event sequence) has no temporal dimension for trend analysis.",
+            "use_case": "Not applicable for logical time views.",
+            "output": "N/A"
+        },
         "gap": {
             "can_be_found": False,
             "makes_sense": False,
@@ -1434,6 +1586,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # LOGICAL_TIME × RESOURCE × ACTIVITY
     # ========================================================================
     ("logical_time", "resource", "activity"): {
+        "trend": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Trend detection requires actual time to analyze case arrival patterns. Logical time (event sequence) has no temporal dimension for trend analysis.",
+            "use_case": "Not applicable for logical time views.",
+            "output": "N/A"
+        },
         "gap": {
             "can_be_found": False,
             "makes_sense": False,
@@ -1480,6 +1640,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # LOGICAL_TIME × RESOURCE × RESOURCE (Same dimension on Y and Color)
     # ========================================================================
     ("logical_time", "resource", "resource"): {
+        "trend": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Trend detection requires actual time to analyze case arrival patterns. Logical time (event sequence) has no temporal dimension for trend analysis.",
+            "use_case": "Not applicable for logical time views.",
+            "output": "N/A"
+        },
         "gap": {
             "can_be_found": False,
             "makes_sense": False,
@@ -1532,6 +1700,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # LOGICAL_TIME × ACTIVITY × CASE_ID
     # ========================================================================
     ("logical_time", "activity", "case_id"): {
+        "trend": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Trend detection requires actual time to analyze case arrival patterns. Logical time (event sequence) has no temporal dimension for trend analysis.",
+            "use_case": "Not applicable for logical time views.",
+            "output": "N/A"
+        },
         "gap": {
             "can_be_found": False,
             "makes_sense": False,
@@ -1578,6 +1754,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # LOGICAL_TIME × ACTIVITY × ACTIVITY (Same dimension on Y and Color)
     # ========================================================================
     ("logical_time", "activity", "activity"): {
+        "trend": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Trend detection requires actual time to analyze case arrival patterns. Logical time (event sequence) has no temporal dimension for trend analysis.",
+            "use_case": "Not applicable for logical time views.",
+            "output": "N/A"
+        },
         "gap": {
             "can_be_found": False,
             "makes_sense": False,
@@ -1624,6 +1808,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # LOGICAL_TIME × ACTIVITY × RESOURCE
     # ========================================================================
     ("logical_time", "activity", "resource"): {
+        "trend": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Trend detection requires actual time to analyze case arrival patterns. Logical time (event sequence) has no temporal dimension for trend analysis.",
+            "use_case": "Not applicable for logical time views.",
+            "output": "N/A"
+        },
         "gap": {
             "can_be_found": False,
             "makes_sense": False,
@@ -1675,6 +1867,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # LOGICAL_TIME × CASE_ID × CASE_ID (Same dimension on Y and Color)
     # ========================================================================
     ("logical_time", "case_id", "case_id"): {
+        "trend": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Trend detection requires actual time to analyze case arrival patterns. Logical time (event sequence) has no temporal dimension for trend analysis.",
+            "use_case": "Not applicable for logical time views.",
+            "output": "N/A"
+        },
         "gap": {
             "can_be_found": False,
             "makes_sense": False,
@@ -1721,6 +1921,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # LOGICAL_TIME × CASE_ID × ACTIVITY
     # ========================================================================
     ("logical_time", "case_id", "activity"): {
+        "trend": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Trend detection requires actual time to analyze case arrival patterns. Logical time (event sequence) has no temporal dimension for trend analysis.",
+            "use_case": "Not applicable for logical time views.",
+            "output": "N/A"
+        },
         "gap": {
             "can_be_found": False,
             "makes_sense": False,
@@ -1767,6 +1975,14 @@ EXTENDED_PATTERN_MATRIX: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] =
     # LOGICAL_TIME × CASE_ID × RESOURCE
     # ========================================================================
     ("logical_time", "case_id", "resource"): {
+        "trend": {
+            "can_be_found": False,
+            "makes_sense": False,
+            "visual": "N/A",
+            "interpretation": "Trend detection requires actual time to analyze case arrival patterns. Logical time (event sequence) has no temporal dimension for trend analysis.",
+            "use_case": "Not applicable for logical time views.",
+            "output": "N/A"
+        },
         "gap": {
             "can_be_found": False,
             "makes_sense": False,
