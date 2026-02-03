@@ -355,7 +355,9 @@ def display_chart():
     if st.session_state.get('visible_cluster', True):
         if st.session_state.get('cluster_detected', False) and 'cluster_detector' in st.session_state:
             fig = st.session_state.cluster_detector.visualize(
-                df_for_patterns, fig)
+                df_for_patterns, fig,
+                selected_clusters=st.session_state.get('selected_OPTICS_clusters'),
+                show_noise=st.session_state.get('show_cluster_noise', False))
 
     if st.session_state.get('visible_sequence', True):
         if st.session_state.get('sequence_detected', False) and 'sequence_detector' in st.session_state:
