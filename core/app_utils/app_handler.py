@@ -350,7 +350,8 @@ def display_chart():
     if st.session_state.get('visible_temporal_cluster', True):
         if st.session_state.get('temporal_detected', False) and 'temporal_clusters' in st.session_state:
             fig = st.session_state.temporal_clusters.visualize(
-                df_for_patterns, fig)
+                df_for_patterns, fig,
+                selected_clusters=st.session_state.get('selected_temporal_clusters'))
 
     if st.session_state.get('visible_cluster', True):
         if st.session_state.get('cluster_detected', False) and 'cluster_detector' in st.session_state:
