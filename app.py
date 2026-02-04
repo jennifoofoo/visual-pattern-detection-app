@@ -135,7 +135,7 @@ def main():
 
             xes_path = st.text_input(
                 "XES file path",
-                value="data/Sepsis Cases - Event Log.xes/Sepsis Cases - Event Log.xes",
+                value="data/Hospital_log.xes",
             )
 
             st.markdown("<div style='height: 0.5rem'></div>",
