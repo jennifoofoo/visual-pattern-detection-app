@@ -363,9 +363,19 @@ def display_chart():
                 df_for_patterns, fig,
                 selected_seq_patterns=st.session_state.get('selected_seq_patterns'))
 
-    # Display chart
+    # Display chart - dynamic key forces re-render when visibility changes
+    visibility_state = (
+        st.session_state.get('visible_gap', True),
+        st.session_state.get('visible_outlier', True),
+        st.session_state.get('visible_temporal_cluster', True),
+        st.session_state.get('visible_cluster', True),
+        st.session_state.get('visible_sequence', True),
+        st.session_state.get('visible_case_arrival_trend', True),
+        st.session_state.get('pattern_focus_mode', False),
+    )
+    chart_key = f"main_chart_{hash(visibility_state)}"
     selection = st.plotly_chart(
-        fig, width='stretch', on_select="rerun", key="main_chart")
+        fig, width='stretch', on_select="rerun", key=chart_key)
     st.session_state['fig'] = fig
 
     # Store selection data for sidebar controls

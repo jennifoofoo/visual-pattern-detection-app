@@ -47,7 +47,7 @@ class GapPattern(Pattern):
         """Check if X-axis is time-like (required for gap detection)."""
         if pd.api.types.is_datetime64_any_dtype(x_series):
             return True
-        return x_col in ["actual_time", "relative_time", "relative_ratio", "logical_time", "logical_relative"]
+        return x_col in ["actual_time", "relative_time", "relative_ratio"]
 
     def _compute_duration(self, x_start, x_end, x_is_datetime: bool) -> Optional[float]:
         """Compute duration between two X values. Returns None if invalid."""

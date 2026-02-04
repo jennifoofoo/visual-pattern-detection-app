@@ -135,7 +135,7 @@ def main():
 
             xes_path = st.text_input(
                 "XES file path",
-                value="data/Hospital_log.xes",
+                value="data/Sepsis Cases - Event Log.xes/Sepsis Cases - Event Log.xes",
             )
 
             st.markdown("<div style='height: 0.5rem'></div>",
@@ -221,27 +221,13 @@ def main():
         if not st.session_state.get("data_loaded", False):
             st.info("👈 Load data from the sidebar to get started")
         else:
-            # Use CSS column-reverse to show chart at top while pattern UI executes first
-            st.markdown("""
-                <style>
-                    div[data-testid="stVerticalBlock"]:has(.chart-first-container) {
-                        display: flex;
-                        flex-direction: column-reverse;
-                    }
-                </style>
-            """, unsafe_allow_html=True)
-            
-            # Container with marker class for CSS targeting
-            with st.container():
-                st.markdown('<div class="chart-first-container"></div>', unsafe_allow_html=True)
-                
-                # Pattern UI runs first - populates session state
-                if st.session_state.get("chart_plotted", False):
-                    st.divider()
-                    pattern_ui.handle_pattern_detection()
-                
-                # Chart renders second but appears visually at top due to column-reverse
-                app_handler.display_chart()
+            # Display chart first (normal order, no CSS tricks)
+            app_handler.display_chart()
+
+            # Then pattern UI below
+            if st.session_state.get("chart_plotted", False):
+                st.divider()
+                pattern_ui.handle_pattern_detection()
 
     with tab2:
         # Pattern Matrix Viewer
