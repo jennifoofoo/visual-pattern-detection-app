@@ -356,8 +356,8 @@ class TemporalClusterPattern(Pattern):
 
         bursts = self.clusters['temporal_bursts']
 
-        # Filter by selection if provided
-        if selected_filter is not None and len(selected_filter) > 0:
+        # Filter by selection if provided (empty list = show nothing)
+        if selected_filter is not None:
             bursts = [b for b in bursts if b in selected_filter]
 
         if not bursts:
