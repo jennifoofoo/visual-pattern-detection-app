@@ -31,6 +31,24 @@ DOTS_COLOR_MAP = {
 # View Configuration Presets
 # Pattern support: Gap, Burst, Outlier, Cluster, Sequence
 VIEW_PRESETS = {
+    "Case by Activity": {
+        "x_axis": "Actual time",
+        "y_axis": "Case ID",
+        "color": "Activity",
+        "description": "What activities are performed in each case?",
+        "axes_info": "X: Time | Y: Case ID | Color: Activity",
+        "patterns": ["Gap", "Outlier", "Sequence"],
+        "pattern_score": "3/5"
+    },
+    "Case by Resource": {
+        "x_axis": "Actual time",
+        "y_axis": "Case ID",
+        "color": "Resource",
+        "description": "Which resources are used by each case?",
+        "axes_info": "X: Time | Y: Case ID | Color: Resource",
+        "patterns": ["Gap", "Outlier", "Sequence"],
+        "pattern_score": "3/5"
+    },
     "Resource Timeline": {
         "x_axis": "Actual time",
         "y_axis": "Resource",
