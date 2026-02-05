@@ -105,8 +105,7 @@ def list_to_multicheckbox(
         for i, entry in enumerate(labeled_items):
             state_key = f"list_checkbox_{key_prefix}_{entry['index']}"
             if state_key not in st.session_state:
-                # Default to selected for the first 5 items in the sorted list
-                st.session_state[state_key] = (i < 5)
+                st.session_state[state_key] = True
             
             if st.checkbox(entry['label'], key=state_key):
                 selected_items.append(entry['item'])
@@ -177,9 +176,7 @@ def dict_to_multicheckbox(
         for i, entry in enumerate(labeled_items):
             state_key = f"dict_checkbox_{key_prefix}_{entry['key']}"
             if state_key not in st.session_state:
-                # Default to selected for the first 5 items in the sorted list
-                # only if default_checked is True (Respect False if provided)
-                st.session_state[state_key] = (i < 5) if default_checked else False
+                st.session_state[state_key] = True if default_checked else False
             if st.checkbox(entry['key'], key=state_key):
                 selected_items.append(entry['value'])
 
