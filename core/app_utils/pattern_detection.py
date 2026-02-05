@@ -164,7 +164,7 @@ def _detect_gaps(x_col, y_col, df_selected, min_samples=None, gap_mode=None):
     """
     try:
         if min_samples is None:
-            min_samples = st.session_state.get('gap_min_samples', 5)
+            min_samples = st.session_state.get('gap_min_samples', 15)
 
         if gap_mode is None:
             gap_mode = st.session_state.get('gap_mode', 'transition')

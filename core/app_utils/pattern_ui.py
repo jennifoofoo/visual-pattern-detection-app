@@ -1073,3 +1073,122 @@ def _display_case_arrival_trend_tab():
         'no_trend': 'No significant trend'
     }
     st.caption(direction_labels.get(direction, 'No significant trend'))
+
+    # Render trend sparkline
+    _render_trend_sparkline(direction)
+
+
+def _render_trend_sparkline(direction: str):
+    """Render a sparkline chart showing case arrival trend."""
+    import plotly.graph_objects as go
+    import pandas as pd
+    import numpy as np
+
+    plot_config = st.session_state.get('current_plot_config')
+    if not plot_config:
+        return
+
+    df = plot_config.get('df_selected')
+    if df is None or 'case_id' not in df.columns or 'actual_time' not in df.columns:
+        return
+
+    # Apply time filter if active
+    time_range = st.session_state.get('time_filter_range')
+    if time_range is not None:
+        start, end = time_range
+        if df['actual_time'].dt.tz is not None:
+            start = pd.Timestamp(start).tz_localize(df['actual_time'].dt.tz)
+            end = pd.Timestamp(end).tz_localize(df['actual_time'].dt.tz)
+        df = df[(df['actual_time'] >= start) & (df['actual_time'] <= end)]
+
+    try:
+        # Get case arrivals (min timestamp per case)
+        case_arrivals = df.groupby('case_id')['actual_time'].min().reset_index()
+        case_arrivals.columns = ['case_id', 'arrival_time']
+        case_arrivals['arrival_time'] = pd.to_datetime(case_arrivals['arrival_time'])
+
+        # Aggregate by week
+        arrival_counts = case_arrivals.set_index('arrival_time').resample('W').size()
+
+        if len(arrival_counts) < 3:
+            return
+
+        # Create sparkline figure
+        fig = go.Figure()
+
+        # Area chart for weekly counts
+        fig.add_trace(go.Scatter(
+            x=arrival_counts.index,
+            y=arrival_counts.values,
+            mode='lines',
+            fill='tozeroy',
+            fillcolor='rgba(99, 102, 241, 0.2)',
+            line=dict(color='rgba(99, 102, 241, 0.6)', width=1.5),
+            name='Cases/Week',
+            hovertemplate='%{x|%Y-%m-%d}<br>Cases: %{y}<extra></extra>'
+        ))
+
+        # Add trend line (simple linear regression)
+        x_numeric = np.arange(len(arrival_counts))
+        y_values = arrival_counts.values
+
+        # Linear regression
+        slope, intercept = np.polyfit(x_numeric, y_values, 1)
+        trend_line = slope * x_numeric + intercept
+
+        # Determine trend color
+        if direction == 'increasing':
+            trend_color = 'rgba(34, 197, 94, 0.9)'  # Green
+            trend_text = '↗ Trend'
+        elif direction == 'decreasing':
+            trend_color = 'rgba(239, 68, 68, 0.9)'  # Red
+            trend_text = '↘ Trend'
+        else:
+            trend_color = 'rgba(156, 163, 175, 0.9)'  # Gray
+            trend_text = '→ Trend'
+
+        fig.add_trace(go.Scatter(
+            x=arrival_counts.index,
+            y=trend_line,
+            mode='lines',
+            line=dict(color=trend_color, width=2.5, dash='dash'),
+            name=trend_text,
+            hoverinfo='skip'
+        ))
+
+        # Compact layout for sparkline
+        fig.update_layout(
+            height=150,
+            margin=dict(l=50, r=20, t=10, b=30),
+            showlegend=True,
+            legend=dict(
+                orientation='h',
+                yanchor='bottom',
+                y=1.02,
+                xanchor='right',
+                x=1,
+                font=dict(size=10)
+            ),
+            xaxis=dict(
+                showgrid=False,
+                showticklabels=True,
+                tickfont=dict(size=9),
+                tickformat='%b %Y'
+            ),
+            yaxis=dict(
+                showgrid=True,
+                gridcolor='rgba(0,0,0,0.05)',
+                showticklabels=True,
+                tickfont=dict(size=9),
+                title=dict(text='Cases/Week', font=dict(size=9))
+            ),
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            hovermode='x unified'
+        )
+
+        st.plotly_chart(fig, width='stretch', key="trend_sparkline_tab")
+
+    except Exception:
+        # Silently fail - sparkline is optional
+        pass
