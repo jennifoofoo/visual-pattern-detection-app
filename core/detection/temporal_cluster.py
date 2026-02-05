@@ -68,6 +68,39 @@ class TemporalClusterPattern(Pattern):
                     return actual_col
         return None
 
+    def _convert_time_to_numeric(self, df_work: pd.DataFrame) -> pd.DataFrame:
+        """Convert time axis to numeric values."""
+        if self.x_axis == 'actual_time':
+            df_work['time_numeric'] = pd.to_datetime(
+                df_work[self.x_axis]).astype(np.int64) / 1e9
+        else:
+            df_work['time_numeric'] = df_work[self.x_axis]
+        return df_work
+
+    def _calculate_relative_time_epsilon(self, df_work: pd.DataFrame) -> float:
+        """Calculate epsilon for relative time using multiple strategies."""
+        time_range = df_work['time_numeric'].max() - \
+            df_work['time_numeric'].min()
+        std_based = df_work['time_numeric'].std() * 0.5
+
+        # Handle edge case where there's only one unique time value
+        unique_times = df_work['time_numeric'].unique()
+        if len(unique_times) > 1:
+            time_diffs = np.diff(np.sort(unique_times))
+            percentile_gap = np.percentile(time_diffs, 75)
+        else:
+            # Fallback: use a small fraction of time range
+            percentile_gap = time_range * 0.01 if time_range > 0 else 1.0
+
+        range_based = time_range * 0.03
+
+        # Use median of strategies, with adaptive max
+        candidates = [std_based, percentile_gap * 5, range_based]
+        # 10% of range with a minimum of 2 hours
+        adaptive_max = max(time_range * 0.1, 7200)
+
+        return min(np.median(candidates), adaptive_max)
+
     def detect(self, df: pd.DataFrame = None) -> bool:
         """
         Main detection method - routes to appropriate pattern detection based on axes.
@@ -135,25 +168,18 @@ class TemporalClusterPattern(Pattern):
 
         # Convert time to numeric values
         df_work = self.df.copy()
-        if self.x_axis == 'actual_time':
-            df_work['time_numeric'] = pd.to_datetime(
-                df_work[self.x_axis]).astype(np.int64) / 1e9
-        else:
-            df_work['time_numeric'] = df_work[self.x_axis]
+        df_work = self._convert_time_to_numeric(df_work)
 
         # Auto-calculate epsilon if not provided
         if self.temporal_eps is None:
             time_range = df_work['time_numeric'].max() - \
                 df_work['time_numeric'].min()
             if self.x_axis == 'actual_time':
-                self.temporal_eps = min(time_range * 0.05, 3600)  # Max 1 hour
+                # Dynamic epsilon: 2% of time range
+                self.temporal_eps = time_range * 0.02
             else:  # relative_time
-                # For relative_time, use std-based approach capped at 5% of range
-                # This adapts to the actual process duration
-                std_based = df_work['time_numeric'].std() * 0.5
-                range_based = time_range * 0.05
-                # Max 2 hours        # Perform DBSCAN clustering on time dimension
-                self.temporal_eps = min(std_based, range_based, 7200)
+                self.temporal_eps = self._calculate_relative_time_epsilon(
+                    df_work)
         X = df_work[['time_numeric']].values
         clustering = DBSCAN(eps=float(self.temporal_eps),
                             min_samples=self.min_cluster_size)
@@ -165,7 +191,8 @@ class TemporalClusterPattern(Pattern):
         for cluster_id in set(cluster_labels):
             if cluster_id >= 0:
                 mask = cluster_labels == cluster_id
-                self.cluster_point_indices[cluster_id] = df_work.index[mask].tolist()
+                self.cluster_point_indices[cluster_id] = df_work.index[mask].tolist(
+                )
 
         # Filter out noise (-1 label)
         bursts = df_work[df_work['time_cluster'] >= 0].groupby('time_cluster').agg({
@@ -217,20 +244,17 @@ class TemporalClusterPattern(Pattern):
             return False
 
         df_work = self.df.copy()
+        df_work = self._convert_time_to_numeric(df_work)
 
-        # Convert time axis to numeric
-        if self.x_axis == 'actual_time':
-            df_work['time_numeric'] = pd.to_datetime(
-                df_work[self.x_axis]).astype(np.int64) / 1e9
-            if self.temporal_eps is None:
+        # Auto-calculate epsilon if not provided
+        if self.temporal_eps is None:
+            if self.x_axis == 'actual_time':
                 time_range = df_work['time_numeric'].max(
                 ) - df_work['time_numeric'].min()
-                self.temporal_eps = min(time_range * 0.05, 3600)
-        else:
-            # relative_time or relative_ratio are already numeric
-            df_work['time_numeric'] = df_work[self.x_axis]
-            if self.temporal_eps is None:
-                self.temporal_eps = df_work['time_numeric'].std() * 0.5
+                self.temporal_eps = time_range * 0.02
+            else:
+                self.temporal_eps = self._calculate_relative_time_epsilon(
+                    df_work)
 
         # For each activity, find time clusters
         self.clusters['activity_time'] = {}
@@ -351,11 +375,7 @@ class TemporalClusterPattern(Pattern):
 
         # Get cluster assignments for all events
         df_work = self.df.copy()
-        if self.x_axis == 'actual_time':
-            df_work['time_numeric'] = pd.to_datetime(
-                df_work[self.x_axis]).astype(np.int64) / 1e9
-        else:  # relative_time
-            df_work['time_numeric'] = df_work[self.x_axis]
+        df_work = self._convert_time_to_numeric(df_work)
 
         X = df_work[['time_numeric']].values
         clustering = DBSCAN(eps=float(self.temporal_eps),
@@ -376,7 +396,8 @@ class TemporalClusterPattern(Pattern):
                 hover_texts = []
                 for idx in cluster_events.index:
                     row = cluster_events.loc[idx]
-                    parts = [f"<b>Temporal Burst {cluster_id + 1}</b> ({burst['event_count']} events)"]
+                    parts = [
+                        f"<b>Temporal Burst {cluster_id + 1}</b> ({burst['event_count']} events)"]
                     if 'case_id' in cluster_events.columns:
                         parts.append(f"Case: {row['case_id']}")
                     if 'activity' in cluster_events.columns:
@@ -446,14 +467,6 @@ class TemporalClusterPattern(Pattern):
                         f"(duration: {burst['duration_seconds']:.2f} time units)"
                     )
 
-        # Activity-time clusters
-        if 'activity_time' in self.clusters:
-            summary.append(
-                f"\n🎯 **Activity-Time Patterns:** {len(self.clusters['activity_time'])} activities with temporal clustering")
-            for activity, clusters in list(self.clusters['activity_time'].items())[:5]:
-                summary.append(
-                    f"   '{activity}': {len(clusters)} distinct time clusters")
-
         # Case parallelism
         if 'case_parallelism' in self.clusters:
             para = self.clusters['case_parallelism']
@@ -478,11 +491,13 @@ class TemporalClusterPattern(Pattern):
         Dict[str, Any]
             Standardized summary with pattern_type, detected, count, and details
         """
-        # Count total clusters across all types
-        total_count = sum(
-            len(v) if isinstance(v, (list, dict)) else 1
-            for v in self.clusters.values()
-        ) if self.clusters else 0
+        # Count total clusters across all types (excluding activity_time)
+        total_count = 0
+        if self.clusters:
+            for key, value in self.clusters.items():
+                if key != 'activity_time':  # Exclude activity clusters from count
+                    total_count += len(value) if isinstance(value,
+                                                            (list, dict)) else 1
 
         return {
             'pattern_type': 'temporal_cluster_x',

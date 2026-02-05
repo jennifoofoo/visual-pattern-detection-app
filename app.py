@@ -163,7 +163,7 @@ def main():
             selected_preset = st.selectbox(
                 "Quick Start",
                 preset_options,
-                help="Vorkonfigurierte Ansicht mit optimaler Pattern-Unterstützung",
+                help="Pre-configured view with optimal pattern support",
                 key='config_preset'
             )
 
