@@ -491,11 +491,13 @@ class TemporalClusterPattern(Pattern):
         Dict[str, Any]
             Standardized summary with pattern_type, detected, count, and details
         """
-        # Count total clusters across all types
-        total_count = sum(
-            len(v) if isinstance(v, (list, dict)) else 1
-            for v in self.clusters.values()
-        ) if self.clusters else 0
+        # Count total clusters across all types (excluding activity_time)
+        total_count = 0
+        if self.clusters:
+            for key, value in self.clusters.items():
+                if key != 'activity_time':  # Exclude activity clusters from count
+                    total_count += len(value) if isinstance(value,
+                                                            (list, dict)) else 1
 
         return {
             'pattern_type': 'temporal_cluster_x',

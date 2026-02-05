@@ -295,13 +295,9 @@ def _display_temporal_cluster_tab():
     # Top-level metrics - Summary Row (Simplified)
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Total Clusters", summary['count'], help="Total number of distinct temporal patterns found (Bursts + Activity Clusters).")
+        st.metric("Total Clusters", summary['count'], help="Total number of distinct temporal patterns found (Bursts).")
     with col2:
         st.metric("Relevant Events", total_relevant_events, help="Total number of events contained within all detected burst periods.")
-    with col3:
-        activity_clusters = clusters.get('activity_time', {})
-        st.metric("Activity Clusters", len(activity_clusters), help="Number of activities that show significant temporal clustering.")
-
     subtab1, subtab2 = st.tabs(["Overview", "Selection"])
 
     with subtab1:
@@ -374,19 +370,6 @@ def _display_temporal_cluster_tab():
                             
                             with st.expander("🔍 View Concrete Events"):
                                 st.dataframe(df_burst[existing_cols], hide_index=True, use_container_width=True)
-
-        # --- Activity-Time Patterns ---
-        if activity_clusters:
-            st.markdown("#### 🎯 Activity-Time Patterns")
-            st.caption("Activities that cluster at specific times.", 
-                       help="These patterns show when specific activities (like 'Approve') tend to be grouped together in time, "
-                            "revealing periodic behavior or specific processing windows.")
-            
-            for activity, activity_clusters_list in list(activity_clusters.items())[:5]:
-                st.write(f"**{activity}**: {len(activity_clusters_list)} clusters")
-                # Show a small summary for the largest cluster of this activity
-                max_c = max(activity_clusters_list, key=lambda x: x['event_count'])
-                st.caption(f"  • Largest cluster: {max_c['event_count']} events")
 
     with subtab2:
         if bursts:
