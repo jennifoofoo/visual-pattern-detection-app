@@ -377,6 +377,10 @@ def display_chart():
         st.session_state.get('pattern_focus_mode', False),
     )
     chart_key = f"main_chart_{hash(visibility_state)}"
+    # Clear stale selection when chart widget changes
+    if chart_key != st.session_state.get('_prev_chart_key'):
+        st.session_state['_selected_point_indices'] = []
+        st.session_state['_prev_chart_key'] = chart_key
     selection = st.plotly_chart(
         fig, width='stretch', on_select="rerun", key=chart_key)
     st.session_state['fig'] = fig
