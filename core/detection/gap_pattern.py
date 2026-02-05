@@ -252,7 +252,7 @@ class GapPattern(Pattern):
 
     @staticmethod
     def _severity_to_width(severity: float) -> float:
-        return min(1.5 + severity * 0.4, 5)
+        return min(1.5 + severity * 0.3, 3)
 
     @staticmethod
     def _format_duration(seconds: float) -> str:
@@ -320,7 +320,7 @@ class GapPattern(Pattern):
             fig.add_trace(go.Scatter(
                 x=x_coords, y=y_coords, mode='lines+markers',
                 line=dict(color=group_colors[group_name], width=self._severity_to_width(avg_severity), dash='dot'),
-                marker=dict(size=6 + avg_severity, color=group_colors[group_name], symbol='circle', line=dict(color='white', width=1)),
+                marker=dict(size=min(6 + avg_severity * 0.5, 10), color=group_colors[group_name], symbol='circle', line=dict(color='white', width=1)),
                 hoverinfo='text', hovertext=hover_texts,
                 name=f'{group_name} ({len(gaps)})', showlegend=True,
                 legendgroup='resource_gaps' if gap_mode == 'resource_inactivity' else 'transition_gaps'
