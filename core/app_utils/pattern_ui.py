@@ -576,9 +576,15 @@ def _display_outlier_tab():
                 )
 
     with subtab2:
-        # --- Select individual outliers ---
+        # --- Select individual outliers (Multi-reason only) ---
         outlier_pattern = st.session_state.outlier_pattern
-        all_indices = outlier_pattern.outliers.get('combined', [])
+        
+        # Show only multi-reason outliers
+        filtered_outliers = outlier_pattern.get_multi_reason_outliers()
+        all_indices = list(filtered_outliers.keys())
+        
+        multi_reason_count = len(filtered_outliers)
+        st.info(f"Showing {multi_reason_count} outliers with multiple contributing factors")
 
         if all_indices:
             df = outlier_pattern.df

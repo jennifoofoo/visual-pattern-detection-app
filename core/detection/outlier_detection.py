@@ -278,7 +278,7 @@ class OutlierDetectionPattern(Pattern):
                 elif feat_name == 'resource_workload':
                     reasons.append(f"Resource has {int(raw_val)} events")
 
-            return "Combined pattern: " + " • ".join(reasons)
+            return " • ".join(reasons)
 
     def _calculate_statistics(self, feature_names: List[str]):
         """Calculate detection statistics."""
@@ -313,19 +313,29 @@ class OutlierDetectionPattern(Pattern):
                 'details': {'message': 'No outliers detected'}
             }
 
+        # Count only multi-reason outliers for summary
+        multi_reason_outliers = self.get_multi_reason_outliers()
+        multi_reason_count = len(multi_reason_outliers)
+
         stats = self.statistics
         details = {
             'statistics': stats,
-            'message': f"Detected {stats['total_outliers']} outlier events ({stats['outlier_percentage']:.1f}%) using {stats['detection_method']}"
+            'message': f"Detected {multi_reason_count} multi-reason outlier events ({(multi_reason_count / stats['total_events'] * 100):.1f}%) using {stats['detection_method']}"
         }
 
-        if 'cases_with_outliers' in stats:
-            details['cases_affected'] = f"{stats['cases_with_outliers']}/{stats['total_cases']} cases"
+        if 'cases_with_outliers' in stats and multi_reason_outliers:
+            # Count cases with multi-reason outliers
+            case_col = self._find_column(
+                'case_id', 'case:concept:name', 'caseid')
+            if case_col:
+                affected_cases = len(
+                    set(self.df.loc[list(multi_reason_outliers.keys()), case_col].tolist()))
+                details['cases_affected'] = f"{affected_cases}/{stats['total_cases']} cases"
 
         return {
             'pattern_type': 'outlier',
-            'detected': True,
-            'count': stats['total_outliers'],
+            'detected': multi_reason_count > 0,
+            'count': multi_reason_count,
             'details': details
         }
 
@@ -345,10 +355,17 @@ class OutlierDetectionPattern(Pattern):
         import streamlit as st
         if 'selected_outlier_indices' in st.session_state:
             selected_outliers = st.session_state['selected_outlier_indices']
-            display_indices = [
+            candidate_indices = [
                 idx for idx in self.outlier_indices if idx in selected_outliers]
         else:
-            display_indices = self.outlier_indices
+            candidate_indices = self.outlier_indices
+
+        # Filter to only show multi-reason outliers (those with " • " in explanation)
+        display_indices = []
+        for idx in candidate_indices:
+            explanation = self.outlier_explanations.get(idx, "")
+            if explanation and " • " in explanation:
+                display_indices.append(idx)
 
         if not display_indices:
             return fig
@@ -419,6 +436,19 @@ class OutlierDetectionPattern(Pattern):
 
         return outlier_df
 
+    def get_multi_reason_outliers(self) -> Dict[int, str]:
+        """Get outliers that have 2 or more contributing factors."""
+        multi_reason_outliers = {}
+
+        for idx, explanation in self.outlier_explanations.items():
+            if explanation and " • " in explanation:
+                # Count the number of reasons (separated by " • ")
+                reason_count = explanation.count(" • ") + 1
+                if reason_count >= 2:
+                    multi_reason_outliers[idx] = explanation
+
+        return multi_reason_outliers
+
     def get_outlier_summary(self) -> Dict[str, Any]:
         """Get detailed summary for backward compatibility and overview display."""
         if not self.detected:
@@ -459,8 +489,6 @@ class OutlierDetectionPattern(Pattern):
                 reason_categories['Position anomalies'] += 1
             if 'timeline' in explanation:
                 reason_categories['Timeline anomalies'] += 1
-            if 'Combined pattern' in explanation:
-                reason_categories['Combined patterns'] += 1
 
         # Filter out zero counts and sort by frequency
         top_reasons = sorted(
