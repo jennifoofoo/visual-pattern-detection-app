@@ -84,7 +84,4 @@ Example event logs included in `data/`:
 - **Pattern Detection:** scikit-learn, PrefixSpan, Prophet (optional)
 - **Data Processing:** pandas, numpy
 
----
-
-**Developed for Process Mining Praktikum**
 
