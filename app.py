@@ -73,7 +73,7 @@ def main():
         <div class="main-header">
             <h1>Visual Pattern Detection in Dotted Charts</h1>
             <p class="main-subtitle">
-                Process Mining Praktikum WS 25/26 · LMU München ·
+                LMU München ·
                 Tan Tai Bui, Jennifer Nikolovic, Anna Tsaan
             </p>
         </div>
