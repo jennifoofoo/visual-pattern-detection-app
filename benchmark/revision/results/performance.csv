@@ -1,0 +1,151 @@
+log,sampling,events,method,patterns,detail,status,time_s,peak_mem_mb
+Sepsis,Full,15214,Gap,402.0,"70 severe (>=2x), 332 mild",ok,1.7485973040002136,22.2109375
+Sepsis,Full,15214,Case arrival trend,0.0,"no_trend, slope -0.12%, p=0.516",ok,0.1841371919999801,39.25
+Sepsis,Full,15214,Temporal clustering,1.0,"eps=11.5 d, m_min=41",ok,0.2731039270001929,111.84375
+Sepsis,Full,15214,Spatial clustering (OPTICS),2.0,,ok,7.822094739000022,329.02734375
+Sepsis,Full,15214,Outlier detection,500.0,"761 Isolation Forest outliers, 584 multi-reason",ok,0.2329075939996983,19.953125
+Sepsis,Full,15214,Sequential patterns,1084.0,min_support=30%,ok,0.6646376490007242,27.48046875
+Sepsis,Optimized,15050,Gap,395.0,"68 severe (>=2x), 327 mild",ok,1.7360159990003012,22.859375
+Sepsis,Optimized,15050,Case arrival trend,0.0,"no_trend, slope -0.18%, p=0.452",ok,0.1867270660004578,39.9765625
+Sepsis,Optimized,15050,Temporal clustering,1.0,"eps=11.5 d, m_min=40",ok,0.2641501420002896,112.921875
+Sepsis,Optimized,15050,Spatial clustering (OPTICS),2.0,,ok,7.861804410000332,328.09765625
+Sepsis,Optimized,15050,Outlier detection,500.0,"753 Isolation Forest outliers, 569 multi-reason",ok,0.22385303300325177,21.53125
+Sepsis,Optimized,15050,Sequential patterns,1084.0,min_support=30%,ok,0.5834788299998763,28.234375
+Sepsis,Balanced (sqrt),13876,Gap,354.0,"68 severe (>=2x), 286 mild",ok,1.6204811640000116,21.19921875
+Sepsis,Balanced (sqrt),13876,Case arrival trend,0.0,"no_trend, slope +0.00%, p=0.543",ok,0.1892926480013557,39.17578125
+Sepsis,Balanced (sqrt),13876,Temporal clustering,1.0,"eps=11.5 d, m_min=39",ok,0.2432466219997877,102.98828125
+Sepsis,Balanced (sqrt),13876,Spatial clustering (OPTICS),2.0,,ok,6.955215748999763,225.3203125
+Sepsis,Balanced (sqrt),13876,Outlier detection,500.0,"694 Isolation Forest outliers, 535 multi-reason",ok,0.23230596400026116,20.24609375
+Sepsis,Balanced (sqrt),13876,Sequential patterns,1025.0,min_support=30%,ok,0.5524243500003649,26.95703125
+Sepsis,Minimal,4994,Gap,132.0,"33 severe (>=2x), 99 mild",ok,0.6052265689995693,19.875
+Sepsis,Minimal,4994,Case arrival trend,0.0,"no_trend, slope +0.00%, p=0.934",ok,0.1803819880005903,38.37890625
+Sepsis,Minimal,4994,Temporal clustering,1.0,"eps=11.5 d, m_min=23",ok,0.1322560169992357,30.8984375
+Sepsis,Minimal,4994,Spatial clustering (OPTICS),2.0,,ok,2.0553320809995057,59.91796875
+Sepsis,Minimal,4994,Outlier detection,89.0,"250 Isolation Forest outliers, 89 multi-reason",ok,0.15387579199887114,19.640625
+Sepsis,Minimal,4994,Sequential patterns,167.0,min_support=30%,ok,0.2718468899984145,22.9140625
+BPI2020 Domestic,Full,56437,Gap,1901.0,"731 severe (>=2x), 1170 mild",ok,6.96543132700026,38.2734375
+BPI2020 Domestic,Full,56437,Case arrival trend,1.0,"increasing, slope +1.72%, p=1.55e-15",ok,0.2187356840004213,31.81640625
+BPI2020 Domestic,Full,56437,Temporal clustering,,,out of memory (> 3 GB),,1789.140625
+BPI2020 Domestic,Full,56437,Spatial clustering (OPTICS),5.0,,ok,60.04386321199854,1082.46875
+BPI2020 Domestic,Full,56437,Outlier detection,500.0,"2822 Isolation Forest outliers, 2093 multi-reason",ok,0.5570709690000513,25.87109375
+BPI2020 Domestic,Full,56437,Sequential patterns,9692.0,min_support=30%,ok,1.8463787720011169,16.21484375
+BPI2020 Domestic,Optimized,39870,Gap,1335.0,"517 severe (>=2x), 818 mild",ok,4.913342207999449,38.671875
+BPI2020 Domestic,Optimized,39870,Case arrival trend,1.0,"increasing, slope +1.66%, p=6.22e-15",ok,0.2130040100000769,44.921875
+BPI2020 Domestic,Optimized,39870,Temporal clustering,1.0,"eps=17.8 d, m_min=66",ok,1.234255358000155,905.953125
+BPI2020 Domestic,Optimized,39870,Spatial clustering (OPTICS),5.0,,ok,34.41392342400104,1081.078125
+BPI2020 Domestic,Optimized,39870,Outlier detection,500.0,"1994 Isolation Forest outliers, 1546 multi-reason",ok,0.4027579319990764,23.328125
+BPI2020 Domestic,Optimized,39870,Sequential patterns,9816.0,min_support=30%,ok,1.3423828529994353,27.859375
+BPI2020 Domestic,Balanced (sqrt),2904,Gap,113.0,"43 severe (>=2x), 70 mild",ok,0.3979036180007824,19.76171875
+BPI2020 Domestic,Balanced (sqrt),2904,Case arrival trend,1.0,"increasing, slope +1.01%, p=7.47e-07",ok,0.2105741270006547,41.8046875
+BPI2020 Domestic,Balanced (sqrt),2904,Temporal clustering,1.0,"eps=16.7 d, m_min=17",ok,0.1244350590004614,23.49609375
+BPI2020 Domestic,Balanced (sqrt),2904,Spatial clustering (OPTICS),2.0,,ok,1.165295552000316,19.15234375
+BPI2020 Domestic,Balanced (sqrt),2904,Outlier detection,71.0,"146 Isolation Forest outliers, 71 multi-reason",ok,0.1219767669972498,19.5546875
+BPI2020 Domestic,Balanced (sqrt),2904,Sequential patterns,4256.0,min_support=30%,ok,0.2816920460008987,28.94140625
+BPI2020 Domestic,Minimal,874,Gap,32.0,"10 severe (>=2x), 22 mild",ok,0.1830479260006541,19.75390625
+BPI2020 Domestic,Minimal,874,Case arrival trend,0.0,"no_trend, slope +0.00%, p=0.0767",ok,0.2125225230010983,46.86328125
+BPI2020 Domestic,Minimal,874,Temporal clustering,6.0,"eps=16.7 d, m_min=9",ok,0.1306527270007791,23.89453125
+BPI2020 Domestic,Minimal,874,Spatial clustering (OPTICS),3.0,,ok,0.4099014349994831,16.0
+BPI2020 Domestic,Minimal,874,Outlier detection,32.0,"44 Isolation Forest outliers, 32 multi-reason",ok,0.10623652700087405,19.5546875
+BPI2020 Domestic,Minimal,874,Sequential patterns,1831.0,min_support=30%,ok,0.1914452950004488,29.7265625
+BPI2020 International,Full,72151,Gap,2643.0,"923 severe (>=2x), 1720 mild",ok,11.343336691999866,82.51953125
+BPI2020 International,Full,72151,Case arrival trend,1.0,"increasing, slope +1.19%, p=8.1e-09",ok,0.2530283790001704,7.68359375
+BPI2020 International,Full,72151,Temporal clustering,,,out of memory (> 3 GB),,3150.19140625
+BPI2020 International,Full,72151,Spatial clustering (OPTICS),3.0,,ok,91.53107659600028,1047.0390625
+BPI2020 International,Full,72151,Outlier detection,500.0,"3603 Isolation Forest outliers, 2650 multi-reason",ok,0.7263304219995916,21.015625
+BPI2020 International,Full,72151,Sequential patterns,6906.0,min_support=30%,ok,2.1352595900007145,13.51171875
+BPI2020 International,Optimized,49994,Gap,1812.0,"625 severe (>=2x), 1187 mild",ok,8.293629017000058,58.91796875
+BPI2020 International,Optimized,49994,Case arrival trend,1.0,"increasing, slope +1.21%, p=4.78e-09",ok,0.2195805320006911,10.76953125
+BPI2020 International,Optimized,49994,Temporal clustering,,,out of memory (> 3 GB),,1889.9453125
+BPI2020 International,Optimized,49994,Spatial clustering (OPTICS),3.0,,ok,49.88679142300134,1057.08203125
+BPI2020 International,Optimized,49994,Outlier detection,500.0,"2500 Isolation Forest outliers, 1993 multi-reason",ok,0.5332204659971467,20.359375
+BPI2020 International,Optimized,49994,Sequential patterns,6003.0,min_support=30%,ok,1.4643010619984125,15.80859375
+BPI2020 International,Balanced (sqrt),10497,Gap,403.0,"129 severe (>=2x), 274 mild",ok,1.6489587010000832,19.703125
+BPI2020 International,Balanced (sqrt),10497,Case arrival trend,1.0,"increasing, slope +0.76%, p=0.000857",ok,0.218454378999013,28.921875
+BPI2020 International,Balanced (sqrt),10497,Temporal clustering,1.0,"eps=24.5 d, m_min=34",ok,0.2672724590011057,26.90234375
+BPI2020 International,Balanced (sqrt),10497,Spatial clustering (OPTICS),2.0,,ok,4.997190264000892,178.72265625
+BPI2020 International,Balanced (sqrt),10497,Outlier detection,309.0,"525 Isolation Forest outliers, 309 multi-reason",ok,0.1887347320007393,19.55078125
+BPI2020 International,Balanced (sqrt),10497,Sequential patterns,7048.0,min_support=30%,ok,0.5358846870003617,29.26953125
+BPI2020 International,Minimal,4987,Gap,178.0,"55 severe (>=2x), 123 mild",ok,0.8528499210005975,19.6875
+BPI2020 International,Minimal,4987,Case arrival trend,0.0,"no_trend, slope +0.00%, p=0.319",ok,0.2287582450007903,28.921875
+BPI2020 International,Minimal,4987,Temporal clustering,1.0,"eps=16.4 d, m_min=23",ok,0.1648795589990186,24.75390625
+BPI2020 International,Minimal,4987,Spatial clustering (OPTICS),2.0,,ok,2.084446766999463,96.09765625
+BPI2020 International,Minimal,4987,Outlier detection,138.0,"250 Isolation Forest outliers, 138 multi-reason",ok,0.1580658719976782,19.546875
+BPI2020 International,Minimal,4987,Sequential patterns,5271.0,min_support=30%,ok,0.3499927299999399,31.69140625
+Hospital,Full,150291,Gap,724.0,"409 severe (>=2x), 315 mild",ok,93.42791225900146,236.5078125
+Hospital,Full,150291,Case arrival trend,1.0,"decreasing, slope -0.77%, p=0",ok,0.2668085160003102,6.10546875
+Hospital,Full,150291,Temporal clustering,,,out of memory (> 3 GB),,3150.625
+Hospital,Full,150291,Spatial clustering (OPTICS),1.0,,ok,274.99975253400044,224.66015625
+Hospital,Full,150291,Outlier detection,500.0,"7515 Isolation Forest outliers, 4955 multi-reason",ok,1.6117850710033963,106.78515625
+Hospital,Full,150291,Sequential patterns,0.0,min_support=30%,ok,0.8174324899991916,9.7734375
+Hospital,Optimized,49913,Gap,215.0,"90 severe (>=2x), 125 mild",ok,30.95133087800059,44.83203125
+Hospital,Optimized,49913,Case arrival trend,1.0,"decreasing, slope -0.73%, p=1.11e-15",ok,0.2716167380003753,28.98046875
+Hospital,Optimized,49913,Temporal clustering,1.0,"eps=23.4 d, m_min=74",ok,1.349360729000182,625.15234375
+Hospital,Optimized,49913,Spatial clustering (OPTICS),1.0,,ok,38.81229415099915,14.59765625
+Hospital,Optimized,49913,Outlier detection,500.0,"2496 Isolation Forest outliers, 1277 multi-reason",ok,0.54156537399831,21.79296875
+Hospital,Optimized,49913,Sequential patterns,0.0,min_support=30%,ok,0.4828272960003232,9.27734375
+Hospital,Balanced (sqrt),19967,Gap,83.0,"21 severe (>=2x), 62 mild",ok,11.984430643999076,19.9921875
+Hospital,Balanced (sqrt),19967,Case arrival trend,1.0,"decreasing, slope -0.71%, p=1.92e-13",ok,0.2591624470005627,28.91015625
+Hospital,Balanced (sqrt),19967,Temporal clustering,1.0,"eps=23.4 d, m_min=47",ok,0.5359182309985044,22.96484375
+Hospital,Balanced (sqrt),19967,Spatial clustering (OPTICS),1.0,,ok,10.613617083999998,14.6640625
+Hospital,Balanced (sqrt),19967,Outlier detection,500.0,"999 Isolation Forest outliers, 610 multi-reason",ok,0.27621573400028865,20.13671875
+Hospital,Balanced (sqrt),19967,Sequential patterns,0.0,min_support=30%,ok,0.3079972849991463,15.71484375
+Hospital,Minimal,4991,Gap,29.0,"4 severe (>=2x), 25 mild",ok,3.036095168999964,19.91796875
+Hospital,Minimal,4991,Case arrival trend,1.0,"decreasing, slope -1.04%, p=3.11e-15",ok,0.2524564290015405,28.91015625
+Hospital,Minimal,4991,Temporal clustering,1.0,"eps=23.4 d, m_min=23",ok,0.2508460850003757,19.65625
+Hospital,Minimal,4991,Spatial clustering (OPTICS),1.0,,ok,2.0201692299997376,14.16796875
+Hospital,Minimal,4991,Outlier detection,111.0,"250 Isolation Forest outliers, 111 multi-reason",ok,0.1508461299999908,19.95703125
+Hospital,Minimal,4991,Sequential patterns,0.0,min_support=30%,ok,0.1589347070002986,20.8125
+BPI2012,Full,262200,Gap,10589.0,"2973 severe (>=2x), 7616 mild",ok,32.58612234000066,258.453125
+BPI2012,Full,262200,Case arrival trend,0.0,"no_trend, slope +0.87%, p=0.355",ok,0.1679494620002515,20.0625
+BPI2012,Full,262200,Temporal clustering,,,out of memory (> 3 GB),,3146.6796875
+BPI2012,Full,262200,Spatial clustering (OPTICS),,,timeout (> 600 s),,
+BPI2012,Full,262200,Outlier detection,500.0,"13110 Isolation Forest outliers, 8428 multi-reason",ok,3.4171163300015905,20.41015625
+BPI2012,Full,262200,Sequential patterns,7274.0,min_support=30%,ok,9.622796482999547,104.78125
+BPI2012,Optimized,49988,Gap,1879.0,"628 severe (>=2x), 1251 mild",ok,5.915886303999287,44.24609375
+BPI2012,Optimized,49988,Case arrival trend,0.0,"no_trend, slope +0.86%, p=0.413",ok,0.1570224629995209,11.5078125
+BPI2012,Optimized,49988,Temporal clustering,1.0,"eps=3.3 d, m_min=74",ok,1.1837298039990856,867.23046875
+BPI2012,Optimized,49988,Spatial clustering (OPTICS),2.0,,ok,41.3132417249999,1043.03125
+BPI2012,Optimized,49988,Outlier detection,500.0,"2500 Isolation Forest outliers, 1227 multi-reason",ok,0.48305536699990625,19.41015625
+BPI2012,Optimized,49988,Sequential patterns,6183.0,min_support=30%,ok,2.0820155649998924,15.23828125
+BPI2012,Balanced (sqrt),19976,Gap,722.0,"227 severe (>=2x), 495 mild",ok,2.3338095170001907,19.9921875
+BPI2012,Balanced (sqrt),19976,Case arrival trend,0.0,"no_trend, slope +1.49%, p=0.382",ok,0.1597988650009938,28.8828125
+BPI2012,Balanced (sqrt),19976,Temporal clustering,1.0,"eps=3.3 d, m_min=47",ok,0.352671945000111,132.95703125
+BPI2012,Balanced (sqrt),19976,Spatial clustering (OPTICS),2.0,,ok,11.256374135999067,636.3359375
+BPI2012,Balanced (sqrt),19976,Outlier detection,500.0,"999 Isolation Forest outliers, 558 multi-reason",ok,0.2644396889991185,19.73046875
+BPI2012,Balanced (sqrt),19976,Sequential patterns,6563.0,min_support=30%,ok,0.9545139250003558,11.59765625
+BPI2012,Minimal,4999,Gap,189.0,"61 severe (>=2x), 128 mild",ok,0.7150759800006199,19.9921875
+BPI2012,Minimal,4999,Case arrival trend,0.0,"no_trend, slope +1.46%, p=0.325",ok,0.1572545819999504,28.8828125
+BPI2012,Minimal,4999,Temporal clustering,1.0,"eps=3.3 d, m_min=23",ok,0.1553602189997036,19.40625
+BPI2012,Minimal,4999,Spatial clustering (OPTICS),2.0,,ok,2.059960979999232,35.203125
+BPI2012,Minimal,4999,Outlier detection,96.0,"250 Isolation Forest outliers, 96 multi-reason",ok,0.14192791799723636,19.73046875
+BPI2012,Minimal,4999,Sequential patterns,6023.0,min_support=30%,ok,0.5060666549998132,8.640625
+Road Traffic Fine,Full,561470,Gap,8684.0,"1026 severe (>=2x), 7658 mild",ok,67.30581434400119,496.06640625
+Road Traffic Fine,Full,561470,Case arrival trend,1.0,"stable, slope -0.08%, p=2.89e-15",ok,0.7346528039997793,139.99609375
+Road Traffic Fine,Full,561470,Temporal clustering,,,out of memory (> 3 GB),,3139.421875
+Road Traffic Fine,Full,561470,Spatial clustering (OPTICS),,,timeout (> 600 s),,
+Road Traffic Fine,Full,561470,Outlier detection,500.0,"28071 Isolation Forest outliers, 24527 multi-reason",ok,12.074108683002123,20.296875
+Road Traffic Fine,Full,561470,Sequential patterns,3.0,min_support=30%,ok,1.1466595679994498,57.62109375
+Road Traffic Fine,Optimized,50000,Gap,870.0,"123 severe (>=2x), 747 mild",ok,5.56815393999932,18.38671875
+Road Traffic Fine,Optimized,50000,Case arrival trend,1.0,"stable, slope +0.02%, p=0.0149",ok,1.0756262649993005,140.11328125
+Road Traffic Fine,Optimized,50000,Temporal clustering,1.0,"eps=98.3 d, m_min=74",ok,2.1316730139988067,1323.6875
+Road Traffic Fine,Optimized,50000,Spatial clustering (OPTICS),4.0,,ok,45.04193414399924,1050.23828125
+Road Traffic Fine,Optimized,50000,Outlier detection,500.0,"2489 Isolation Forest outliers, 1635 multi-reason",ok,0.5640133609995246,19.71484375
+Road Traffic Fine,Optimized,50000,Sequential patterns,1620.0,min_support=30%,ok,0.4192012790008448,21.40625
+Road Traffic Fine,Balanced (sqrt),3258,Gap,58.0,"8 severe (>=2x), 50 mild",ok,0.4421484499980579,18.85546875
+Road Traffic Fine,Balanced (sqrt),3258,Case arrival trend,1.0,"stable, slope +0.00%, p=2.29e-06",ok,0.5779929649979749,137.7578125
+Road Traffic Fine,Balanced (sqrt),3258,Temporal clustering,1.0,"eps=97.9 d, m_min=19",ok,0.1319561039999826,23.40234375
+Road Traffic Fine,Balanced (sqrt),3258,Spatial clustering (OPTICS),3.0,,ok,1.312263798998174,14.86328125
+Road Traffic Fine,Balanced (sqrt),3258,Outlier detection,65.0,"163 Isolation Forest outliers, 65 multi-reason",ok,0.1328106389992172,19.73046875
+Road Traffic Fine,Balanced (sqrt),3258,Sequential patterns,3324.0,min_support=30%,ok,0.2795173570011684,21.8046875
+Road Traffic Fine,Minimal,1891,Gap,41.0,"7 severe (>=2x), 34 mild",ok,0.3023279400003957,18.203125
+Road Traffic Fine,Minimal,1891,Case arrival trend,1.0,"stable, slope +0.00%, p=0.0278",ok,0.6029093869983626,134.9140625
+Road Traffic Fine,Minimal,1891,Temporal clustering,1.0,"eps=97.2 d, m_min=14",ok,0.1283854909997899,23.29296875
+Road Traffic Fine,Minimal,1891,Spatial clustering (OPTICS),1.0,,ok,0.7886929230007809,14.33203125
+Road Traffic Fine,Minimal,1891,Outlier detection,64.0,"95 Isolation Forest outliers, 64 multi-reason",ok,0.11829966399818659,19.73046875
+Road Traffic Fine,Minimal,1891,Sequential patterns,2736.0,min_support=30%,ok,0.230641240003024,23.23046875
+Road (paper view),Balanced (sqrt),826,Gap,13.0,"2 severe (>=2x), 11 mild",ok,0.1801752619976468,17.859375
+Road (paper view),Balanced (sqrt),826,Case arrival trend,1.0,"stable, slope +0.00%, p=3.42e-06",ok,0.3026472940000531,28.98046875
+Road (paper view),Balanced (sqrt),826,Temporal clustering,2.0,"eps=32.5 d, m_min=9",ok,0.0482947629971022,18.84375
+Road (paper view),Balanced (sqrt),826,Spatial clustering (OPTICS),1.0,,ok,0.4036144820020126,14.07421875
+Road (paper view),Balanced (sqrt),826,Outlier detection,20.0,"42 Isolation Forest outliers, 20 multi-reason",ok,0.10328858200227842,19.96484375
+Road (paper view),Balanced (sqrt),826,Sequential patterns,2015.0,min_support=30%,ok,0.2255063779994088,19.71484375

@@ -26,7 +26,7 @@ class TemporalClusterPattern(Pattern):
     def __init__(self, df: pd.DataFrame, x_axis: str, y_axis: str,
                  color: str = 'case_id',
                  min_cluster_size: int = 5,
-                 temporal_eps: float = 1.0,
+                 temporal_eps: float = None,
                  spatial_eps: float = None):
         """
         Initialize temporal cluster detector.
@@ -37,7 +37,8 @@ class TemporalClusterPattern(Pattern):
             y_axis: Y-axis column name ('case_id', 'activity', etc.)
             color: Color dimension column name (default: 'case_id')
             min_cluster_size: Minimum events to form a cluster
-            temporal_eps: Optional custom epsilon for temporal clustering (auto-calculated if None)
+            temporal_eps: Optional custom epsilon for temporal clustering, in seconds for
+                actual_time (auto-calculated from the visible time range if None)
             spatial_eps: Optional custom epsilon for spatial clustering (auto-calculated if None)
         """
         # Initialize parent with name and view_config (3D: x, y, color)
@@ -69,10 +70,11 @@ class TemporalClusterPattern(Pattern):
         return None
 
     def _convert_time_to_numeric(self, df_work: pd.DataFrame) -> pd.DataFrame:
-        """Convert time axis to numeric values."""
+        """Convert time axis to numeric values (seconds since epoch for actual_time)."""
         if self.x_axis == 'actual_time':
-            df_work['time_numeric'] = pd.to_datetime(
-                df_work[self.x_axis]).astype(np.int64) / 1e9
+            # Timedelta division is independent of the datetime resolution (ns, us, ...)
+            ts = pd.to_datetime(df_work[self.x_axis])
+            df_work['time_numeric'] = (ts - pd.Timestamp(0, tz=ts.dt.tz)) / pd.Timedelta(seconds=1)
         else:
             df_work['time_numeric'] = df_work[self.x_axis]
         return df_work
@@ -406,18 +408,39 @@ class TemporalClusterPattern(Pattern):
                         parts.append(f"Resource: {row['resource']}")
                     hover_texts.append("<br>".join(parts))
 
+                # Translucent band spanning the burst on each row, so that bursts of
+                # near-simultaneous events stay visible instead of collapsing into one marker
+                x_all = df_work[self.x_axis]
+                min_span = (x_all.max() - x_all.min()) * 0.005
+                for row_idx, (y_val, row_events) in enumerate(cluster_events.groupby(self.y_axis, sort=False)):
+                    x0, x1 = row_events[self.x_axis].min(), row_events[self.x_axis].max()
+                    if (x1 - x0) < min_span:
+                        mid = x0 + (x1 - x0) / 2
+                        x0, x1 = mid - min_span / 2, mid + min_span / 2
+                    fig.add_trace(go.Scatter(
+                        x=[x0, x1],
+                        y=[y_val, y_val],
+                        mode='lines',
+                        line=dict(color=color, width=14),
+                        opacity=0.35,
+                        legendgroup=f'burst_{i}',
+                        showlegend=False,
+                        hoverinfo='skip'
+                    ))
+
                 fig.add_trace(go.Scatter(
                     x=cluster_events[self.x_axis],
                     y=cluster_events[self.y_axis],
                     mode='markers',
                     marker=dict(
-                        size=10,
+                        size=15,
                         color=color,
                         symbol='circle-open',
-                        line=dict(width=2, color=color),
-                        opacity=0.7
+                        line=dict(width=3, color=color),
+                        opacity=0.9
                     ),
                     name=f'Burst {i+1} ({burst["event_count"]} events)',
+                    legendgroup=f'burst_{i}',
                     showlegend=True,
                     text=hover_texts,
                     hovertemplate='%{text}<extra></extra>'

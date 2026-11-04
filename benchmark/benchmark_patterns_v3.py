@@ -126,7 +126,8 @@ def run_single_detector(
             detector = TemporalClusterPattern(df=df, x_axis=x, y_axis=y)
             detector.detect()
             count = detector.get_summary().get("count", 0)
-            params = f"min_cluster_size={detector.min_cluster_size}, temporal_eps={detector.temporal_eps:.2f}"
+            eps = "n/a" if detector.temporal_eps is None else f"{detector.temporal_eps:.2f}"
+            params = f"min_cluster_size={detector.min_cluster_size}, temporal_eps={eps}"
             detected = detector.detected
 
         elif name == "Cluster (OPTICS)":
