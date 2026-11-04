@@ -182,6 +182,8 @@ class OutlierDetectionPattern(Pattern):
 
         # Check each feature - if it's >2 std devs from mean, it's extreme
         for i, (feat_name, scaled_val, raw_val) in enumerate(zip(self.feature_names, scaled_features, raw_features)):
+            if np.isnan(raw_val):  # e.g. event without resource
+                continue
             if abs(scaled_val) > 2.0:  # More than 2 standard deviations
                 if feat_name == 'events_per_case':
                     if scaled_val > 2.0:
@@ -261,6 +263,8 @@ class OutlierDetectionPattern(Pattern):
             )[:3]
 
             for feat_name, scaled_val, raw_val in feature_contributions:
+                if np.isnan(raw_val):
+                    continue
                 if feat_name == 'events_per_case':
                     reasons.append(f"{int(raw_val)} events in case")
                 elif feat_name == 'position_in_case':
@@ -412,9 +416,9 @@ class OutlierDetectionPattern(Pattern):
             mode='markers',
             marker=dict(
                 symbol='x',
-                size=12,
+                size=16,
                 color='red',
-                line=dict(width=2, color='darkred')
+                line=dict(width=2.5, color='darkred')
             ),
             name=f'Outliers ({len(display_indices)})',
             text=hover_texts,

@@ -1022,7 +1022,7 @@ def _display_sequence_tab():
                 sort_meta["Length ↓"][label] = p_len
             
             selected = dict_to_multicheckbox(
-                seq_dict, "Select Sequences", "seq_pattern", default_checked=False, 
+                seq_dict, "Select Sequences", "seq_pattern", default_checked=True,
                 sort_metadata=sort_meta, default_sort="Support ↓")
             st.session_state['selected_seq_patterns'] = selected
 

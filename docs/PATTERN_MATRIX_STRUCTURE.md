@@ -29,23 +29,26 @@ EXTENDED_PATTERN_MATRIX = {
    - `logical_time`: Global event counter
    - `logical_relative`: Event index within case
 
-2. **Y-Axis** (4 options):
+2. **Y-Axis** (3 options):
    - `resource`: Resource performing the activity
    - `activity`: Activity name
    - `case_id`: Case identifier
 
-3. **Color/Dot Color** (5 options):
+3. **Color/Dot Color** (3 options):
    - `case_id`: Color by case
    - `activity`: Color by activity
    - `resource`: Color by resource
 
 ### Pattern Types
 
-Each view configuration can have 3 pattern types:
+Each view configuration defines the applicability of 6 pattern types:
 
 1. **gap**: Detects abnormal delays between consecutive activities
-2. **temporal_cluster_x**: Detects time periods with high/low event concentration
-3. **outlier**: Detects unusual events based on multiple anomaly types
+2. **trend**: Detects monotonic trends in case arrival rates
+3. **temporal_cluster_x** (burst): Detects time periods with high event concentration
+4. **cluster**: Detects spatial clusters in the dotted-chart space (OPTICS)
+5. **outlier**: Detects unusual events based on multiple anomaly types
+6. **sequence**: Detects frequent sequential patterns (PrefixSpan)
 
 ## Pattern Metadata
 
@@ -156,23 +159,68 @@ def detect(self) -> bool:
 
 ## Current Coverage
 
-As of now, the matrix defines **11 view combinations**:
+The matrix covers all **45 supported view configurations** (5 X-axes × 3 Y-axes × 3 colors), defined in [`config/extended_pattern_matrix.py`](../config/extended_pattern_matrix.py).
 
-1. `actual_time × resource × case_id`
-2. `actual_time × resource × activity`
-3. `actual_time × resource × resource`
-4. `actual_time × activity × case_id`
-5. `actual_time × activity × activity`
-6. `actual_time × activity × resource`
-7. `actual_time × case_id × case_id`
-8. `actual_time × case_id × activity`
-9. `actual_time × case_id × resource`
-10. `logical_time × resource × case_id` (not meaningful)
-11. `relative_ratio × resource × case_id` (partially meaningful)
+### How applicability levels are determined
 
-**Total possible combinations:** 5 X-axes × 4 Y-axes × 5 Colors = **100 combinations**
+Every combination of view configuration and detection method was checked analytically against two criteria:
 
-**To be completed:** ~89 combinations
+1. **Computability** — if the encoding loses information the method requires, the combination is **not applicable (×)**. For example, trend analysis needs absolute timestamps and is undefined under relative or logical time, while gap and burst detection need interval-scaled time and are undefined under `logical_time`.
+2. **Semantic informativeness** — if a computable result is trivial or redundant with the encoding, applicability is **limited (△)**. For example, clustering is less informative when `Color = case_id`, as color encodes unique identifiers, and burst analysis is constrained when `Y = case_id`, since each lane holds a single case.
+
+All other combinations are **fully applicable (✓)**. In the code, ✓ corresponds to `can_be_found: True, makes_sense: True`, △ to `can_be_found: True, makes_sense: False`, and × to `can_be_found: False`.
+
+### Full matrix
+
+| X | Y | Color | Gap | Trend | Burst | Cluster | Outlier | Sequence |
+|---|---|---|:-:|:-:|:-:|:-:|:-:|:-:|
+| `actual_time` | `resource` | `case_id` | ✓ | ✓ | ✓ | △ | ✓ | ✓ |
+| `actual_time` | `resource` | `activity` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `actual_time` | `resource` | `resource` | ✓ | ✓ | △ | △ | ✓ | △ |
+| `actual_time` | `activity` | `case_id` | ✓ | ✓ | ✓ | △ | ✓ | ✓ |
+| `actual_time` | `activity` | `activity` | ✓ | ✓ | △ | △ | ✓ | △ |
+| `actual_time` | `activity` | `resource` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `actual_time` | `case_id` | `case_id` | ✓ | ✓ | △ | △ | ✓ | △ |
+| `actual_time` | `case_id` | `activity` | ✓ | ✓ | △ | △ | ✓ | ✓ |
+| `actual_time` | `case_id` | `resource` | ✓ | ✓ | △ | △ | ✓ | ✓ |
+| `relative_time` | `resource` | `case_id` | ✓ | × | ✓ | △ | ✓ | ✓ |
+| `relative_time` | `resource` | `activity` | ✓ | × | ✓ | ✓ | ✓ | ✓ |
+| `relative_time` | `resource` | `resource` | ✓ | × | △ | △ | ✓ | △ |
+| `relative_time` | `activity` | `case_id` | ✓ | × | ✓ | △ | ✓ | ✓ |
+| `relative_time` | `activity` | `activity` | ✓ | × | △ | △ | ✓ | △ |
+| `relative_time` | `activity` | `resource` | ✓ | × | ✓ | ✓ | ✓ | ✓ |
+| `relative_time` | `case_id` | `case_id` | ✓ | × | △ | △ | ✓ | △ |
+| `relative_time` | `case_id` | `activity` | ✓ | × | △ | △ | ✓ | ✓ |
+| `relative_time` | `case_id` | `resource` | ✓ | × | △ | △ | ✓ | ✓ |
+| `relative_ratio` | `resource` | `case_id` | ✓ | × | × | △ | △ | ✓ |
+| `relative_ratio` | `resource` | `activity` | ✓ | × | × | × | × | ✓ |
+| `relative_ratio` | `resource` | `resource` | × | × | × | × | × | △ |
+| `relative_ratio` | `activity` | `case_id` | × | × | × | × | × | ✓ |
+| `relative_ratio` | `activity` | `activity` | × | × | × | × | × | △ |
+| `relative_ratio` | `activity` | `resource` | × | × | × | × | × | ✓ |
+| `relative_ratio` | `case_id` | `case_id` | × | × | × | × | × | △ |
+| `relative_ratio` | `case_id` | `activity` | × | × | × | × | × | ✓ |
+| `relative_ratio` | `case_id` | `resource` | × | × | × | × | × | ✓ |
+| `logical_time` | `resource` | `case_id` | × | × | × | △ | △ | ✓ |
+| `logical_time` | `resource` | `activity` | × | × | × | × | × | ✓ |
+| `logical_time` | `resource` | `resource` | × | × | × | × | × | △ |
+| `logical_time` | `activity` | `case_id` | × | × | × | × | × | ✓ |
+| `logical_time` | `activity` | `activity` | × | × | × | × | × | △ |
+| `logical_time` | `activity` | `resource` | × | × | × | × | × | ✓ |
+| `logical_time` | `case_id` | `case_id` | × | × | × | × | × | △ |
+| `logical_time` | `case_id` | `activity` | × | × | × | × | × | ✓ |
+| `logical_time` | `case_id` | `resource` | × | × | × | × | × | ✓ |
+| `logical_relative` | `resource` | `case_id` | × | × | × | × | × | ✓ |
+| `logical_relative` | `resource` | `activity` | × | × | × | × | × | ✓ |
+| `logical_relative` | `resource` | `resource` | × | × | × | × | × | △ |
+| `logical_relative` | `activity` | `case_id` | × | × | × | × | × | ✓ |
+| `logical_relative` | `activity` | `activity` | × | × | × | × | × | △ |
+| `logical_relative` | `activity` | `resource` | × | × | × | × | × | ✓ |
+| `logical_relative` | `case_id` | `case_id` | × | × | × | × | × | △ |
+| `logical_relative` | `case_id` | `activity` | × | × | × | × | × | ✓ |
+| `logical_relative` | `case_id` | `resource` | × | × | × | × | × | ✓ |
+
+Table 1 of the SoftwareX paper reports a representative subset of this matrix.
 
 ## Benefits of Tuple-based Structure
 
@@ -229,11 +277,7 @@ As of now, the matrix defines **11 view combinations**:
 
 ### To Complete:
 
-1. **Add remaining view combinations** (~89 combinations)
-   - Focus on meaningful combinations first
-   - Mark non-meaningful combinations with `can_be_found: False`
-
-2. **Consider 4th dimension**
+1. **Consider 4th dimension**
    - Size (e.g., case duration, event count)
    - Shape (e.g., event type, lifecycle transition)
 

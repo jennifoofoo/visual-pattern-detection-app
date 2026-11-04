@@ -208,7 +208,7 @@ def plot_chart_button(x_axis, y_axis, dots_config_label):
             hover_data=hover_cols,
             custom_data=['_point_id']
         )
-        fig.update_traces(marker=dict(size=5, opacity=0.8))
+        fig.update_traces(marker=dict(size=7, opacity=0.8))
         fig.update_layout(
             showlegend=(
                 dots_config_col is not None and dots_config_col != 'case_id'),
@@ -326,7 +326,7 @@ def display_chart():
         custom_data=['_point_id'],
         focus_mode_indices=focus_indices
     )
-    fig.update_traces(marker=dict(size=5, opacity=0.8))
+    fig.update_traces(marker=dict(size=7, opacity=0.8))
     fig.update_layout(
         height=600,
         showlegend=(
@@ -377,8 +377,10 @@ def display_chart():
         st.session_state.get('pattern_focus_mode', False),
     )
     chart_key = f"main_chart_{hash(visibility_state)}"
+    # Camera button exports a high-resolution image (e.g. for paper figures)
     selection = st.plotly_chart(
-        fig, width='stretch', on_select="rerun", key=chart_key)
+        fig, width='stretch', on_select="rerun", key=chart_key,
+        config={'toImageButtonOptions': {'format': 'png', 'scale': 4}})
     st.session_state['fig'] = fig
 
     # Store selection data for sidebar controls

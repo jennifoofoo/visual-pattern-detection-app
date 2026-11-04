@@ -18,6 +18,11 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
+def _is_categorical(s: pd.Series) -> bool:
+    """True for text columns, both object and pandas>=3 'str' dtype."""
+    return pd.api.types.is_object_dtype(s) or pd.api.types.is_string_dtype(s)
+
+
 class ClusterPattern(Pattern):
     """
     Simple cluster detection for dotted charts.
@@ -473,7 +478,7 @@ class ClusterPattern(Pattern):
         feature_columns = []
 
         # X axis
-        if df[x_col].dtype == 'object':
+        if _is_categorical(df[x_col]):
             le_x = LabelEncoder()
             x_encoded = le_x.fit_transform(df[x_col].astype(str))
             all_features.append(x_encoded.reshape(-1, 1))
@@ -484,7 +489,7 @@ class ClusterPattern(Pattern):
             feature_columns.append(x_col)
 
         # Y axis
-        if df[y_col].dtype == 'object':
+        if _is_categorical(df[y_col]):
             le_y = LabelEncoder()
             y_encoded = le_y.fit_transform(df[y_col].astype(str))
             all_features.append(y_encoded.reshape(-1, 1))
@@ -620,7 +625,7 @@ class ClusterPattern(Pattern):
                         padding_factor if time_range.total_seconds() > 0 else pd.Timedelta(hours=1)
                     x_min_padded = pd.to_datetime(x_min) - padding
                     x_max_padded = pd.to_datetime(x_max) + padding
-                elif pd.api.types.is_object_dtype(cluster_data[x_col]):
+                elif _is_categorical(cluster_data[x_col]):
                     # For categorical x-axis, use category names
                     all_x_categories = df[x_col].unique().tolist()
                     cluster_x_categories = cluster_data[x_col].unique(
@@ -644,7 +649,7 @@ class ClusterPattern(Pattern):
                     x_max_padded = x_max + padding
 
                 # For y-axis: handle categorical properly
-                if pd.api.types.is_object_dtype(cluster_data[y_col]):
+                if _is_categorical(cluster_data[y_col]):
                     # For categorical y-axis, use category names
                     all_y_categories = df[y_col].unique().tolist()
                     cluster_y_categories = cluster_data[y_col].unique(
@@ -683,7 +688,7 @@ class ClusterPattern(Pattern):
                         cluster_data[x_col].min()) - padding
                     x_max_padded = pd.to_datetime(
                         cluster_data[x_col].max()) + padding
-                elif pd.api.types.is_object_dtype(cluster_data[x_col]):
+                elif _is_categorical(cluster_data[x_col]):
                     # For categorical x-axis (e.g., activity), get all categories and their indices
                     all_x_categories = df[x_col].unique().tolist()
                     cluster_x_categories = cluster_data[x_col].unique(
@@ -712,7 +717,7 @@ class ClusterPattern(Pattern):
                     x_max_padded = cluster_data[x_col].max() + padding
 
                 # For y-axis: get actual categorical values
-                if pd.api.types.is_object_dtype(cluster_data[y_col]):
+                if _is_categorical(cluster_data[y_col]):
                     # For categorical y-axis, get all categories and their indices
                     all_y_categories = df[y_col].unique().tolist()
                     cluster_y_categories = cluster_data[y_col].unique(
@@ -747,7 +752,7 @@ class ClusterPattern(Pattern):
             y1_final = y_max_padded
 
             # Handle categorical X-axis
-            if pd.api.types.is_object_dtype(df[x_col]):
+            if _is_categorical(df[x_col]):
                 if hasattr(fig.layout.xaxis, 'categoryarray') and fig.layout.xaxis.categoryarray is not None:
                     x_categories = list(fig.layout.xaxis.categoryarray)
                 else:
@@ -759,7 +764,7 @@ class ClusterPattern(Pattern):
                     x1_final = x_categories.index(x_max_padded) + 0.4
 
             # Handle categorical Y-axis
-            if pd.api.types.is_object_dtype(df[y_col]):
+            if _is_categorical(df[y_col]):
                 if hasattr(fig.layout.yaxis, 'categoryarray') and fig.layout.yaxis.categoryarray is not None:
                     y_categories = list(fig.layout.yaxis.categoryarray)
                 else:
@@ -770,14 +775,23 @@ class ClusterPattern(Pattern):
                 if y_max_padded in y_categories:
                     y1_final = y_categories.index(y_max_padded) + 0.4
 
+            # Translucent fill below the points, opaque border above them
             fig.add_shape(
                 type="rect",
                 x0=x0_final, x1=x1_final,
                 y0=y0_final, y1=y1_final,
-                line=dict(color=color, width=3),
+                line=dict(width=0),
                 fillcolor=color,
-                opacity=0.15,
+                opacity=0.2,
                 layer="below"
+            )
+            fig.add_shape(
+                type="rect",
+                x0=x0_final, x1=x1_final,
+                y0=y0_final, y1=y1_final,
+                line=dict(color=color, width=4, dash="dash"),
+                fillcolor="rgba(0,0,0,0)",
+                layer="above"
             )
 
             # Build detailed hover info for the cluster

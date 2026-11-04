@@ -175,11 +175,15 @@ class HorizontalSequencePatternDetector(Pattern):
     def _extract_subsequences(self, sequence_data: List[List[Any]]) -> List[Tuple[int, List[Any]]]:
         """Extract frequent subsequences using PrefixSpan with length and count limits."""
         ps = PrefixSpan(sequence_data)
-        
-        # Use generator=True for lazy evaluation - much faster for large result sets
+        # Bound pattern length inside the search to keep mining tractable.
+        # Note: frequent(generator=True) would return only *generator patterns*
+        # (minimal patterns), not a lazy iterator, so it must not be used here.
+        ps.minlen = 2
+        ps.maxlen = self.max_len
+
         results = []
         count = 0
-        for support, pattern in ps.frequent(self.min_support, generator=True):
+        for support, pattern in ps.frequent(self.min_support):
             if len(pattern) < 2:
                 continue
             if len(pattern) > self.max_len:
@@ -561,12 +565,17 @@ class HorizontalSequencePatternDetector(Pattern):
             return fig
             
         color_map = self._build_color_map(filtered_df['pattern_str'].unique())
-        
+
+        legend_shown = set()
         for instance_id in filtered_df['pattern_instance_id'].unique():
             instance_data = filtered_df[filtered_df['pattern_instance_id'] == instance_id]
             instance_data = instance_data.sort_values(by=self.sequence_detection_axis)
-            self._add_sequence_trace(fig, instance_data, color_map)
-            
+            pattern_str = instance_data['pattern_str'].iloc[0]
+            # One legend entry per pattern template (not per instance)
+            self._add_sequence_trace(fig, instance_data, color_map,
+                                     show_legend=pattern_str not in legend_shown)
+            legend_shown.add(pattern_str)
+
         return fig
     
     def _get_selected_pattern_data(
@@ -577,9 +586,12 @@ class HorizontalSequencePatternDetector(Pattern):
         if not self.detected or self.results.empty:
             return None
             
-        if not selected_seq_patterns:
+        # None = selection never made (Sequence tab not opened): show all patterns,
+        # consistent with the tab's default of all checkboxes checked.
+        # Empty list = user deselected everything.
+        if selected_seq_patterns is not None and len(selected_seq_patterns) == 0:
             return None
-            
+
         df = self.results[self.results['is_part_of_pattern'] == True].copy()
         if df.empty:
             return None
@@ -593,25 +605,32 @@ class HorizontalSequencePatternDetector(Pattern):
             lambda p: " -> ".join(_format_pattern_element(e) for e in p) if isinstance(p, list) else None
         )
         
+        if selected_seq_patterns is None:
+            return df
         filtered = df[df['pattern_str'].isin(selected_seq_patterns)]
         return filtered if not filtered.empty else None
-    
+
     def _build_color_map(self, pattern_templates: List[str]) -> Dict[str, str]:
-        """Build color mapping for pattern templates."""
+        """Build a deterministic color mapping for pattern templates.
+
+        Uses dark tones distinct from Plotly's default qualitative palette
+        (used for the dots), so connecting lines don't blend into the events.
+        """
         colors = [
-            '#636EFA', '#EF553B', '#00CC96', '#AB63FA', '#FFA15A',
-            '#19D3F3', '#FF6692', '#B6E880', '#FF97FF', '#FECB52'
+            '#1B1B1B', '#B2182B', '#08519C', '#006D2C', '#7A0177',
+            '#8C510A', '#01665E', '#54278F', '#A50F15', '#253494'
         ]
         return {
-            template: colors[hash(template) % len(colors)]
-            for template in pattern_templates
+            template: colors[i % len(colors)]
+            for i, template in enumerate(sorted(pattern_templates))
         }
     
     def _add_sequence_trace(
         self,
         fig: go.Figure,
         instance_data: pd.DataFrame,
-        color_map: Dict[str, str]
+        color_map: Dict[str, str],
+        show_legend: bool = False
     ) -> None:
         """Add a single sequence instance trace to the figure."""
         pattern_str = instance_data['pattern_str'].iloc[0]
@@ -630,11 +649,12 @@ class HorizontalSequencePatternDetector(Pattern):
                 x=instance_data[self.sequence_detection_axis],
                 y=instance_data[self.grouping_key],
                 mode='lines+markers',
-                line=dict(color=color_map[pattern_str], width=2),
-                marker=dict(size=8, color=color_map[pattern_str]),
-                name=f"Instance {int(instance_id)}",
+                line=dict(color=color_map[pattern_str], width=4),
+                marker=dict(size=11, color=color_map[pattern_str],
+                            line=dict(width=1.5, color='white')),
+                name=f"Sequence: {pattern_str}",
                 legendgroup=pattern_str,
-                showlegend=False,
+                showlegend=show_legend,
                 hovertemplate=hover_text + "<extra></extra>"
             )
         )
